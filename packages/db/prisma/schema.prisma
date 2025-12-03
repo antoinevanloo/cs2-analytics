@@ -1,0 +1,638 @@
+// CS2 Analytics - Prisma Schema
+// PostgreSQL database schema for demo analysis platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER & AUTH
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatar        String?
+  steamId       String?   @unique
+  faceitId      String?   @unique
+  eseaId        String?   @unique
+
+  // Subscription
+  plan          Plan      @default(FREE)
+  planExpiresAt DateTime?
+
+  // Relations
+  teams         TeamMember[]
+  demos         Demo[]
+  analyses      Analysis[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([steamId])
+  @@index([email])
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+  ENTERPRISE
+}
+
+// ============================================================================
+// TEAMS
+// ============================================================================
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  tag         String?
+  logo        String?
+
+  // Relations
+  members     TeamMember[]
+  demos       Demo[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  role      TeamRole @default(PLAYER)
+
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, teamId])
+}
+
+enum TeamRole {
+  OWNER
+  COACH
+  ANALYST
+  PLAYER
+}
+
+// ============================================================================
+// PLAYERS (CS2 Players from demos)
+// ============================================================================
+
+model Player {
+  id          String   @id @default(cuid())
+  steamId     String   @unique
+  name        String
+  avatar      String?
+
+  // External IDs
+  faceitId    String?
+  faceitElo   Int?
+  faceitLevel Int?
+  eseaId      String?
+  eseaRws     Float?
+
+  // Aggregated stats (updated after each demo)
+  totalMatches    Int      @default(0)
+  totalRounds     Int      @default(0)
+  totalKills      Int      @default(0)
+  totalDeaths     Int      @default(0)
+  totalAssists    Int      @default(0)
+  totalDamage     Int      @default(0)
+  totalHsKills    Int      @default(0)
+  totalMvps       Int      @default(0)
+
+  // Relations
+  matchStats  MatchPlayerStats[]
+  roundStats  RoundPlayerStats[]
+  kills       Kill[]             @relation("Attacker")
+  deaths      Kill[]             @relation("Victim")
+  assists     Kill[]             @relation("Assister")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([steamId])
+  @@index([faceitId])
+}
+
+// ============================================================================
+// DEMOS
+// ============================================================================
+
+model Demo {
+  id              String      @id @default(cuid())
+
+  // File info
+  filename        String
+  fileSize        Int
+  fileHash        String      @unique
+  storagePath     String
+  storageType     StorageType @default(LOCAL)
+
+  // Match info
+  mapName         String
+  gameMode        GameMode    @default(COMPETITIVE)
+  matchId         String?     // External match ID (Faceit, etc.)
+  serverName      String?
+
+  // Timing
+  tickRate        Int         @default(64)
+  totalTicks      Int
+  durationSeconds Float
+  playedAt        DateTime?
+
+  // Scores
+  team1Name       String      @default("Team 1")
+  team2Name       String      @default("Team 2")
+  team1Score      Int         @default(0)
+  team2Score      Int         @default(0)
+
+  // Processing status
+  status          DemoStatus  @default(PENDING)
+  parsedAt        DateTime?
+  parseError      String?
+  parsedDataPath  String?
+
+  // Relations
+  uploadedById    String?
+  uploadedBy      User?       @relation(fields: [uploadedById], references: [id])
+  teamId          String?
+  team            Team?       @relation(fields: [teamId], references: [id])
+
+  rounds          Round[]
+  playerStats     MatchPlayerStats[]
+  kills           Kill[]
+  grenades        Grenade[]
+  events          GameEvent[]
+  chatMessages    ChatMessage[]
+  analyses        Analysis[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([fileHash])
+  @@index([mapName])
+  @@index([status])
+  @@index([playedAt])
+}
+
+enum StorageType {
+  LOCAL
+  S3
+  GCS
+}
+
+enum GameMode {
+  COMPETITIVE
+  PREMIER
+  WINGMAN
+  CASUAL
+  DEATHMATCH
+  CUSTOM
+  UNKNOWN
+}
+
+enum DemoStatus {
+  PENDING
+  UPLOADING
+  PARSING
+  PARSED
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
+// ============================================================================
+// ROUNDS
+// ============================================================================
+
+model Round {
+  id              String    @id @default(cuid())
+  roundNumber     Int
+
+  // Ticks
+  startTick       Int
+  freezeEndTick   Int?
+  endTick         Int
+
+  // Outcome
+  winnerTeam      Int       // 2=T, 3=CT
+  winReason       String
+  winReasonCode   Int
+
+  // Scores
+  ctScore         Int
+  tScore          Int
+
+  // Economy
+  ctEquipValue    Int       @default(0)
+  tEquipValue     Int       @default(0)
+  ctMoneySpent    Int       @default(0)
+  tMoneySpent     Int       @default(0)
+  roundType       RoundType @default(UNKNOWN)
+
+  // Bomb
+  bombPlanted     Boolean   @default(false)
+  bombPlantTick   Int?
+  bombSite        String?
+  bombDefused     Boolean   @default(false)
+  bombExploded    Boolean   @default(false)
+
+  // MVP
+  mvpSteamId      String?
+  mvpReason       Int?
+
+  // Relations
+  demoId          String
+  demo            Demo      @relation(fields: [demoId], references: [id], onDelete: Cascade)
+
+  playerStats     RoundPlayerStats[]
+  kills           Kill[]
+  grenades        Grenade[]
+
+  @@unique([demoId, roundNumber])
+  @@index([demoId])
+}
+
+enum RoundType {
+  PISTOL
+  ECO
+  FORCE_BUY
+  FULL_BUY
+  UNKNOWN
+}
+
+// ============================================================================
+// PLAYER STATS
+// ============================================================================
+
+model MatchPlayerStats {
+  id              String   @id @default(cuid())
+
+  // Player info at match time
+  steamId         String
+  playerName      String
+  teamNum         Int
+  teamName        String?
+
+  // Combat stats
+  kills           Int      @default(0)
+  deaths          Int      @default(0)
+  assists         Int      @default(0)
+  headshotKills   Int      @default(0)
+  damage          Int      @default(0)
+
+  // Computed
+  kd              Float    @default(0)
+  adr             Float    @default(0)
+  hsp             Float    @default(0)
+  rating          Float?
+
+  // Economy
+  totalCashSpent  Int      @default(0)
+  avgEquipValue   Float    @default(0)
+
+  // Advanced
+  mvps            Int      @default(0)
+  score           Int      @default(0)
+  firstKills      Int      @default(0)
+  firstDeaths     Int      @default(0)
+  clutchesWon     Int      @default(0)
+  clutchesPlayed  Int      @default(0)
+
+  // Utility
+  enemiesFlashed  Int      @default(0)
+  flashAssists    Int      @default(0)
+  utilityDamage   Int      @default(0)
+
+  // Relations
+  demoId          String
+  demo            Demo     @relation(fields: [demoId], references: [id], onDelete: Cascade)
+  playerId        String?
+  player          Player?  @relation(fields: [playerId], references: [id])
+
+  @@unique([demoId, steamId])
+  @@index([demoId])
+  @@index([playerId])
+  @@index([steamId])
+}
+
+model RoundPlayerStats {
+  id              String   @id @default(cuid())
+
+  steamId         String
+  teamNum         Int
+
+  // Combat
+  kills           Int      @default(0)
+  deaths          Int      @default(0)
+  assists         Int      @default(0)
+  damage          Int      @default(0)
+
+  // Economy
+  equipValue      Int      @default(0)
+  moneySpent      Int      @default(0)
+  startBalance    Int      @default(0)
+
+  // State
+  survived        Boolean  @default(false)
+  firstKill       Boolean  @default(false)
+  firstDeath      Boolean  @default(false)
+
+  // Clutch
+  clutchVs        Int?     // 1-5 if in clutch situation
+  clutchWon       Boolean?
+
+  // Relations
+  roundId         String
+  round           Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  playerId        String?
+  player          Player?  @relation(fields: [playerId], references: [id])
+
+  @@unique([roundId, steamId])
+  @@index([roundId])
+  @@index([playerId])
+}
+
+// ============================================================================
+// KILLS
+// ============================================================================
+
+model Kill {
+  id              String   @id @default(cuid())
+  tick            Int
+
+  // Attacker
+  attackerSteamId String?
+  attackerName    String?
+  attackerTeam    Int?
+  attackerX       Float?
+  attackerY       Float?
+  attackerZ       Float?
+
+  // Victim
+  victimSteamId   String
+  victimName      String
+  victimTeam      Int
+  victimX         Float
+  victimY         Float
+  victimZ         Float
+
+  // Assister
+  assisterSteamId String?
+  assisterName    String?
+
+  // Kill details
+  weapon          String
+  headshot        Boolean  @default(false)
+  penetrated      Int      @default(0)
+  noscope         Boolean  @default(false)
+  thrusmoke       Boolean  @default(false)
+  attackerblind   Boolean  @default(false)
+  assistedflash   Boolean  @default(false)
+
+  // Computed
+  distance        Float?
+  isSuicide       Boolean  @default(false)
+  isTeamkill      Boolean  @default(false)
+  isFirstKill     Boolean  @default(false)
+  isTradeKill     Boolean  @default(false)
+  tradedWithin    Int?     // Ticks since previous kill if trade
+
+  // Relations
+  demoId          String
+  demo            Demo     @relation(fields: [demoId], references: [id], onDelete: Cascade)
+  roundId         String
+  round           Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  attackerId      String?
+  attacker        Player?  @relation("Attacker", fields: [attackerId], references: [id])
+  victimId        String?
+  victim          Player?  @relation("Victim", fields: [victimId], references: [id])
+  assisterId      String?
+  assister        Player?  @relation("Assister", fields: [assisterId], references: [id])
+
+  @@index([demoId])
+  @@index([roundId])
+  @@index([attackerSteamId])
+  @@index([victimSteamId])
+}
+
+// ============================================================================
+// GRENADES
+// ============================================================================
+
+model Grenade {
+  id              String       @id @default(cuid())
+  type            GrenadeType
+  tick            Int
+
+  // Position
+  x               Float
+  y               Float
+  z               Float
+
+  // Thrower
+  throwerSteamId  String
+  throwerName     String
+  throwerTeam     Int
+
+  // Effectiveness (flash)
+  enemiesBlinded  Int          @default(0)
+  teammatesBlinded Int         @default(0)
+  totalBlindDuration Float     @default(0)
+
+  // Effectiveness (HE/molotov)
+  damageDealt     Int          @default(0)
+  enemiesDamaged  Int          @default(0)
+
+  // Relations
+  demoId          String
+  demo            Demo         @relation(fields: [demoId], references: [id], onDelete: Cascade)
+  roundId         String
+  round           Round        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([demoId])
+  @@index([roundId])
+  @@index([type])
+  @@index([throwerSteamId])
+}
+
+enum GrenadeType {
+  SMOKE
+  FLASHBANG
+  HEGRENADE
+  MOLOTOV
+  INCENDIARY
+  DECOY
+}
+
+// ============================================================================
+// EVENTS (Raw game events)
+// ============================================================================
+
+model GameEvent {
+  id              String   @id @default(cuid())
+  eventName       String
+  tick            Int
+  roundNumber     Int?
+
+  // Event data stored as JSON (varies by event type)
+  data            Json
+
+  // Relations
+  demoId          String
+  demo            Demo     @relation(fields: [demoId], references: [id], onDelete: Cascade)
+
+  @@index([demoId])
+  @@index([eventName])
+  @@index([tick])
+  @@index([roundNumber])
+}
+
+// ============================================================================
+// CHAT MESSAGES
+// ============================================================================
+
+model ChatMessage {
+  id              String   @id @default(cuid())
+  tick            Int
+
+  steamId         String
+  playerName      String
+  message         String
+  isAllChat       Boolean  @default(true)
+
+  // Relations
+  demoId          String
+  demo            Demo     @relation(fields: [demoId], references: [id], onDelete: Cascade)
+
+  @@index([demoId])
+  @@index([steamId])
+}
+
+// ============================================================================
+// ANALYSIS
+// ============================================================================
+
+model Analysis {
+  id              String         @id @default(cuid())
+  type            AnalysisType
+  status          AnalysisStatus @default(PENDING)
+
+  // Results stored as JSON
+  results         Json?
+
+  // Timing
+  startedAt       DateTime?
+  completedAt     DateTime?
+  error           String?
+
+  // Relations
+  demoId          String
+  demo            Demo           @relation(fields: [demoId], references: [id], onDelete: Cascade)
+  requestedById   String?
+  requestedBy     User?          @relation(fields: [requestedById], references: [id])
+
+  createdAt       DateTime       @default(now())
+
+  @@index([demoId])
+  @@index([type])
+  @@index([status])
+}
+
+enum AnalysisType {
+  BASIC           // Basic stats extraction
+  ADVANCED        // Advanced metrics (ADR, rating, etc.)
+  HEATMAPS        // Position heatmaps
+  ECONOMY         // Economy analysis
+  UTILITY         // Utility usage analysis
+  OPENINGS        // Opening duels analysis
+  CLUTCHES        // Clutch analysis
+  TRADES          // Trade analysis
+  POSITIONING     // Team positioning
+  COACHING        // AI coaching insights
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ============================================================================
+// EXTERNAL INTEGRATIONS
+// ============================================================================
+
+model SteamProfile {
+  id              String   @id @default(cuid())
+  steamId         String   @unique
+
+  personaName     String
+  profileUrl      String?
+  avatar          String?
+  avatarMedium    String?
+  avatarFull      String?
+
+  // CS2 stats from Steam API
+  totalPlaytime   Int?     // Minutes
+  recentPlaytime  Int?     // Minutes in last 2 weeks
+
+  lastFetched     DateTime @default(now())
+
+  @@index([steamId])
+}
+
+model FaceitProfile {
+  id              String   @id @default(cuid())
+  faceitId        String   @unique
+
+  nickname        String
+  avatar          String?
+  country         String?
+
+  // CS2 specific
+  skillLevel      Int?
+  elo             Int?
+
+  // Stats
+  matches         Int      @default(0)
+  wins            Int      @default(0)
+  winRate         Float?
+  avgKd           Float?
+  avgHsPercent    Float?
+
+  lastFetched     DateTime @default(now())
+
+  @@index([faceitId])
+  @@index([nickname])
+}
+
+model EseaProfile {
+  id              String   @id @default(cuid())
+  eseaId          String   @unique
+
+  username        String
+  avatar          String?
+
+  // Stats
+  rws             Float?
+  adr             Float?
+
+  lastFetched     DateTime @default(now())
+
+  @@index([eseaId])
+}

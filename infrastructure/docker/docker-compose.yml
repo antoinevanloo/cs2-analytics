@@ -1,0 +1,202 @@
+# CS2 Analytics - Docker Compose Configuration
+# Development and local testing setup
+
+version: "3.9"
+
+services:
+  # ==========================================================================
+  # Parser Service (Python)
+  # ==========================================================================
+  parser:
+    build:
+      context: ../../apps/parser
+      dockerfile: Dockerfile
+      target: development
+    container_name: cs2-parser
+    ports:
+      - "8001:8001"
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - REDIS_URL=redis://redis:6379
+      - STORAGE_TYPE=local
+      - LOCAL_DEMO_PATH=/app/demos
+      # Parser workers - increase for production (each worker handles one demo at a time)
+      - WORKERS=2
+    volumes:
+      - ../../apps/parser/src:/app/src:ro
+      - parser-demos:/app/demos
+      - parser-output:/app/output
+    depends_on:
+      - redis
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Resource limits for stability
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+
+  # ==========================================================================
+  # API Service (NestJS) - Placeholder
+  # ==========================================================================
+  api:
+    build:
+      context: ../..
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    container_name: cs2-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cs2analytics
+      - REDIS_URL=redis://redis:6379
+      - PARSER_URL=http://parser:8001
+      # Demo storage path (shared with parser via volume)
+      - DEMO_STORAGE_PATH=/tmp/demos
+    volumes:
+      # Share demo files between API and parser
+      - demo-files:/tmp/demos
+    depends_on:
+      - postgres
+      - redis
+      - parser
+    networks:
+      - cs2-network
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ==========================================================================
+  # Web Frontend (Next.js) - Placeholder
+  # ==========================================================================
+  web:
+    build:
+      context: ../..
+      dockerfile: ./apps/web/Dockerfile
+      target: development
+    container_name: cs2-web
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+    depends_on:
+      - api
+    networks:
+      - cs2-network
+
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: cs2-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=cs2analytics
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # Redis (Cache & Queue)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: cs2-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # ClickHouse (Analytics Database) - Optional
+  # ==========================================================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: cs2-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=clickhouse
+      - CLICKHOUSE_DB=cs2analytics
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./init-scripts/clickhouse:/docker-entrypoint-initdb.d
+    networks:
+      - cs2-network
+    profiles:
+      - analytics
+
+  # ==========================================================================
+  # MinIO (S3-compatible storage) - Optional
+  # ==========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: cs2-minio
+    ports:
+      - "9001:9000"
+      - "9002:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - cs2-network
+    profiles:
+      - storage
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  cs2-network:
+    driver: bridge
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  postgres-data:
+  redis-data:
+  clickhouse-data:
+  minio-data:
+  parser-demos:
+  parser-output:
+  demo-files:

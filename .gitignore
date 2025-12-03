@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.eggs/
+*.egg-info/
+*.egg
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.js.map
+*.d.ts
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+.pytest_cache/
+htmlcov/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Turbo
+.turbo/
+
+# Database
+*.db
+*.sqlite
+
+# Demo files (large binary files)
+*.dem
+demos/
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Temporary files
+tmp/
+temp/
+*.tmp

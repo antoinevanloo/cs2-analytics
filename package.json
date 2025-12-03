@@ -1,0 +1,32 @@
+{
+  "name": "cs2-analytics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SaaS d'analyse de démos CS2 pour coaching esports",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:generate": "pnpm --filter @cs2-analytics/db generate",
+    "db:push": "pnpm --filter @cs2-analytics/db push",
+    "db:migrate": "pnpm --filter @cs2-analytics/db migrate",
+    "parser:dev": "pnpm --filter @cs2-analytics/parser dev",
+    "api:dev": "pnpm --filter @cs2-analytics/api dev",
+    "web:dev": "pnpm --filter @cs2-analytics/web dev"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "prettier": "^3.2.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0"
+  }
+}

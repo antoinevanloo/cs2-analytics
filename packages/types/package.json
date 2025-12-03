@@ -1,0 +1,42 @@
+{
+  "name": "@cs2-analytics/types",
+  "version": "0.1.0",
+  "description": "Shared types and Zod schemas for CS2 Analytics",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./events": {
+      "types": "./dist/events.d.ts",
+      "import": "./dist/events.js"
+    },
+    "./players": {
+      "types": "./dist/players.d.ts",
+      "import": "./dist/players.js"
+    },
+    "./rounds": {
+      "types": "./dist/rounds.d.ts",
+      "import": "./dist/rounds.js"
+    },
+    "./demo": {
+      "types": "./dist/demo.d.ts",
+      "import": "./dist/demo.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,115 @@
+# CS2 Analytics - Production Docker Compose Configuration
+# Optimized for production deployment
+
+version: "3.9"
+
+services:
+  # ==========================================================================
+  # Parser Service (Python)
+  # ==========================================================================
+  parser:
+    build:
+      context: ../../apps/parser
+      dockerfile: Dockerfile
+      target: production
+    container_name: cs2-parser
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - REDIS_URL=redis://redis:6379
+      - STORAGE_TYPE=s3
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_REGION=${S3_REGION}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - WORKERS=4
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - cs2-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+        reservations:
+          cpus: "1"
+          memory: 2G
+
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: cs2-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=cs2analytics
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - cs2-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+
+  # ==========================================================================
+  # Redis (Cache & Queue)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: cs2-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  # ==========================================================================
+  # ClickHouse (Analytics Database)
+  # ==========================================================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: cs2-clickhouse
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DB=cs2analytics
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    networks:
+      - cs2-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+
+networks:
+  cs2-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  clickhouse-data:
