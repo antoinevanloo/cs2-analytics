@@ -8,7 +8,7 @@
  * - Swagger documentation
  */
 
-import { NestFactory } from "@nestjs/core";
+import { NestFactory, Reflector } from "@nestjs/core";
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -18,6 +18,10 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { ConfigService } from "@nestjs/config";
 import multipart from "@fastify/multipart";
+import cookie from "@fastify/cookie";
+
+import { GlobalExceptionFilter } from "./common/filters";
+import { JwtAuthGuard, RolesGuard } from "./common/guards";
 
 const logger = new Logger("Bootstrap");
 
@@ -34,6 +38,12 @@ async function bootstrap() {
     limits: {
       fileSize: 500 * 1024 * 1024, // 500MB max file size for demo files
     },
+  });
+
+  // Register cookie support for auth
+  const cookieSecret = configService.get<string>("COOKIE_SECRET", "cs2-analytics-cookie-secret-change-in-prod");
+  await app.register(cookie, {
+    secret: cookieSecret,
   });
 
   // Enable CORS
@@ -60,12 +70,23 @@ async function bootstrap() {
     })
   );
 
+  // Global exception filter for standardized error responses
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // Global authentication guards
+  const reflector = app.get(Reflector);
+  app.useGlobalGuards(
+    new JwtAuthGuard(reflector),
+    new RolesGuard(reflector)
+  );
+
   // Swagger documentation
   const swaggerConfig = new DocumentBuilder()
     .setTitle("CS2 Analytics API")
     .setDescription("API for CS2 demo analysis and coaching insights")
     .setVersion("1.0")
     .addBearerAuth()
+    .addTag("Authentication", "Steam OAuth and token management")
     .addTag("demos", "Demo file management and parsing")
     .addTag("players", "Player statistics and profiles")
     .addTag("rounds", "Round analysis and data")
