@@ -43,6 +43,7 @@ import { Public } from "../../common/decorators/public.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "./strategies/jwt.strategy";
 import type { SteamProfile } from "./strategies/steam.strategy";
+import type { FaceitProfile } from "./strategies/faceit.strategy";
 
 // Extend FastifyRequest to include cookies
 type FastifyRequestWithCookies = FastifyRequest & {
@@ -151,6 +152,67 @@ export class AuthController {
   }
 
   /**
+   * Redirect to FACEIT login page
+   */
+  @Get("faceit")
+  @Public()
+  @UseGuards(AuthGuard("faceit"))
+  @ApiOperation({ summary: "Initiate FACEIT OAuth login" })
+  @ApiResponse({ status: 302, description: "Redirect to FACEIT login" })
+  faceitLogin(): void {
+    // Passport handles the redirect automatically
+  }
+
+  /**
+   * Handle FACEIT callback after authentication
+   */
+  @Get("faceit/callback")
+  @Public()
+  @UseGuards(AuthGuard("faceit"))
+  @ApiOperation({ summary: "FACEIT OAuth callback" })
+  @ApiResponse({ status: 302, description: "Redirect to frontend with tokens" })
+  async faceitCallback(
+    @Req() req: FastifyRequestWithCookies & { user?: FaceitProfile },
+    @Res() reply: FastifyReplyWithCookies,
+  ): Promise<void> {
+    const faceitProfile = req.user;
+
+    if (!faceitProfile) {
+      this.logger.error("FACEIT callback: No user profile received");
+      return reply.redirect(`${this.frontendUrl}/auth/error?reason=no_profile`);
+    }
+
+    try {
+      // Generate tokens
+      const tokens =
+        await this.authService.generateTokensForFaceitUser(faceitProfile);
+
+      // Set HttpOnly cookie for refresh token (more secure)
+      reply.setCookie("refresh_token", tokens.refreshToken, {
+        httpOnly: true,
+        secure: this.configService.get("NODE_ENV") === "production",
+        sameSite: "lax",
+        path: "/v1/auth",
+        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+      });
+
+      // Redirect to frontend with access token
+      // Include provider info for the frontend to know how user authenticated
+      const redirectUrl = `${this.frontendUrl}/auth/callback#access_token=${tokens.accessToken}&expires_in=${tokens.expiresIn}&provider=faceit`;
+
+      this.logger.log(
+        `FACEIT login successful for: ${faceitProfile.nickname} (${faceitProfile.faceitId})`,
+      );
+      return reply.redirect(redirectUrl);
+    } catch (error) {
+      this.logger.error(`FACEIT callback error: ${error}`);
+      return reply.redirect(
+        `${this.frontendUrl}/auth/error?reason=token_generation_failed`,
+      );
+    }
+  }
+
+  /**
    * Refresh access token using refresh token
    */
   @Post("refresh")
@@ -232,6 +294,7 @@ export class AuthController {
     email: string;
     name: string | null;
     steamId: string | null;
+    faceitId: string | null;
     roles: string[];
     avatar: string | null;
   }> {

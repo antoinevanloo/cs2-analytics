@@ -16,6 +16,7 @@ import { PrismaService } from "../../common/prisma";
 import { RedisService } from "../../common/redis/redis.service";
 import type { JwtPayload, AuthenticatedUser } from "./strategies/jwt.strategy";
 import type { SteamProfile } from "./strategies/steam.strategy";
+import type { FaceitProfile } from "./strategies/faceit.strategy";
 
 /**
  * Token pair returned after authentication
@@ -76,6 +77,45 @@ export class AuthService {
         steamId: true,
       },
     });
+
+    if (!user) {
+      throw new UnauthorizedException(
+        "User not found. Please try logging in again.",
+      );
+    }
+
+    return this.generateTokenPair(user);
+  }
+
+  /**
+   * Generate tokens for a FACEIT user
+   */
+  async generateTokensForFaceitUser(
+    faceitProfile: FaceitProfile,
+  ): Promise<TokenPair> {
+    // Find user by FACEIT ID first, then by Steam ID if linked
+    let user = await this.prisma.user.findFirst({
+      where: { faceitId: faceitProfile.faceitId },
+      select: {
+        id: true,
+        email: true,
+        plan: true,
+        steamId: true,
+      },
+    });
+
+    // Try finding by linked Steam ID
+    if (!user && faceitProfile.steamId64) {
+      user = await this.prisma.user.findFirst({
+        where: { steamId: faceitProfile.steamId64 },
+        select: {
+          id: true,
+          email: true,
+          plan: true,
+          steamId: true,
+        },
+      });
+    }
 
     if (!user) {
       throw new UnauthorizedException(
@@ -203,6 +243,7 @@ export class AuthService {
     email: string;
     name: string | null;
     steamId: string | null;
+    faceitId: string | null;
     roles: string[];
     avatar: string | null;
   }> {
@@ -213,6 +254,7 @@ export class AuthService {
         email: true,
         name: true,
         steamId: true,
+        faceitId: true,
         avatar: true,
         plan: true,
       },
@@ -227,6 +269,7 @@ export class AuthService {
       email: user.email,
       name: user.name,
       steamId: user.steamId,
+      faceitId: user.faceitId,
       roles: this.mapPlanToRoles(user.plan),
       avatar: user.avatar,
     };
