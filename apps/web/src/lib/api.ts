@@ -312,6 +312,156 @@ export const roundsApi = {
     fetchApi(`/v1/rounds/${demoId}/${roundNumber}/killfeed`),
 };
 
+// Rating types
+export interface RatingComponents {
+  kast: number;
+  kpr: number;
+  dpr: number;
+  impact: number;
+  adr: number;
+}
+
+export interface RatingContributions {
+  kastContribution: number;
+  kprContribution: number;
+  dprContribution: number;
+  impactContribution: number;
+  adrContribution: number;
+  constant: number;
+}
+
+export interface RatingBenchmarks {
+  averageForRank: number | null;
+  percentile: number | null;
+  label: string;
+}
+
+export interface HLTVRating {
+  rating: number;
+  components: RatingComponents;
+  contributions: RatingContributions;
+  benchmarks: RatingBenchmarks;
+}
+
+export interface PlayerRating {
+  steamId: string;
+  name: string;
+  team: number;
+  rating: HLTVRating;
+  ratingLabel: string;
+  summary: {
+    kast: number;
+    adr: number;
+    kd: number;
+    hsPercent: number;
+    impact: number;
+  };
+}
+
+export interface DemoRatingsResponse {
+  demoId: string;
+  players: PlayerRating[];
+  teamAverages: {
+    team1: { avgRating: number; label: string; playerCount: number };
+    team2: { avgRating: number; label: string; playerCount: number };
+  };
+  mvp: PlayerRating | null;
+}
+
+export interface RatingHistoryEntry {
+  demoId: string;
+  map: string;
+  playedAt: string | null;
+  score: string;
+  rating: number;
+  ratingLabel: string;
+  components: RatingComponents;
+  kd: number;
+  adr: number;
+}
+
+export interface RatingHistoryResponse {
+  steamId: string;
+  matchCount: number;
+  history: RatingHistoryEntry[];
+  statistics: {
+    avgRating: number;
+    minRating: number;
+    maxRating: number;
+    trend: number;
+    trendLabel: string;
+  };
+}
+
+export interface RatingSimulationResponse {
+  demoId: string;
+  steamId: string;
+  name: string;
+  original: {
+    rating: number;
+    label: string;
+    components: RatingComponents;
+  };
+  simulated: {
+    rating: number;
+    label: string;
+    components: RatingComponents;
+  };
+  change: number;
+  changePercent: number;
+  modifications: Partial<RatingComponents>;
+  insight: string;
+}
+
+export interface RatingImprovementsResponse {
+  demoId: string;
+  steamId: string;
+  name: string;
+  currentRating: number;
+  currentLabel: string;
+  targetRating: number;
+  targetLabel: string;
+  ratingGap: number;
+  alreadyAchieved: boolean;
+  improvements: Array<{
+    component: string;
+    currentValue: number;
+    targetValue: number;
+    improvementNeeded: number;
+    feasibility: "easy" | "moderate" | "hard";
+  }>;
+  recommendations: string[];
+}
+
+export interface DemoLeaderboardResponse {
+  demoId: string;
+  leaderboard: Array<{
+    rank: number;
+    steamId: string;
+    name: string;
+    team: number;
+    rating: number;
+    ratingLabel: string;
+    kast: number;
+    adr: number;
+    kd: number;
+    impact: number;
+    highlights: string[];
+  }>;
+  mvp: {
+    steamId: string;
+    name: string;
+    rating: number;
+    ratingLabel: string;
+  } | null;
+  highlights: {
+    highestKAST: { steamId: string; name: string; value: number } | null;
+    highestADR: { steamId: string; name: string; value: number } | null;
+    highestImpact: { steamId: string; name: string; value: number } | null;
+    bestClutcher: { steamId: string; name: string; value: number } | null;
+  };
+}
+
 // Analysis endpoints
 export const analysisApi = {
   getOverview: (demoId: string) =>
@@ -340,4 +490,63 @@ export const analysisApi = {
 
   getCoachingInsights: (demoId: string) =>
     fetchApi(`/v1/analysis/demo/${demoId}/coaching-insights`),
+};
+
+// Rating endpoints
+export const ratingsApi = {
+  // Get all player ratings for a demo
+  getDemoRatings: (demoId: string): Promise<DemoRatingsResponse> =>
+    fetchApi<DemoRatingsResponse>(`/v1/analysis/demo/${demoId}/ratings`),
+
+  // Get rating for a specific player in a demo
+  getPlayerRating: (demoId: string, steamId: string) =>
+    fetchApi(`/v1/analysis/demo/${demoId}/player/${steamId}/rating`),
+
+  // Get rating history for a player
+  getRatingHistory: (
+    steamId: string,
+    params?: { limit?: number; map?: string },
+  ): Promise<RatingHistoryResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.map) searchParams.set("map", params.map);
+
+    return fetchApi<RatingHistoryResponse>(
+      `/v1/analysis/player/${steamId}/rating/history?${searchParams}`,
+    );
+  },
+
+  // Simulate rating with modified stats
+  simulateRating: (
+    demoId: string,
+    steamId: string,
+    modifications: Partial<RatingComponents>,
+  ): Promise<RatingSimulationResponse> =>
+    fetchApi<RatingSimulationResponse>(
+      `/v1/analysis/demo/${demoId}/player/${steamId}/rating/simulate`,
+      {
+        method: "POST",
+        body: JSON.stringify(modifications),
+      },
+    ),
+
+  // Get improvement suggestions
+  getImprovements: (
+    demoId: string,
+    steamId: string,
+    targetRating?: number,
+  ): Promise<RatingImprovementsResponse> => {
+    const searchParams = new URLSearchParams();
+    if (targetRating) searchParams.set("target", targetRating.toString());
+
+    return fetchApi<RatingImprovementsResponse>(
+      `/v1/analysis/demo/${demoId}/player/${steamId}/rating/improvements?${searchParams}`,
+    );
+  },
+
+  // Get demo leaderboard
+  getLeaderboard: (demoId: string): Promise<DemoLeaderboardResponse> =>
+    fetchApi<DemoLeaderboardResponse>(
+      `/v1/analysis/demo/${demoId}/ratings/leaderboard`,
+    ),
 };
