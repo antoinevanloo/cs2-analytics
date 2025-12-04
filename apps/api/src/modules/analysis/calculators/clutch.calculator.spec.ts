@@ -5,7 +5,10 @@
  * A clutch is when a player is the last alive and facing multiple enemies.
  */
 
-import { calculateClutches, getClutchPerformanceRating } from "./clutch.calculator";
+import {
+  calculateClutches,
+  getClutchPerformanceRating,
+} from "./clutch.calculator";
 import type { RoundPlayerStatsInput } from "../types/inputs.types";
 
 describe("Clutch Calculator", () => {
@@ -114,8 +117,18 @@ describe("Clutch Calculator", () => {
 
     it("should track kills during clutches", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ roundNumber: 1, clutchVs: 3, clutchWon: true, kills: 3 }),
-        createRoundStats({ roundNumber: 2, clutchVs: 2, clutchWon: false, kills: 1 }),
+        createRoundStats({
+          roundNumber: 1,
+          clutchVs: 3,
+          clutchWon: true,
+          kills: 3,
+        }),
+        createRoundStats({
+          roundNumber: 2,
+          clutchVs: 2,
+          clutchWon: false,
+          kills: 1,
+        }),
       ];
 
       const sideByRound = new Map<number, "T" | "CT">([
@@ -134,9 +147,24 @@ describe("Clutch Calculator", () => {
 
     it("should separate clutches by side", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ roundNumber: 1, clutchVs: 1, clutchWon: true, teamNum: 3 }), // CT
-        createRoundStats({ roundNumber: 2, clutchVs: 1, clutchWon: true, teamNum: 3 }), // CT
-        createRoundStats({ roundNumber: 13, clutchVs: 2, clutchWon: true, teamNum: 2 }), // T
+        createRoundStats({
+          roundNumber: 1,
+          clutchVs: 1,
+          clutchWon: true,
+          teamNum: 3,
+        }), // CT
+        createRoundStats({
+          roundNumber: 2,
+          clutchVs: 1,
+          clutchWon: true,
+          teamNum: 3,
+        }), // CT
+        createRoundStats({
+          roundNumber: 13,
+          clutchVs: 2,
+          clutchWon: true,
+          teamNum: 2,
+        }), // T
       ];
 
       const sideByRound = new Map<number, "T" | "CT">([
@@ -203,9 +231,24 @@ describe("Clutch Calculator", () => {
   describe("getClutchPerformanceRating", () => {
     it("should return performance rating for calculated clutch metrics", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ roundNumber: 1, clutchVs: 1, clutchWon: true, kills: 1 }),
-        createRoundStats({ roundNumber: 2, clutchVs: 2, clutchWon: true, kills: 2 }),
-        createRoundStats({ roundNumber: 3, clutchVs: 1, clutchWon: true, kills: 1 }),
+        createRoundStats({
+          roundNumber: 1,
+          clutchVs: 1,
+          clutchWon: true,
+          kills: 1,
+        }),
+        createRoundStats({
+          roundNumber: 2,
+          clutchVs: 2,
+          clutchWon: true,
+          kills: 2,
+        }),
+        createRoundStats({
+          roundNumber: 3,
+          clutchVs: 1,
+          clutchWon: true,
+          kills: 1,
+        }),
       ];
 
       const sideByRound = new Map<number, "T" | "CT">([
@@ -214,7 +257,11 @@ describe("Clutch Calculator", () => {
         [3, "CT"],
       ]);
 
-      const clutchMetrics = calculateClutches({ steamId, roundStats, sideByRound });
+      const clutchMetrics = calculateClutches({
+        steamId,
+        roundStats,
+        sideByRound,
+      });
       const result = getClutchPerformanceRating(clutchMetrics);
 
       expect(typeof result.rating).toBe("string");
@@ -227,7 +274,11 @@ describe("Clutch Calculator", () => {
         createRoundStats({ roundNumber: 1, clutchVs: null, clutchWon: null }),
       ];
 
-      const clutchMetrics = calculateClutches({ steamId, roundStats, sideByRound: new Map() });
+      const clutchMetrics = calculateClutches({
+        steamId,
+        roundStats,
+        sideByRound: new Map(),
+      });
       const result = getClutchPerformanceRating(clutchMetrics);
 
       expect(result.score).toBe(0);
@@ -239,7 +290,9 @@ describe("Clutch Calculator", () => {
 // Test Helpers
 // ==============================================================================
 
-function createRoundStats(overrides: Partial<RoundPlayerStatsInput> = {}): RoundPlayerStatsInput {
+function createRoundStats(
+  overrides: Partial<RoundPlayerStatsInput> = {},
+): RoundPlayerStatsInput {
   return {
     steamId: "76561198000000001",
     roundNumber: 1,

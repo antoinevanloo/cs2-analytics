@@ -7,7 +7,16 @@
  * - Ready endpoint for Kubernetes probes
  */
 
-import { Controller, Get, HttpCode, HttpStatus, Inject, Optional, Version, VERSION_NEUTRAL } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Optional,
+  Version,
+  VERSION_NEUTRAL,
+} from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
@@ -23,12 +32,18 @@ interface HealthStatus {
   version: string;
   checks?: {
     database: { status: string; latency?: number };
-    queue: { status: string; jobs?: { waiting: number; active: number; failed: number } };
-    parser: { status: string; circuitBreaker?: { state: string; failures: number } };
+    queue: {
+      status: string;
+      jobs?: { waiting: number; active: number; failed: number };
+    };
+    parser: {
+      status: string;
+      circuitBreaker?: { state: string; failures: number };
+    };
   };
 }
 
-@ApiTags("health")
+@ApiTags("Health")
 @Controller()
 @Public() // All health endpoints are public
 export class HealthController {
@@ -36,8 +51,12 @@ export class HealthController {
 
   constructor(
     private prisma: PrismaService,
-    @Optional() @InjectQueue("demo-parsing") private demoQueue: Queue | undefined,
-    @Optional() @Inject(ParserService) private parserService: ParserService | undefined
+    @Optional()
+    @InjectQueue("demo-parsing")
+    private demoQueue: Queue | undefined,
+    @Optional()
+    @Inject(ParserService)
+    private parserService: ParserService | undefined,
   ) {}
 
   @Get("health")
@@ -54,7 +73,9 @@ export class HealthController {
 
   @Get("health/ready")
   @Version([VERSION_NEUTRAL, "1"])
-  @ApiOperation({ summary: "Readiness probe - checks if service can accept requests" })
+  @ApiOperation({
+    summary: "Readiness probe - checks if service can accept requests",
+  })
   @ApiResponse({ status: 200, description: "Service is ready" })
   @ApiResponse({ status: 503, description: "Service is not ready" })
   async ready(): Promise<{ ready: boolean; checks: Record<string, boolean> }> {

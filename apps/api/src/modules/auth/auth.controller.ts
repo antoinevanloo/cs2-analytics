@@ -28,7 +28,14 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { ConfigService } from "@nestjs/config";
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiProperty,
+} from "@nestjs/swagger";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
 import { AuthService } from "./auth.service";
@@ -36,6 +43,7 @@ import { Public } from "../../common/decorators/public.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "./strategies/jwt.strategy";
 import type { SteamProfile } from "./strategies/steam.strategy";
+import type { FaceitProfile } from "./strategies/faceit.strategy";
 
 // Extend FastifyRequest to include cookies
 type FastifyRequestWithCookies = FastifyRequest & {
@@ -44,14 +52,25 @@ type FastifyRequestWithCookies = FastifyRequest & {
 
 // Extend FastifyReply to include cookie methods
 type FastifyReplyWithCookies = FastifyReply & {
-  setCookie: (name: string, value: string, options?: Record<string, unknown>) => FastifyReply;
-  clearCookie: (name: string, options?: Record<string, unknown>) => FastifyReply;
+  setCookie: (
+    name: string,
+    value: string,
+    options?: Record<string, unknown>,
+  ) => FastifyReply;
+  clearCookie: (
+    name: string,
+    options?: Record<string, unknown>,
+  ) => FastifyReply;
 };
 
 /**
  * DTO for refresh token request
  */
 class RefreshTokenDto {
+  @ApiProperty({
+    description: "Refresh token obtained from Steam OAuth callback",
+    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  })
   refreshToken!: string;
 }
 
@@ -65,7 +84,10 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {
-    this.frontendUrl = this.configService.get<string>("FRONTEND_URL", "http://localhost:3000");
+    this.frontendUrl = this.configService.get<string>(
+      "FRONTEND_URL",
+      "http://localhost:3000",
+    );
   }
 
   /**
@@ -101,7 +123,8 @@ export class AuthController {
 
     try {
       // Generate tokens
-      const tokens = await this.authService.generateTokensForSteamUser(steamProfile);
+      const tokens =
+        await this.authService.generateTokensForSteamUser(steamProfile);
 
       // Set HttpOnly cookie for refresh token (more secure)
       reply.setCookie("refresh_token", tokens.refreshToken, {
@@ -116,11 +139,76 @@ export class AuthController {
       // The access token is passed as a URL fragment (not query param) for security
       const redirectUrl = `${this.frontendUrl}/auth/callback#access_token=${tokens.accessToken}&expires_in=${tokens.expiresIn}`;
 
-      this.logger.log(`Steam login successful for: ${steamProfile.personaName}`);
+      this.logger.log(
+        `Steam login successful for: ${steamProfile.personaName}`,
+      );
       return reply.redirect(redirectUrl);
     } catch (error) {
       this.logger.error(`Steam callback error: ${error}`);
-      return reply.redirect(`${this.frontendUrl}/auth/error?reason=token_generation_failed`);
+      return reply.redirect(
+        `${this.frontendUrl}/auth/error?reason=token_generation_failed`,
+      );
+    }
+  }
+
+  /**
+   * Redirect to FACEIT login page
+   */
+  @Get("faceit")
+  @Public()
+  @UseGuards(AuthGuard("faceit"))
+  @ApiOperation({ summary: "Initiate FACEIT OAuth login" })
+  @ApiResponse({ status: 302, description: "Redirect to FACEIT login" })
+  faceitLogin(): void {
+    // Passport handles the redirect automatically
+  }
+
+  /**
+   * Handle FACEIT callback after authentication
+   */
+  @Get("faceit/callback")
+  @Public()
+  @UseGuards(AuthGuard("faceit"))
+  @ApiOperation({ summary: "FACEIT OAuth callback" })
+  @ApiResponse({ status: 302, description: "Redirect to frontend with tokens" })
+  async faceitCallback(
+    @Req() req: FastifyRequestWithCookies & { user?: FaceitProfile },
+    @Res() reply: FastifyReplyWithCookies,
+  ): Promise<void> {
+    const faceitProfile = req.user;
+
+    if (!faceitProfile) {
+      this.logger.error("FACEIT callback: No user profile received");
+      return reply.redirect(`${this.frontendUrl}/auth/error?reason=no_profile`);
+    }
+
+    try {
+      // Generate tokens
+      const tokens =
+        await this.authService.generateTokensForFaceitUser(faceitProfile);
+
+      // Set HttpOnly cookie for refresh token (more secure)
+      reply.setCookie("refresh_token", tokens.refreshToken, {
+        httpOnly: true,
+        secure: this.configService.get("NODE_ENV") === "production",
+        sameSite: "lax",
+        path: "/v1/auth",
+        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+      });
+
+      // Redirect to frontend with access token
+      // Include provider info for the frontend to know how user authenticated
+      const redirectUrl = `${this.frontendUrl}/auth/callback#access_token=${tokens.accessToken}&expires_in=${tokens.expiresIn}&provider=faceit`;
+
+      this.logger.log(
+        `FACEIT login successful for: ${faceitProfile.nickname} (${faceitProfile.faceitId})`,
+      );
+      return reply.redirect(redirectUrl);
+    } catch (error) {
+      this.logger.error(`FACEIT callback error: ${error}`);
+      return reply.redirect(
+        `${this.frontendUrl}/auth/error?reason=token_generation_failed`,
+      );
     }
   }
 
@@ -206,6 +294,7 @@ export class AuthController {
     email: string;
     name: string | null;
     steamId: string | null;
+    faceitId: string | null;
     roles: string[];
     avatar: string | null;
   }> {
@@ -222,7 +311,10 @@ export class AuthController {
   @ApiOperation({ summary: "Verify token validity" })
   @ApiResponse({ status: 200, description: "Token is valid" })
   @ApiResponse({ status: 401, description: "Invalid token" })
-  verify(@CurrentUser() user: AuthenticatedUser): { valid: boolean; userId: string } {
+  verify(@CurrentUser() user: AuthenticatedUser): {
+    valid: boolean;
+    userId: string;
+  } {
     return {
       valid: true,
       userId: user.id,

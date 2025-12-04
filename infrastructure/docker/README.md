@@ -39,11 +39,13 @@ docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
 Activé par défaut. PgBouncer gère les connexions à PostgreSQL pour éviter la saturation.
 
 **Configuration:**
+
 - `MAX_CLIENT_CONN=500` - Connexions clients max
 - `DEFAULT_POOL_SIZE=25` - Connexions par pool
 - `POOL_MODE=transaction` - Mode transaction (recommandé)
 
 **Fichiers:**
+
 - `config/pgbouncer/userlist.txt` - Utilisateurs autorisés
 
 ### 2. TimescaleDB (Données Temporelles)
@@ -55,11 +57,13 @@ docker compose -f docker-compose.yml -f docker-compose.timescale.yml up -d
 ```
 
 **Avantages:**
+
 - Partitionnement automatique par temps (hypertables)
 - Compression automatique des données anciennes
 - Meilleures performances pour requêtes temporelles
 
 **Configuration:**
+
 - `init-scripts/timescale/01-extensions.sql` - Extensions
 - `init-scripts/timescale/02-hypertables.sql` - Configuration hypertables
 
@@ -72,6 +76,7 @@ docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
 ```
 
 **Architecture:**
+
 ```
                      ┌───────────────┐
                      │   HAProxy     │ :5433 (read-only)
@@ -88,10 +93,12 @@ docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
 ```
 
 **Connexions:**
+
 - `localhost:5432` - Primary (lectures + écritures)
 - `localhost:5433` - Replicas (lectures uniquement, via HAProxy)
 
 **Monitoring:**
+
 - `http://localhost:8404/stats` - Dashboard HAProxy
 
 ### 4. Partitionnement PostgreSQL
@@ -105,6 +112,7 @@ docker exec -i cs2-postgres psql -U postgres -d cs2analytics \
 ```
 
 **Fonctions disponibles:**
+
 - `create_monthly_partition(table, date)` - Créer une partition mensuelle
 - `ensure_future_partitions(table, months)` - Créer partitions futures
 - `drop_old_partitions(table, retention_months)` - Supprimer anciennes
@@ -112,13 +120,17 @@ docker exec -i cs2-postgres psql -U postgres -d cs2analytics \
 ## Configuration PostgreSQL
 
 ### Développement
+
 Fichier: `config/postgres/postgresql.conf`
+
 - Mémoire modérée (256MB shared_buffers)
 - Logs activés pour debug
 - WAL configuré pour réplication
 
 ### Replica
+
 Fichier: `config/postgres/postgresql-replica.conf`
+
 - Plus de mémoire pour cache de lecture
 - Parallélisme agressif pour analytics
 - Hot standby activé
@@ -126,28 +138,30 @@ Fichier: `config/postgres/postgresql-replica.conf`
 ## Variables d'Environnement
 
 ### API
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | - | URL PostgreSQL (via PgBouncer) |
-| `PARSER_URL` | `http://parser:8001` | URL du service parser |
-| `DEMO_STORAGE_PATH` | `/tmp/demos` | Stockage local des démos |
-| `ARCHIVAL_ENABLED` | `true` | Activer archivage auto |
-| `ARCHIVAL_THRESHOLD_MONTHS` | `6` | Seuil d'archivage |
+
+| Variable                    | Default              | Description                    |
+| --------------------------- | -------------------- | ------------------------------ |
+| `DATABASE_URL`              | -                    | URL PostgreSQL (via PgBouncer) |
+| `PARSER_URL`                | `http://parser:8001` | URL du service parser          |
+| `DEMO_STORAGE_PATH`         | `/tmp/demos`         | Stockage local des démos       |
+| `ARCHIVAL_ENABLED`          | `true`               | Activer archivage auto         |
+| `ARCHIVAL_THRESHOLD_MONTHS` | `6`                  | Seuil d'archivage              |
 
 ### Parser
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WORKERS` | `2` | Nombre de workers de parsing |
-| `REDIS_URL` | - | URL Redis pour la queue |
+
+| Variable    | Default | Description                  |
+| ----------- | ------- | ---------------------------- |
+| `WORKERS`   | `2`     | Nombre de workers de parsing |
+| `REDIS_URL` | -       | URL Redis pour la queue      |
 
 ## Volumes
 
-| Volume | Description |
-|--------|-------------|
-| `postgres-data` | Données PostgreSQL |
-| `redis-data` | Données Redis (persistance) |
-| `demo-files` | Fichiers démo partagés |
-| `parser-demos` | Démos en cours de parsing |
+| Volume          | Description                 |
+| --------------- | --------------------------- |
+| `postgres-data` | Données PostgreSQL          |
+| `redis-data`    | Données Redis (persistance) |
+| `demo-files`    | Fichiers démo partagés      |
+| `parser-demos`  | Démos en cours de parsing   |
 
 ## Healthchecks
 

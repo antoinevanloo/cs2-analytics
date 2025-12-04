@@ -229,7 +229,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private logError(
     exception: unknown,
     errorResponse: ApiErrorResponse,
-    request: FastifyRequest
+    request: FastifyRequest,
   ): void {
     const logContext = {
       correlationId: errorResponse.correlationId,
@@ -244,12 +244,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error(
         `[${errorResponse.correlationId}] ${errorResponse.error}: ${errorResponse.message}`,
         exception instanceof Error ? exception.stack : undefined,
-        JSON.stringify(logContext)
+        JSON.stringify(logContext),
       );
     } else if (errorResponse.statusCode >= 400) {
       this.logger.warn(
         `[${errorResponse.correlationId}] ${errorResponse.error}: ${errorResponse.message}`,
-        JSON.stringify(logContext)
+        JSON.stringify(logContext),
       );
     }
   }

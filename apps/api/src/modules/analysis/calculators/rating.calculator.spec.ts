@@ -14,20 +14,27 @@ describe("Rating Calculator", () => {
   describe("calculateRating", () => {
     it("should calculate rating close to 1.0 for average performance", () => {
       // Average performance: ~20 kills, ~20 deaths, ~80 ADR over 24 rounds
-      const roundStats: RoundPlayerStatsInput[] = Array.from({ length: 24 }, (_, i) =>
-        createRoundStats({
-          roundNumber: i + 1,
-          kills: 1, // ~1 KPR = average
-          deaths: 1, // ~1 DPR = average
-          damage: 80, // ~80 ADR = average
-          survived: i % 3 !== 0, // ~66% survival = 66% KAST from survival
-        })
+      const roundStats: RoundPlayerStatsInput[] = Array.from(
+        { length: 24 },
+        (_, i) =>
+          createRoundStats({
+            roundNumber: i + 1,
+            kills: 1, // ~1 KPR = average
+            deaths: 1, // ~1 DPR = average
+            damage: 80, // ~80 ADR = average
+            survived: i % 3 !== 0, // ~66% survival = 66% KAST from survival
+          }),
       );
 
       const allKills = roundStats.flatMap((r) =>
         r.kills > 0
-          ? [createKill({ roundNumber: r.roundNumber, attackerSteamId: steamId })]
-          : []
+          ? [
+              createKill({
+                roundNumber: r.roundNumber,
+                attackerSteamId: steamId,
+              }),
+            ]
+          : [],
       );
 
       const result = calculateRating({
@@ -46,21 +53,23 @@ describe("Rating Calculator", () => {
 
     it("should return higher rating for dominant performance", () => {
       // Dominant: 2+ kills per round, low deaths, high ADR
-      const roundStats: RoundPlayerStatsInput[] = Array.from({ length: 20 }, (_, i) =>
-        createRoundStats({
-          roundNumber: i + 1,
-          kills: 2,
-          deaths: 0,
-          damage: 150,
-          survived: true,
-          firstKill: true,
-        })
+      const roundStats: RoundPlayerStatsInput[] = Array.from(
+        { length: 20 },
+        (_, i) =>
+          createRoundStats({
+            roundNumber: i + 1,
+            kills: 2,
+            deaths: 0,
+            damage: 150,
+            survived: true,
+            firstKill: true,
+          }),
       );
 
       const allKills = roundStats.flatMap((r) =>
         Array.from({ length: r.kills }, () =>
-          createKill({ roundNumber: r.roundNumber, attackerSteamId: steamId })
-        )
+          createKill({ roundNumber: r.roundNumber, attackerSteamId: steamId }),
+        ),
       );
 
       const result = calculateRating({
@@ -77,14 +86,16 @@ describe("Rating Calculator", () => {
 
     it("should return lower rating for poor performance", () => {
       // Poor: few kills, many deaths, low ADR
-      const roundStats: RoundPlayerStatsInput[] = Array.from({ length: 20 }, (_, i) =>
-        createRoundStats({
-          roundNumber: i + 1,
-          kills: 0,
-          deaths: 1,
-          damage: 30,
-          survived: false,
-        })
+      const roundStats: RoundPlayerStatsInput[] = Array.from(
+        { length: 20 },
+        (_, i) =>
+          createRoundStats({
+            roundNumber: i + 1,
+            kills: 0,
+            deaths: 1,
+            damage: 30,
+            survived: false,
+          }),
       );
 
       const result = calculateRating({
@@ -100,14 +111,16 @@ describe("Rating Calculator", () => {
     });
 
     it("should return components in result", () => {
-      const roundStats: RoundPlayerStatsInput[] = Array.from({ length: 10 }, (_, i) =>
-        createRoundStats({
-          roundNumber: i + 1,
-          kills: 1,
-          deaths: 1,
-          damage: 80,
-          survived: true,
-        })
+      const roundStats: RoundPlayerStatsInput[] = Array.from(
+        { length: 10 },
+        (_, i) =>
+          createRoundStats({
+            roundNumber: i + 1,
+            kills: 1,
+            deaths: 1,
+            damage: 80,
+            survived: true,
+          }),
       );
 
       const result = calculateRating({
@@ -142,8 +155,8 @@ describe("Rating Calculator", () => {
 
   describe("getRatingLabel", () => {
     it("should return 'GOAT Level' for rating >= 1.30", () => {
-      expect(getRatingLabel(1.30)).toBe("GOAT Level");
-      expect(getRatingLabel(1.50)).toBe("GOAT Level");
+      expect(getRatingLabel(1.3)).toBe("GOAT Level");
+      expect(getRatingLabel(1.5)).toBe("GOAT Level");
     });
 
     it("should return 'Elite' for rating >= 1.25", () => {
@@ -167,7 +180,7 @@ describe("Rating Calculator", () => {
     });
 
     it("should return 'Below Average' for rating >= 0.90", () => {
-      expect(getRatingLabel(0.90)).toBe("Below Average");
+      expect(getRatingLabel(0.9)).toBe("Below Average");
       expect(getRatingLabel(0.94)).toBe("Below Average");
     });
 
@@ -177,7 +190,7 @@ describe("Rating Calculator", () => {
     });
 
     it("should return 'Very Poor' for rating < 0.85", () => {
-      expect(getRatingLabel(0.50)).toBe("Very Poor");
+      expect(getRatingLabel(0.5)).toBe("Very Poor");
       expect(getRatingLabel(0.84)).toBe("Very Poor");
     });
   });
@@ -187,7 +200,9 @@ describe("Rating Calculator", () => {
 // Test Helpers
 // ==============================================================================
 
-function createRoundStats(overrides: Partial<RoundPlayerStatsInput> = {}): RoundPlayerStatsInput {
+function createRoundStats(
+  overrides: Partial<RoundPlayerStatsInput> = {},
+): RoundPlayerStatsInput {
   return {
     steamId: "76561198000000001",
     roundNumber: 1,

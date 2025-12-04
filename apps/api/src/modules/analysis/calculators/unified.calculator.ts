@@ -12,18 +12,25 @@
  * @module analysis/calculators/unified
  */
 
-import type {
-  KillInput,
-  RoundPlayerStatsInput,
-} from "../types/inputs.types";
+import type { KillInput, RoundPlayerStatsInput } from "../types/inputs.types";
 import type { CombatMetrics } from "../types/combat.types";
-import type { HLTVRating2, KASTMetrics, ImpactMetrics } from "../types/rating.types";
+import type {
+  HLTVRating2,
+  KASTMetrics,
+  ImpactMetrics,
+} from "../types/rating.types";
 import type { TradeMetrics } from "../types/trade.types";
 import type { ClutchMetrics } from "../types/clutch.types";
 import type { OpeningDuelMetrics } from "../types/opening.types";
-import type { PlayerMatchMetrics, RoundPerformance } from "../types/player.types";
+import type {
+  PlayerMatchMetrics,
+  RoundPerformance,
+} from "../types/player.types";
 
-import { HLTV_RATING_COEFFICIENTS, TRADE_THRESHOLD_TICKS } from "../types/constants";
+import {
+  HLTV_RATING_COEFFICIENTS,
+  TRADE_THRESHOLD_TICKS,
+} from "../types/constants";
 import { groupBy, indexBy } from "../utils/performance";
 import { validateRoundStats, validateKills } from "../utils/validation";
 import { InvalidInputError, type Result, ok, err } from "../utils/errors";
@@ -104,7 +111,7 @@ interface ProcessedData {
  * @returns Complete player metrics or error
  */
 export function calculateAllMetrics(
-  input: UnifiedCalculationInput
+  input: UnifiedCalculationInput,
 ): Result<PlayerMatchMetrics> {
   try {
     // Validate inputs
@@ -112,7 +119,9 @@ export function calculateAllMetrics(
     validateKills(input.allKills);
 
     if (input.totalRounds <= 0) {
-      return err(new InvalidInputError("totalRounds must be positive", "totalRounds"));
+      return err(
+        new InvalidInputError("totalRounds must be positive", "totalRounds"),
+      );
     }
 
     const tickRate = input.tickRate ?? 64;
@@ -123,17 +132,29 @@ export function calculateAllMetrics(
     // Calculate all metrics using pre-processed data
     const combat = calculateCombatFromProcessed(processed, input.totalRounds);
     const kast = calculateKASTFromProcessed(processed, input.totalRounds);
-    const impact = calculateImpactFromProcessed(processed, input.totalRounds, combat);
+    const impact = calculateImpactFromProcessed(
+      processed,
+      input.totalRounds,
+      combat,
+    );
     const rating = calculateRatingFromProcessed(kast, impact, combat);
-    const trades = calculateTradesFromProcessed(processed, tickRate, input.playerNames);
+    const trades = calculateTradesFromProcessed(
+      processed,
+      tickRate,
+      input.playerNames,
+    );
     const clutches = calculateClutchesFromProcessed(input.roundStats);
-    const openingDuels = calculateOpeningsFromProcessed(processed, input.totalRounds, input.roundWinners);
+    const openingDuels = calculateOpeningsFromProcessed(
+      processed,
+      input.totalRounds,
+      input.roundWinners,
+    );
 
     // Build round performance
     const roundPerformance = buildRoundPerformance(
       input.roundStats,
       processed,
-      input.roundWinners
+      input.roundWinners,
     );
 
     return ok({
@@ -166,8 +187,8 @@ export function calculateAllMetrics(
     }
     return err(
       new InvalidInputError(
-        `Calculation failed: ${error instanceof Error ? error.message : "Unknown error"}`
-      )
+        `Calculation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      ),
     );
   }
 }
@@ -177,7 +198,7 @@ export function calculateAllMetrics(
  */
 function preprocessData(
   input: UnifiedCalculationInput,
-  tickRate: number
+  tickRate: number,
 ): ProcessedData {
   const { steamId, roundStats, allKills } = input;
 
@@ -259,7 +280,7 @@ function preprocessData(
           k.victimSteamId === death.attackerSteamId &&
           k.tick > death.tick &&
           k.tick - death.tick <= tradeThreshold &&
-          k.attackerSteamId !== steamId
+          k.attackerSteamId !== steamId,
       );
 
       if (tradeKill) {
@@ -270,7 +291,10 @@ function preprocessData(
   }
 
   // Calculate multi-kills
-  let twoK = 0, threeK = 0, fourK = 0, fiveK = 0;
+  let twoK = 0,
+    threeK = 0,
+    fourK = 0,
+    fiveK = 0;
   for (const kills of killsPerRound.values()) {
     if (kills === 2) twoK++;
     else if (kills === 3) threeK++;
@@ -304,9 +328,10 @@ function preprocessData(
  */
 function calculateCombatFromProcessed(
   data: ProcessedData,
-  totalRounds: number
+  totalRounds: number,
 ): CombatMetrics {
-  const { totalKills, totalDeaths, totalAssists, totalDamage, headshotKills } = data;
+  const { totalKills, totalDeaths, totalAssists, totalDamage, headshotKills } =
+    data;
 
   const kd = totalDeaths > 0 ? totalKills / totalDeaths : totalKills;
   const kpr = totalRounds > 0 ? totalKills / totalRounds : 0;
@@ -337,14 +362,10 @@ function calculateCombatFromProcessed(
  */
 function calculateKASTFromProcessed(
   data: ProcessedData,
-  totalRounds: number
+  totalRounds: number,
 ): KASTMetrics {
-  const {
-    roundsWithKill,
-    roundsWithAssist,
-    roundsWithSurvival,
-    tradedRounds,
-  } = data;
+  const { roundsWithKill, roundsWithAssist, roundsWithSurvival, tradedRounds } =
+    data;
 
   // Combine all KAST-positive rounds
   const kastPositive = new Set<number>();
@@ -378,7 +399,7 @@ function calculateKASTFromProcessed(
 function calculateImpactFromProcessed(
   data: ProcessedData,
   totalRounds: number,
-  combat: CombatMetrics
+  combat: CombatMetrics,
 ): ImpactMetrics {
   const { multiKills, openingWins, openingLosses } = data;
 
@@ -411,13 +432,19 @@ function calculateImpactFromProcessed(
     clutchImpact: 0, // Would need full clutch data
     multiKills: {
       ...multiKills,
-      total: multiKills.twoK + multiKills.threeK + multiKills.fourK + multiKills.fiveK,
+      total:
+        multiKills.twoK +
+        multiKills.threeK +
+        multiKills.fourK +
+        multiKills.fiveK,
     },
     openings: {
       attempts: openingAttempts,
       wins: openingWins,
       losses: openingLosses,
-      winRate: round2(openingAttempts > 0 ? (openingWins / openingAttempts) * 100 : 0),
+      winRate: round2(
+        openingAttempts > 0 ? (openingWins / openingAttempts) * 100 : 0,
+      ),
     },
   };
 }
@@ -428,7 +455,7 @@ function calculateImpactFromProcessed(
 function calculateRatingFromProcessed(
   kast: KASTMetrics,
   impact: ImpactMetrics,
-  combat: CombatMetrics
+  combat: CombatMetrics,
 ): HLTVRating2 {
   const components = {
     kast: kast.kast,
@@ -442,7 +469,9 @@ function calculateRatingFromProcessed(
     kastContribution: round4(HLTV_RATING_COEFFICIENTS.KAST * components.kast),
     kprContribution: round4(HLTV_RATING_COEFFICIENTS.KPR * components.kpr),
     dprContribution: round4(HLTV_RATING_COEFFICIENTS.DPR * components.dpr),
-    impactContribution: round4(HLTV_RATING_COEFFICIENTS.IMPACT * components.impact),
+    impactContribution: round4(
+      HLTV_RATING_COEFFICIENTS.IMPACT * components.impact,
+    ),
     adrContribution: round4(HLTV_RATING_COEFFICIENTS.ADR * components.adr),
     constant: HLTV_RATING_COEFFICIENTS.CONSTANT,
   };
@@ -473,7 +502,7 @@ function calculateRatingFromProcessed(
 function calculateTradesFromProcessed(
   data: ProcessedData,
   _tickRate: number,
-  _playerNames?: ReadonlyMap<string, string>
+  _playerNames?: ReadonlyMap<string, string>,
 ): TradeMetrics {
   // Simplified - just return the count
   return {
@@ -491,14 +520,18 @@ function calculateTradesFromProcessed(
  * Calculate clutches from round stats
  */
 function calculateClutchesFromProcessed(
-  roundStats: readonly RoundPlayerStatsInput[]
+  roundStats: readonly RoundPlayerStatsInput[],
 ): ClutchMetrics {
   let total = 0;
   let won = 0;
   let clutchKills = 0;
 
   for (const round of roundStats) {
-    if (round.clutchVs !== null && round.clutchVs !== undefined && round.clutchVs > 0) {
+    if (
+      round.clutchVs !== null &&
+      round.clutchVs !== undefined &&
+      round.clutchVs > 0
+    ) {
       total++;
       if (round.clutchWon === true) won++;
       clutchKills += round.kills;
@@ -512,11 +545,41 @@ function calculateClutchesFromProcessed(
     successRate: round2(total > 0 ? (won / total) * 100 : 0),
     clutchKills,
     breakdown: {
-      "1v1": { attempts: 0, wins: 0, successRate: 0, expectedRate: 0.5, vsExpected: 0 },
-      "1v2": { attempts: 0, wins: 0, successRate: 0, expectedRate: 0.25, vsExpected: 0 },
-      "1v3": { attempts: 0, wins: 0, successRate: 0, expectedRate: 0.1, vsExpected: 0 },
-      "1v4": { attempts: 0, wins: 0, successRate: 0, expectedRate: 0.05, vsExpected: 0 },
-      "1v5": { attempts: 0, wins: 0, successRate: 0, expectedRate: 0.02, vsExpected: 0 },
+      "1v1": {
+        attempts: 0,
+        wins: 0,
+        successRate: 0,
+        expectedRate: 0.5,
+        vsExpected: 0,
+      },
+      "1v2": {
+        attempts: 0,
+        wins: 0,
+        successRate: 0,
+        expectedRate: 0.25,
+        vsExpected: 0,
+      },
+      "1v3": {
+        attempts: 0,
+        wins: 0,
+        successRate: 0,
+        expectedRate: 0.1,
+        vsExpected: 0,
+      },
+      "1v4": {
+        attempts: 0,
+        wins: 0,
+        successRate: 0,
+        expectedRate: 0.05,
+        vsExpected: 0,
+      },
+      "1v5": {
+        attempts: 0,
+        wins: 0,
+        successRate: 0,
+        expectedRate: 0.02,
+        vsExpected: 0,
+      },
     },
     clutches: [],
     bySide: {
@@ -532,7 +595,7 @@ function calculateClutchesFromProcessed(
 function calculateOpeningsFromProcessed(
   data: ProcessedData,
   totalRounds: number,
-  _roundWinners?: ReadonlyMap<number, number>
+  _roundWinners?: ReadonlyMap<number, number>,
 ): OpeningDuelMetrics {
   const { openingWins, openingLosses } = data;
   const total = openingWins + openingLosses;
@@ -543,7 +606,9 @@ function calculateOpeningsFromProcessed(
     losses: openingLosses,
     winRate: round2(total > 0 ? (openingWins / total) * 100 : 0),
     ratingImpact: round3(
-      totalRounds > 0 ? (openingWins * 0.15 + openingLosses * -0.1) / totalRounds : 0
+      totalRounds > 0
+        ? (openingWins * 0.15 + openingLosses * -0.1) / totalRounds
+        : 0,
     ),
     bySide: {
       ct: { wins: 0, losses: 0, winRate: 0, total: 0 },
@@ -567,7 +632,7 @@ function calculateOpeningsFromProcessed(
 function buildRoundPerformance(
   roundStats: readonly RoundPlayerStatsInput[],
   data: ProcessedData,
-  _roundWinners?: ReadonlyMap<number, number>
+  _roundWinners?: ReadonlyMap<number, number>,
 ): RoundPerformance[] {
   return roundStats.map((round) => ({
     roundNumber: round.roundNumber,
@@ -582,7 +647,9 @@ function buildRoundPerformance(
     hadImpact: round.kills > 0 || round.assists > 0,
     openingDuel: round.firstKill ? "win" : round.firstDeath ? "loss" : null,
     clutch:
-      round.clutchVs !== null && round.clutchVs !== undefined && round.clutchVs > 0
+      round.clutchVs !== null &&
+      round.clutchVs !== undefined &&
+      round.clutchVs > 0
         ? { vsOpponents: round.clutchVs, won: round.clutchWon === true }
         : null,
     teamWon: false, // Would need round winner data
@@ -594,30 +661,30 @@ function buildRoundPerformance(
 // ============================================================================
 
 function estimatePercentile(rating: number): number {
-  if (rating >= 1.40) return 99;
-  if (rating >= 1.30) return 98;
+  if (rating >= 1.4) return 99;
+  if (rating >= 1.3) return 98;
   if (rating >= 1.25) return 95;
-  if (rating >= 1.20) return 90;
+  if (rating >= 1.2) return 90;
   if (rating >= 1.15) return 85;
-  if (rating >= 1.10) return 75;
+  if (rating >= 1.1) return 75;
   if (rating >= 1.05) return 65;
-  if (rating >= 1.00) return 50;
+  if (rating >= 1.0) return 50;
   if (rating >= 0.95) return 40;
-  if (rating >= 0.90) return 30;
+  if (rating >= 0.9) return 30;
   if (rating >= 0.85) return 20;
-  if (rating >= 0.80) return 10;
+  if (rating >= 0.8) return 10;
   return 5;
 }
 
 function getRatingLabel(rating: number): string {
-  if (rating >= 1.30) return "GOAT Level";
+  if (rating >= 1.3) return "GOAT Level";
   if (rating >= 1.25) return "Elite";
-  if (rating >= 1.20) return "Excellent";
+  if (rating >= 1.2) return "Excellent";
   if (rating >= 1.15) return "Very Good";
-  if (rating >= 1.10) return "Good";
+  if (rating >= 1.1) return "Good";
   if (rating >= 1.05) return "Above Average";
   if (rating >= 0.95) return "Average";
-  if (rating >= 0.90) return "Below Average";
+  if (rating >= 0.9) return "Below Average";
   if (rating >= 0.85) return "Poor";
   return "Very Poor";
 }
@@ -635,8 +702,22 @@ function createEmptyUtilityMetrics() {
       enemyTeammateRatio: 0,
       enemiesPerFlash: 0,
     },
-    heGrenade: { thrown: 0, damage: 0, kills: 0, enemiesDamaged: 0, avgDamage: 0, hitRate: 0 },
-    molotov: { thrown: 0, damage: 0, kills: 0, enemiesDamaged: 0, avgDamage: 0, totalBurnTime: 0 },
+    heGrenade: {
+      thrown: 0,
+      damage: 0,
+      kills: 0,
+      enemiesDamaged: 0,
+      avgDamage: 0,
+      hitRate: 0,
+    },
+    molotov: {
+      thrown: 0,
+      damage: 0,
+      kills: 0,
+      enemiesDamaged: 0,
+      avgDamage: 0,
+      totalBurnTime: 0,
+    },
     smoke: { thrown: 0, perRound: 0 },
     decoy: { thrown: 0 },
     totalUtilityDamage: 0,
@@ -653,10 +734,46 @@ function createEmptyEconomyMetrics() {
     avgSpentPerRound: 0,
     valueEfficiency: 0,
     killEfficiency: 0,
-    eco: { roundsPlayed: 0, kills: 0, deaths: 0, damage: 0, kd: 0, adr: 0, roundsWon: 0, winRate: 0 },
-    forceBuy: { roundsPlayed: 0, kills: 0, deaths: 0, damage: 0, kd: 0, adr: 0, roundsWon: 0, winRate: 0 },
-    fullBuy: { roundsPlayed: 0, kills: 0, deaths: 0, damage: 0, kd: 0, adr: 0, roundsWon: 0, winRate: 0 },
-    antiEco: { roundsPlayed: 0, kills: 0, deaths: 0, damage: 0, kd: 0, adr: 0, roundsWon: 0, winRate: 0 },
+    eco: {
+      roundsPlayed: 0,
+      kills: 0,
+      deaths: 0,
+      damage: 0,
+      kd: 0,
+      adr: 0,
+      roundsWon: 0,
+      winRate: 0,
+    },
+    forceBuy: {
+      roundsPlayed: 0,
+      kills: 0,
+      deaths: 0,
+      damage: 0,
+      kd: 0,
+      adr: 0,
+      roundsWon: 0,
+      winRate: 0,
+    },
+    fullBuy: {
+      roundsPlayed: 0,
+      kills: 0,
+      deaths: 0,
+      damage: 0,
+      kd: 0,
+      adr: 0,
+      roundsWon: 0,
+      winRate: 0,
+    },
+    antiEco: {
+      roundsPlayed: 0,
+      kills: 0,
+      deaths: 0,
+      damage: 0,
+      kd: 0,
+      adr: 0,
+      roundsWon: 0,
+      winRate: 0,
+    },
   };
 }
 

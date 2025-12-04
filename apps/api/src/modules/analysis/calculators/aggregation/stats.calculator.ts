@@ -25,14 +25,17 @@ export function mean(values: readonly number[]): number {
  */
 export function weightedMean(
   values: readonly number[],
-  weights: readonly number[]
+  weights: readonly number[],
 ): number {
   if (values.length === 0 || values.length !== weights.length) return 0;
 
   const totalWeight = weights.reduce((sum, w) => sum + w, 0);
   if (totalWeight === 0) return 0;
 
-  const weightedSum = values.reduce((sum, v, i) => sum + v * (weights[i] ?? 0), 0);
+  const weightedSum = values.reduce(
+    (sum, v, i) => sum + v * (weights[i] ?? 0),
+    0,
+  );
   return weightedSum / totalWeight;
 }
 
@@ -44,7 +47,8 @@ export function standardDeviation(values: readonly number[]): number {
 
   const avg = mean(values);
   const squaredDiffs = values.map((v) => Math.pow(v - avg, 2));
-  const variance = squaredDiffs.reduce((sum, v) => sum + v, 0) / (values.length - 1);
+  const variance =
+    squaredDiffs.reduce((sum, v) => sum + v, 0) / (values.length - 1);
 
   return Math.sqrt(variance);
 }
@@ -99,7 +103,10 @@ export function percentile(values: readonly number[], p: number): number {
  * Calculate percentile rank of a value within a dataset
  * Returns 0-100 indicating what percentage of values are below the given value
  */
-export function percentileRank(values: readonly number[], value: number): number {
+export function percentileRank(
+  values: readonly number[],
+  value: number,
+): number {
   if (values.length === 0) return 50;
 
   const belowCount = values.filter((v) => v < value).length;
@@ -116,7 +123,11 @@ export function percentileRank(values: readonly number[], value: number): number
 /**
  * Calculate rate safely (handles division by zero)
  */
-export function safeRate(numerator: number, denominator: number, scale = 1): number {
+export function safeRate(
+  numerator: number,
+  denominator: number,
+  scale = 1,
+): number {
   if (denominator === 0) return 0;
   return (numerator / denominator) * scale;
 }
@@ -152,9 +163,11 @@ export function calculateADR(totalDamage: number, rounds: number): number {
  * Linear regression for trend analysis
  * Returns slope, intercept, and R-squared
  */
-export function linearRegression(
-  values: readonly number[]
-): { slope: number; intercept: number; rSquared: number } {
+export function linearRegression(values: readonly number[]): {
+  slope: number;
+  intercept: number;
+  rSquared: number;
+} {
   const n = values.length;
   if (n < 2) return { slope: 0, intercept: values[0] ?? 0, rSquared: 0 };
 
@@ -198,7 +211,7 @@ export function linearRegression(
  */
 export function determineTrend(
   values: readonly number[],
-  threshold = 0.01
+  threshold = 0.01,
 ): "improving" | "stable" | "declining" {
   if (values.length < 3) return "stable";
 
@@ -215,7 +228,10 @@ export function determineTrend(
 /**
  * Calculate moving average
  */
-export function movingAverage(values: readonly number[], window: number): number[] {
+export function movingAverage(
+  values: readonly number[],
+  window: number,
+): number[] {
   if (values.length < window) return [mean(values)];
 
   const result: number[] = [];
@@ -232,7 +248,7 @@ export function movingAverage(values: readonly number[], window: number): number
  */
 export function exponentialMovingAverage(
   values: readonly number[],
-  alpha = 0.3
+  alpha = 0.3,
 ): number[] {
   if (values.length === 0) return [];
 
@@ -255,7 +271,7 @@ export function exponentialMovingAverage(
  */
 export function createDistribution(
   values: readonly number[],
-  buckets: readonly { min: number; max: number; label: string }[]
+  buckets: readonly { min: number; max: number; label: string }[],
 ): Record<string, number> {
   const distribution: Record<string, number> = {};
 
@@ -294,9 +310,11 @@ export const RATING_BUCKETS = [
 /**
  * Calculate current and longest streaks
  */
-export function calculateStreaks(
-  results: readonly boolean[]
-): { currentStreak: number; longestStreak: number; type: "win" | "loss" | "none" } {
+export function calculateStreaks(results: readonly boolean[]): {
+  currentStreak: number;
+  longestStreak: number;
+  type: "win" | "loss" | "none";
+} {
   if (results.length === 0) {
     return { currentStreak: 0, longestStreak: 0, type: "none" };
   }
@@ -336,7 +354,7 @@ export function calculateStreaks(
  */
 export function calculateRatingStreak(
   ratings: readonly number[],
-  average: number
+  average: number,
 ): { aboveAvg: number; belowAvg: number } {
   if (ratings.length === 0) {
     return { aboveAvg: 0, belowAvg: 0 };
@@ -380,9 +398,11 @@ export function calculateConsistency(values: readonly number[]): number {
 /**
  * Calculate floor and ceiling (10th and 90th percentiles)
  */
-export function calculateFloorCeiling(
-  values: readonly number[]
-): { floor: number; ceiling: number; range: number } {
+export function calculateFloorCeiling(values: readonly number[]): {
+  floor: number;
+  ceiling: number;
+  range: number;
+} {
   const floor = percentile(values, 10);
   const ceiling = percentile(values, 90);
 
@@ -405,7 +425,7 @@ import { FORM_CONFIG } from "../../../aggregation/aggregation.config";
  */
 export function determineForm(
   recentRatings: readonly number[],
-  lifetimeAvg: number
+  lifetimeAvg: number,
 ): FormIndicator {
   const { STREAK } = FORM_CONFIG;
   if (recentRatings.length < STREAK.HOT_COLD_SAMPLE_SIZE) return "unknown";
@@ -453,14 +473,20 @@ export function determineForm(
 /**
  * Sum values from an array of objects
  */
-export function sumBy<T>(items: readonly T[], selector: (item: T) => number): number {
+export function sumBy<T>(
+  items: readonly T[],
+  selector: (item: T) => number,
+): number {
   return items.reduce((sum, item) => sum + selector(item), 0);
 }
 
 /**
  * Average values from an array of objects
  */
-export function avgBy<T>(items: readonly T[], selector: (item: T) => number): number {
+export function avgBy<T>(
+  items: readonly T[],
+  selector: (item: T) => number,
+): number {
   if (items.length === 0) return 0;
   return sumBy(items, selector) / items.length;
 }
@@ -470,7 +496,7 @@ export function avgBy<T>(items: readonly T[], selector: (item: T) => number): nu
  */
 export function groupBy<T, K extends string>(
   items: readonly T[],
-  keySelector: (item: T) => K
+  keySelector: (item: T) => K,
 ): Record<K, T[]> {
   const groups = {} as Record<K, T[]>;
 
@@ -488,6 +514,9 @@ export function groupBy<T, K extends string>(
 /**
  * Count occurrences of a condition
  */
-export function countWhere<T>(items: readonly T[], predicate: (item: T) => boolean): number {
+export function countWhere<T>(
+  items: readonly T[],
+  predicate: (item: T) => boolean,
+): number {
   return items.filter(predicate).length;
 }

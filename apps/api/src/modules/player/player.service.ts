@@ -19,7 +19,7 @@ export class PlayerService {
 
   async getPlayerStats(
     steamId: string,
-    filters: { map?: string; days?: number }
+    filters: { map?: string; days?: number },
   ) {
     // TODO: Aggregate from parsed demos
     return {
@@ -43,7 +43,7 @@ export class PlayerService {
 
   async getPlayerMatches(
     steamId: string,
-    options: { page: number; limit: number }
+    options: { page: number; limit: number },
   ) {
     return {
       steamId,
@@ -59,7 +59,7 @@ export class PlayerService {
 
   async getPlayerHeatmap(
     steamId: string,
-    options: { map: string; side?: "T" | "CT" }
+    options: { map: string; side?: "T" | "CT" },
   ) {
     return {
       steamId,

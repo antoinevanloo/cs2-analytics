@@ -3,12 +3,18 @@
  */
 
 import { Controller, Get, Param, Query, ParseIntPipe } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+} from "@nestjs/swagger";
 import { RoundService } from "./round.service";
 import { Public } from "../../common/decorators";
 
-@ApiTags("rounds")
-@ApiBearerAuth()
+@ApiTags("Rounds")
+@ApiBearerAuth("JWT-auth")
 @Public() // All round endpoints are read-only and public
 @Controller({ path: "rounds", version: "1" })
 export class RoundController {
@@ -20,7 +26,7 @@ export class RoundController {
   @ApiParam({ name: "roundNumber", description: "Round number" })
   async getRound(
     @Param("demoId") demoId: string,
-    @Param("roundNumber", ParseIntPipe) roundNumber: number
+    @Param("roundNumber", ParseIntPipe) roundNumber: number,
   ) {
     return this.roundService.getRound(demoId, roundNumber);
   }
@@ -31,7 +37,7 @@ export class RoundController {
   @ApiParam({ name: "roundNumber", description: "Round number" })
   async getRoundTimeline(
     @Param("demoId") demoId: string,
-    @Param("roundNumber", ParseIntPipe) roundNumber: number
+    @Param("roundNumber", ParseIntPipe) roundNumber: number,
   ) {
     return this.roundService.getRoundTimeline(demoId, roundNumber);
   }
@@ -42,7 +48,7 @@ export class RoundController {
   @ApiParam({ name: "roundNumber", description: "Round number" })
   async getRoundEconomy(
     @Param("demoId") demoId: string,
-    @Param("roundNumber", ParseIntPipe) roundNumber: number
+    @Param("roundNumber", ParseIntPipe) roundNumber: number,
   ) {
     return this.roundService.getRoundEconomy(demoId, roundNumber);
   }
@@ -55,7 +61,7 @@ export class RoundController {
   async getRoundReplay(
     @Param("demoId") demoId: string,
     @Param("roundNumber", ParseIntPipe) roundNumber: number,
-    @Query("interval", new ParseIntPipe({ optional: true })) interval?: number
+    @Query("interval", new ParseIntPipe({ optional: true })) interval?: number,
   ) {
     return this.roundService.getRoundReplay(demoId, roundNumber, interval);
   }
@@ -66,7 +72,7 @@ export class RoundController {
   @ApiParam({ name: "roundNumber", description: "Round number" })
   async getRoundKillfeed(
     @Param("demoId") demoId: string,
-    @Param("roundNumber", ParseIntPipe) roundNumber: number
+    @Param("roundNumber", ParseIntPipe) roundNumber: number,
   ) {
     return this.roundService.getRoundKillfeed(demoId, roundNumber);
   }

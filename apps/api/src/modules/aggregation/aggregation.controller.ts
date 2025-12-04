@@ -28,7 +28,16 @@ import {
 } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
+  ApiPropertyOptional,
+} from "@nestjs/swagger";
+import { IsArray, IsOptional, IsString } from "class-validator";
 
 import { Public, Roles } from "../../common/decorators";
 import { PlayerAggregationService } from "./services/player-aggregation.service";
@@ -44,18 +53,59 @@ import type {
 // DTOs
 // =============================================================================
 
+/**
+ * Time window options for aggregation queries
+ */
+const TIME_WINDOWS = [
+  "all_time",
+  "last_90d",
+  "last_30d",
+  "last_7d",
+  "last_10_matches",
+  "last_20_matches",
+] as const;
+type TimeWindow = (typeof TIME_WINDOWS)[number];
+
 interface TimeWindowQuery {
-  window?: "all_time" | "last_90d" | "last_30d" | "last_7d" | "last_10_matches" | "last_20_matches";
+  window?: TimeWindow;
 }
 
 interface RosterQuery extends TimeWindowQuery {
   steamIds: string; // Comma-separated
 }
 
-interface BatchRecomputeBody {
+/**
+ * DTO for batch recompute request
+ */
+class BatchRecomputeDto {
+  @ApiPropertyOptional({
+    description: "List of player Steam IDs to recompute",
+    type: [String],
+    example: ["76561198000000001", "76561198000000002"],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
   steamIds?: string[];
+
+  @ApiPropertyOptional({
+    description: "List of team IDs to recompute",
+    type: [String],
+    example: ["team-uuid-1", "team-uuid-2"],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
   teamIds?: string[];
-  window?: TimeWindowQuery["window"];
+
+  @ApiPropertyOptional({
+    description: "Time window for aggregation",
+    enum: TIME_WINDOWS,
+    default: "all_time",
+  })
+  @IsString()
+  @IsOptional()
+  window?: TimeWindow;
 }
 
 interface PlayerComparisonResult {
@@ -66,8 +116,16 @@ interface PlayerComparisonResult {
     kast: { player1: number; player2: number; winner: string | null };
     adr: { player1: number; player2: number; winner: string | null };
     kd: { player1: number; player2: number; winner: string | null };
-    openingSuccessRate: { player1: number; player2: number; winner: string | null };
-    clutchSuccessRate: { player1: number; player2: number; winner: string | null };
+    openingSuccessRate: {
+      player1: number;
+      player2: number;
+      winner: string | null;
+    };
+    clutchSuccessRate: {
+      player1: number;
+      player2: number;
+      winner: string | null;
+    };
     overall: string | null;
   };
 }
@@ -76,8 +134,8 @@ interface PlayerComparisonResult {
 // CONTROLLER
 // =============================================================================
 
-@ApiTags("aggregation")
-@ApiBearerAuth()
+@ApiTags("Aggregation")
+@ApiBearerAuth("JWT-auth")
 @Controller("aggregation")
 export class AggregationController {
   private readonly logger = new Logger(AggregationController.name);
@@ -85,7 +143,8 @@ export class AggregationController {
   constructor(
     private readonly playerAggregation: PlayerAggregationService,
     private readonly teamAggregation: TeamAggregationService,
-    @InjectQueue("demo-aggregation") private readonly aggregationQueue: Queue<AggregationJobData>
+    @InjectQueue("demo-aggregation")
+    private readonly aggregationQueue: Queue<AggregationJobData>,
   ) {}
 
   // ===========================================================================
@@ -98,16 +157,25 @@ export class AggregationController {
   @Get("players/:steamId")
   @Public()
   @ApiOperation({ summary: "Get aggregated player profile" })
+  @ApiParam({ name: "steamId", description: "Player Steam ID (64-bit)" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getPlayerProfile(
     @Param("steamId") steamId: string,
-    @Query() query: TimeWindowQuery
+    @Query() query: TimeWindowQuery,
   ): Promise<AggregatedPlayerProfile> {
-    this.logger.log(`GET /aggregation/players/${steamId} (window: ${query.window ?? "all_time"})`);
+    this.logger.log(
+      `GET /aggregation/players/${steamId} (window: ${query.window ?? "all_time"})`,
+    );
 
     try {
       return await this.playerAggregation.getPlayerProfile(
         steamId,
-        query.window ?? "all_time"
+        query.window ?? "all_time",
       );
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -124,12 +192,25 @@ export class AggregationController {
   @Get("players/:steamId/compare/:otherSteamId")
   @Public()
   @ApiOperation({ summary: "Compare two players" })
+  @ApiParam({ name: "steamId", description: "First player Steam ID (64-bit)" })
+  @ApiParam({
+    name: "otherSteamId",
+    description: "Second player Steam ID (64-bit)",
+  })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async comparePlayers(
     @Param("steamId") steamId: string,
     @Param("otherSteamId") otherSteamId: string,
-    @Query() query: TimeWindowQuery
+    @Query() query: TimeWindowQuery,
   ): Promise<PlayerComparisonResult> {
-    this.logger.log(`GET /aggregation/players/${steamId}/compare/${otherSteamId}`);
+    this.logger.log(
+      `GET /aggregation/players/${steamId}/compare/${otherSteamId}`,
+    );
 
     const window = query.window ?? "all_time";
 
@@ -151,10 +232,24 @@ export class AggregationController {
   @Get("players")
   @Public()
   @ApiOperation({ summary: "Get multiple player profiles (batch)" })
+  @ApiQuery({
+    name: "steamIds",
+    description: "Comma-separated list of Steam IDs (max 20)",
+    example: "76561198000000001,76561198000000002",
+  })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getPlayerProfiles(
     @Query("steamIds") steamIdsParam: string,
-    @Query() query: TimeWindowQuery
-  ): Promise<{ profiles: Record<string, AggregatedPlayerProfile>; errors: string[] }> {
+    @Query() query: TimeWindowQuery,
+  ): Promise<{
+    profiles: Record<string, AggregatedPlayerProfile>;
+    errors: string[];
+  }> {
     const steamIds = steamIdsParam.split(",").filter(Boolean);
 
     if (steamIds.length === 0) {
@@ -166,7 +261,10 @@ export class AggregationController {
     }
 
     const window = query.window ?? "all_time";
-    const profiles = await this.playerAggregation.getPlayerProfiles(steamIds, window);
+    const profiles = await this.playerAggregation.getPlayerProfiles(
+      steamIds,
+      window,
+    );
 
     const result: Record<string, AggregatedPlayerProfile> = {};
     const errors: string[] = [];
@@ -189,10 +287,17 @@ export class AggregationController {
   @Post("recompute/player/:steamId")
   @Roles("user")
   @ApiOperation({ summary: "Force recompute player profile" })
+  @ApiParam({ name: "steamId", description: "Player Steam ID (64-bit)" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   @HttpCode(HttpStatus.ACCEPTED)
   async recomputePlayerProfile(
     @Param("steamId") steamId: string,
-    @Query() query: TimeWindowQuery
+    @Query() query: TimeWindowQuery,
   ): Promise<{ jobId: string; message: string }> {
     this.logger.log(`POST /aggregation/recompute/player/${steamId}`);
 
@@ -205,7 +310,7 @@ export class AggregationController {
       },
       {
         jobId: `player-recompute-${steamId}-${Date.now()}`,
-      }
+      },
     );
 
     return {
@@ -224,16 +329,25 @@ export class AggregationController {
   @Get("teams/:teamId")
   @Public()
   @ApiOperation({ summary: "Get aggregated team profile" })
+  @ApiParam({ name: "teamId", description: "Team UUID" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getTeamProfile(
     @Param("teamId") teamId: string,
-    @Query() query: TimeWindowQuery
+    @Query() query: TimeWindowQuery,
   ): Promise<AggregatedTeamProfile> {
-    this.logger.log(`GET /aggregation/teams/${teamId} (window: ${query.window ?? "all_time"})`);
+    this.logger.log(
+      `GET /aggregation/teams/${teamId} (window: ${query.window ?? "all_time"})`,
+    );
 
     try {
       return await this.teamAggregation.getTeamProfile(
         teamId,
-        query.window ?? "all_time"
+        query.window ?? "all_time",
       );
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -250,8 +364,19 @@ export class AggregationController {
   @Get("teams/roster")
   @Public()
   @ApiOperation({ summary: "Get team profile by roster" })
+  @ApiQuery({
+    name: "steamIds",
+    description: "Comma-separated list of Steam IDs (2-5 players)",
+    example: "76561198000000001,76561198000000002,76561198000000003",
+  })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getTeamProfileByRoster(
-    @Query() query: RosterQuery
+    @Query() query: RosterQuery,
   ): Promise<AggregatedTeamProfile> {
     const steamIds = query.steamIds.split(",").filter(Boolean);
 
@@ -263,11 +388,13 @@ export class AggregationController {
       throw new Error("Maximum 5 players for roster analysis");
     }
 
-    this.logger.log(`GET /aggregation/teams/roster (${steamIds.length} players)`);
+    this.logger.log(
+      `GET /aggregation/teams/roster (${steamIds.length} players)`,
+    );
 
     return await this.teamAggregation.getTeamProfileByRoster(
       steamIds,
-      query.window ?? "all_time"
+      query.window ?? "all_time",
     );
   }
 
@@ -277,10 +404,17 @@ export class AggregationController {
   @Post("recompute/team/:teamId")
   @Roles("user")
   @ApiOperation({ summary: "Force recompute team profile" })
+  @ApiParam({ name: "teamId", description: "Team UUID" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   @HttpCode(HttpStatus.ACCEPTED)
   async recomputeTeamProfile(
     @Param("teamId") teamId: string,
-    @Query() query: TimeWindowQuery
+    @Query() query: TimeWindowQuery,
   ): Promise<{ jobId: string; message: string }> {
     this.logger.log(`POST /aggregation/recompute/team/${teamId}`);
 
@@ -293,7 +427,7 @@ export class AggregationController {
       },
       {
         jobId: `team-recompute-${teamId}-${Date.now()}`,
-      }
+      },
     );
 
     return {
@@ -312,14 +446,18 @@ export class AggregationController {
   @Post("recompute/batch")
   @Roles("admin")
   @ApiOperation({ summary: "Batch recompute multiple profiles (admin only)" })
+  @ApiBody({ type: BatchRecomputeDto })
   @HttpCode(HttpStatus.ACCEPTED)
-  async batchRecompute(
-    @Body() body: BatchRecomputeBody
-  ): Promise<{ jobId: string; message: string; playersQueued: number; teamsQueued: number }> {
+  async batchRecompute(@Body() body: BatchRecomputeDto): Promise<{
+    jobId: string;
+    message: string;
+    playersQueued: number;
+    teamsQueued: number;
+  }> {
     const { steamIds = [], teamIds = [], window = "all_time" } = body;
 
     this.logger.log(
-      `POST /aggregation/recompute/batch (${steamIds.length} players, ${teamIds.length} teams)`
+      `POST /aggregation/recompute/batch (${steamIds.length} players, ${teamIds.length} teams)`,
     );
 
     if (steamIds.length === 0 && teamIds.length === 0) {
@@ -341,7 +479,7 @@ export class AggregationController {
       },
       {
         jobId: `batch-recompute-${Date.now()}`,
-      }
+      },
     );
 
     return {
@@ -361,12 +499,12 @@ export class AggregationController {
    */
   private buildComparison(
     player1: AggregatedPlayerProfile,
-    player2: AggregatedPlayerProfile
+    player2: AggregatedPlayerProfile,
   ): PlayerComparisonResult["comparison"] {
     const compareMetric = (
       v1: number,
       v2: number,
-      threshold = 0.02
+      threshold = 0.02,
     ): { player1: number; player2: number; winner: string | null } => {
       const diff = v1 - v2;
       let winner: string | null = null;
@@ -380,30 +518,37 @@ export class AggregationController {
 
     const rating = compareMetric(
       player1.performance.avgRating,
-      player2.performance.avgRating
+      player2.performance.avgRating,
     );
     const kast = compareMetric(
       player1.performance.avgKast,
-      player2.performance.avgKast
+      player2.performance.avgKast,
     );
     const adr = compareMetric(player1.combat.adr, player2.combat.adr);
     const kd = compareMetric(player1.combat.kdRatio, player2.combat.kdRatio);
     const openingSuccessRate = compareMetric(
       player1.openings.successRate,
-      player2.openings.successRate
+      player2.openings.successRate,
     );
     const clutchSuccessRate = compareMetric(
       player1.clutches.successRate,
-      player2.clutches.successRate
+      player2.clutches.successRate,
     );
 
     // Count wins
-    const metrics = [rating, kast, adr, kd, openingSuccessRate, clutchSuccessRate];
+    const metrics = [
+      rating,
+      kast,
+      adr,
+      kd,
+      openingSuccessRate,
+      clutchSuccessRate,
+    ];
     const player1Wins = metrics.filter(
-      (m) => m.winner === player1.identity.steamId
+      (m) => m.winner === player1.identity.steamId,
     ).length;
     const player2Wins = metrics.filter(
-      (m) => m.winner === player2.identity.steamId
+      (m) => m.winner === player2.identity.steamId,
     ).length;
 
     let overall: string | null = null;

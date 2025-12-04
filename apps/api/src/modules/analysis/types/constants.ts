@@ -107,16 +107,16 @@ export const ECONOMY_THRESHOLDS = {
  */
 export const RATING_BENCHMARKS = {
   /** Elite professional level */
-  ELITE_PRO: 1.20,
+  ELITE_PRO: 1.2,
 
   /** Good professional level */
-  GOOD_PRO: 1.10,
+  GOOD_PRO: 1.1,
 
   /** Average professional level */
-  AVERAGE_PRO: 1.00,
+  AVERAGE_PRO: 1.0,
 
   /** Below average pro / high semi-pro */
-  BELOW_AVERAGE: 0.90,
+  BELOW_AVERAGE: 0.9,
 
   /** FACEIT Level 10 average */
   FACEIT_10: 1.05,

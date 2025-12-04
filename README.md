@@ -15,6 +15,7 @@
 CS2 Analytics transforme les démos CS2 en insights actionnables. Notre mission est de démocratiser l'analyse de haut niveau pour tous les joueurs, des amateurs aux professionnels.
 
 **Ce qui nous différencie :**
+
 - **2D Replay Viewer** : Visualisation interactive des rounds avec timeline
 - **AI Coaching** : Recommandations personnalisées basées sur vos patterns de jeu
 - **HLTV Rating 2.0** : Implémentation exacte du standard de l'industrie
@@ -141,14 +142,14 @@ cs2-analytics/
 
 ### Technologies
 
-| Couche | Technologies |
-|--------|-------------|
-| **Frontend** | Next.js 14, React 18, TypeScript, Radix UI, TailwindCSS, React Query, Zustand |
-| **Backend** | NestJS 10, TypeScript, Prisma ORM, BullMQ, Passport JWT |
-| **Parser** | Python 3.11, demoparser2, awpy |
-| **Databases** | PostgreSQL 16, Redis 7, ClickHouse (analytics) |
-| **Infrastructure** | Docker, PgBouncer, MinIO, Nginx |
-| **Observability** | OpenTelemetry, Prometheus, Grafana (planned) |
+| Couche             | Technologies                                                                  |
+| ------------------ | ----------------------------------------------------------------------------- |
+| **Frontend**       | Next.js 14, React 18, TypeScript, Radix UI, TailwindCSS, React Query, Zustand |
+| **Backend**        | NestJS 10, TypeScript, Prisma ORM, BullMQ, Passport JWT                       |
+| **Parser**         | Python 3.11, demoparser2, awpy                                                |
+| **Databases**      | PostgreSQL 16, Redis 7, ClickHouse (analytics)                                |
+| **Infrastructure** | Docker, PgBouncer, MinIO, Nginx                                               |
+| **Observability**  | OpenTelemetry, Prometheus, Grafana (planned)                                  |
 
 ---
 
@@ -184,14 +185,14 @@ pnpm dev
 
 ### Services disponibles
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| API | http://localhost:3001 | Backend NestJS |
-| Web | http://localhost:3000 | Frontend Next.js |
-| PostgreSQL | localhost:5432 | Base de données |
-| Redis | localhost:6379 | Cache & Queues |
-| PgBouncer | localhost:6432 | Connection pooling |
-| MinIO | http://localhost:9001 | Object storage UI |
+| Service    | URL                   | Description        |
+| ---------- | --------------------- | ------------------ |
+| API        | http://localhost:3001 | Backend NestJS     |
+| Web        | http://localhost:3000 | Frontend Next.js   |
+| PostgreSQL | localhost:5432        | Base de données    |
+| Redis      | localhost:6379        | Cache & Queues     |
+| PgBouncer  | localhost:6432        | Connection pooling |
+| MinIO      | http://localhost:9001 | Object storage UI  |
 
 ---
 
@@ -258,10 +259,12 @@ Les métriques sont calculées par des calculators indépendants :
 
 ```typescript
 // Facile d'ajouter de nouvelles métriques
-export function calculateRating(input: RatingCalculationInput): HLTVRating2
-export function calculateKAST(input: KASTCalculationInput): KASTMetrics
-export function calculateImpact(input: ImpactCalculationInput): ImpactMetrics
-export function calculateCombatMetrics(stats: RoundPlayerStatsInput[]): CombatMetrics
+export function calculateRating(input: RatingCalculationInput): HLTVRating2;
+export function calculateKAST(input: KASTCalculationInput): KASTMetrics;
+export function calculateImpact(input: ImpactCalculationInput): ImpactMetrics;
+export function calculateCombatMetrics(
+  stats: RoundPlayerStatsInput[],
+): CombatMetrics;
 ```
 
 #### 3. Feature Flags
@@ -293,10 +296,10 @@ interface MetricPlugin {
 
 ```typescript
 // Support multi-versions pour rétrocompatibilité
-@Controller({ version: '1', path: 'analysis' })
+@Controller({ version: "1", path: "analysis" })
 export class AnalysisV1Controller {}
 
-@Controller({ version: '2', path: 'analysis' })
+@Controller({ version: "2", path: "analysis" })
 export class AnalysisV2Controller {}
 ```
 
@@ -335,7 +338,7 @@ pgbouncer:
 
 ```typescript
 // BullMQ pour traitement asynchrone distribué
-@Processor('demo-processing')
+@Processor("demo-processing")
 export class DemoProcessor {
   @Process()
   async process(job: Job<DemoJobData>) {
@@ -364,19 +367,19 @@ ORDER BY (player_id, timestamp);
 // Future: répartition lecture/écriture
 @Injectable()
 export class PrismaService {
-  readonly write: PrismaClient;  // Primary
-  readonly read: PrismaClient;   // Replica
+  readonly write: PrismaClient; // Primary
+  readonly read: PrismaClient; // Replica
 }
 ```
 
 #### Benchmarks de scalabilité
 
-| Métrique | Objectif Phase 1 | Objectif Phase 5 |
-|----------|------------------|------------------|
-| Démos/jour | 1,000 | 100,000 |
-| Utilisateurs concurrents | 100 | 10,000 |
-| Temps parsing (30 rounds) | < 30s | < 10s |
-| Latence API p99 | < 200ms | < 100ms |
+| Métrique                  | Objectif Phase 1 | Objectif Phase 5 |
+| ------------------------- | ---------------- | ---------------- |
+| Démos/jour                | 1,000            | 100,000          |
+| Utilisateurs concurrents  | 100              | 10,000           |
+| Temps parsing (30 rounds) | < 30s            | < 10s            |
+| Latence API p99           | < 200ms          | < 100ms          |
 
 ---
 
@@ -451,13 +454,13 @@ app.use(compression());
 
 #### Métriques de performance cibles
 
-| Opération | Objectif |
-|-----------|----------|
-| Parse demo (30 rounds) | < 15s |
-| Get match overview | < 50ms |
-| Get player rating | < 20ms |
-| Search players | < 100ms |
-| Load 2D replay frame | < 16ms (60fps) |
+| Opération              | Objectif       |
+| ---------------------- | -------------- |
+| Parse demo (30 rounds) | < 15s          |
+| Get match overview     | < 50ms         |
+| Get player rating      | < 20ms         |
+| Search players         | < 100ms        |
+| Load 2D replay frame   | < 16ms (60fps) |
 
 ---
 
@@ -484,10 +487,12 @@ export interface HLTVRating2 {
 // Zod schemas pour validation entrées/sorties
 const DemoUploadSchema = z.object({
   file: z.instanceof(File),
-  metadata: z.object({
-    source: z.enum(['faceit', 'matchmaking', 'custom']),
-    map: z.string().optional(),
-  }).optional(),
+  metadata: z
+    .object({
+      source: z.enum(["faceit", "matchmaking", "custom"]),
+      map: z.string().optional(),
+    })
+    .optional(),
 });
 ```
 
@@ -503,8 +508,8 @@ tests/
 
 ```typescript
 // Couverture minimale requise
-describe('RatingCalculator', () => {
-  it('should calculate HLTV 2.0 rating correctly', () => {
+describe("RatingCalculator", () => {
+  it("should calculate HLTV 2.0 rating correctly", () => {
     const result = calculateRating(mockInput);
     expect(result.rating).toBeCloseTo(1.15, 2);
   });
@@ -522,12 +527,12 @@ pnpm prisma migrate deploy  # Production
 #### 5. Health Checks
 
 ```typescript
-@Controller('health')
+@Controller("health")
 export class HealthController {
   @Get()
   check() {
     return {
-      status: 'ok',
+      status: "ok",
       database: await this.checkDatabase(),
       redis: await this.checkRedis(),
       queue: await this.checkQueue(),
@@ -748,16 +753,16 @@ GET /api/players/:steamId/matches
 
 ## Analyse Concurrentielle
 
-| Fonctionnalité | CS2 Analytics | Leetify | SCOPE.GG | Noesis |
-|----------------|---------------|---------|----------|--------|
-| HLTV Rating 2.0 | ✅ | ✅ | ✅ | ✅ |
-| 2D Replay | ✅ (Roadmap) | ❌ | ❌ | ✅ |
-| AI Coaching | ✅ (Roadmap) | ✅ | ❌ | ❌ |
-| Open API | ✅ (Roadmap) | ❌ | ❌ | ❌ |
-| Self-hosted | ✅ | ❌ | ❌ | ❌ |
-| Custom metrics | ✅ (Plugins) | ❌ | ❌ | ❌ |
-| Team management | ✅ (Roadmap) | ✅ | ✅ | ❌ |
-| Prix | Freemium | $4.99/mo | $7.99/mo | Free |
+| Fonctionnalité  | CS2 Analytics | Leetify  | SCOPE.GG | Noesis |
+| --------------- | ------------- | -------- | -------- | ------ |
+| HLTV Rating 2.0 | ✅            | ✅       | ✅       | ✅     |
+| 2D Replay       | ✅ (Roadmap)  | ❌       | ❌       | ✅     |
+| AI Coaching     | ✅ (Roadmap)  | ✅       | ❌       | ❌     |
+| Open API        | ✅ (Roadmap)  | ❌       | ❌       | ❌     |
+| Self-hosted     | ✅            | ❌       | ❌       | ❌     |
+| Custom metrics  | ✅ (Plugins)  | ❌       | ❌       | ❌     |
+| Team management | ✅ (Roadmap)  | ✅       | ✅       | ❌     |
+| Prix            | Freemium      | $4.99/mo | $7.99/mo | Free   |
 
 ### Notre différenciation
 

@@ -20,13 +20,22 @@ export default function HomePage() {
             <span className="text-xl font-bold">CS2 Analytics</span>
           </div>
           <nav className="flex items-center gap-4">
-            <Link href="/demos" className="text-muted-foreground hover:text-foreground">
+            <Link
+              href="/demos"
+              className="text-muted-foreground hover:text-foreground"
+            >
               Demos
             </Link>
-            <Link href="/players" className="text-muted-foreground hover:text-foreground">
+            <Link
+              href="/players"
+              className="text-muted-foreground hover:text-foreground"
+            >
               Players
             </Link>
-            <Link href="/analysis" className="text-muted-foreground hover:text-foreground">
+            <Link
+              href="/analysis"
+              className="text-muted-foreground hover:text-foreground"
+            >
               Analysis
             </Link>
             <Button asChild>
@@ -111,12 +120,11 @@ export default function HomePage() {
       <section className="container py-24 text-center">
         <h2 className="text-3xl font-bold mb-4">Ready to improve your game?</h2>
         <p className="text-muted-foreground mb-8">
-          Start analyzing your demos today and take your CS2 skills to the next level.
+          Start analyzing your demos today and take your CS2 skills to the next
+          level.
         </p>
         <Button size="lg" asChild>
-          <Link href="/demos">
-            Start Analyzing
-          </Link>
+          <Link href="/demos">Start Analyzing</Link>
         </Button>
       </section>
 

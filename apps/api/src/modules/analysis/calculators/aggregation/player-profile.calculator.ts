@@ -170,7 +170,9 @@ export interface PlayerMatchData {
 /**
  * Aggregate core statistics
  */
-export function aggregateCoreStats(matches: readonly PlayerMatchData[]): AggregatedCoreStats {
+export function aggregateCoreStats(
+  matches: readonly PlayerMatchData[],
+): AggregatedCoreStats {
   const totalKills = sumBy(matches, (m) => m.kills);
   const totalDeaths = sumBy(matches, (m) => m.deaths);
   const totalAssists = sumBy(matches, (m) => m.assists);
@@ -215,7 +217,9 @@ export function aggregateCoreStats(matches: readonly PlayerMatchData[]): Aggrega
 /**
  * Aggregate combat statistics
  */
-export function aggregateCombatStats(matches: readonly PlayerMatchData[]): AggregatedCombatStats {
+export function aggregateCombatStats(
+  matches: readonly PlayerMatchData[],
+): AggregatedCombatStats {
   const totalKills = sumBy(matches, (m) => m.kills);
   const totalDeaths = sumBy(matches, (m) => m.deaths);
   const totalDamage = sumBy(matches, (m) => m.damage);
@@ -234,7 +238,10 @@ export function aggregateCombatStats(matches: readonly PlayerMatchData[]): Aggre
       sumBy(matches, (m) => m.aces),
     multiKillRate: 0,
   };
-  multiKills.multiKillRate = safePercentage(multiKills.multiKillRounds, totalRounds);
+  multiKills.multiKillRate = safePercentage(
+    multiKills.multiKillRounds,
+    totalRounds,
+  );
 
   const ctRounds = sumBy(matches, (m) => m.ctRounds);
   const ctKills = sumBy(matches, (m) => m.ctKills);
@@ -268,7 +275,13 @@ export function aggregateCombatStats(matches: readonly PlayerMatchData[]): Aggre
       longRange: 0,
     },
     bySide: {
-      ct: aggregateSideCombat(ctRounds, ctKills, ctDeaths, ctDamage, ctRoundsWon),
+      ct: aggregateSideCombat(
+        ctRounds,
+        ctKills,
+        ctDeaths,
+        ctDamage,
+        ctRoundsWon,
+      ),
       t: aggregateSideCombat(tRounds, tKills, tDeaths, tDamage, tRoundsWon),
     },
   };
@@ -279,7 +292,7 @@ function aggregateSideCombat(
   kills: number,
   deaths: number,
   damage: number,
-  roundsWon: number
+  roundsWon: number,
 ): SideSpecificCombat {
   return {
     roundsPlayed: rounds,
@@ -300,7 +313,7 @@ function aggregateSideCombat(
  * Aggregate performance/rating statistics
  */
 export function aggregatePerformanceStats(
-  matches: readonly PlayerMatchData[]
+  matches: readonly PlayerMatchData[],
 ): AggregatedPerformanceStats {
   const ratings = matches.map((m) => m.rating);
   const kasts = matches.map((m) => m.kast);
@@ -352,7 +365,9 @@ export function aggregatePerformanceStats(
 /**
  * Aggregate trade statistics
  */
-export function aggregateTradeStats(matches: readonly PlayerMatchData[]): AggregatedTradeStats {
+export function aggregateTradeStats(
+  matches: readonly PlayerMatchData[],
+): AggregatedTradeStats {
   const tradeKills = sumBy(matches, (m) => m.tradeKills);
   const timesTraded = sumBy(matches, (m) => m.timesTraded);
   const opportunities = sumBy(matches, (m) => m.tradeOpportunities);
@@ -382,7 +397,7 @@ export function aggregateTradeStats(matches: readonly PlayerMatchData[]): Aggreg
  * Aggregate opening duel statistics
  */
 export function aggregateOpeningStats(
-  matches: readonly PlayerMatchData[]
+  matches: readonly PlayerMatchData[],
 ): AggregatedOpeningStats {
   const totalDuels = sumBy(matches, (m) => m.openingAttempts);
   const openingKills = sumBy(matches, (m) => m.openingKills);
@@ -392,11 +407,11 @@ export function aggregateOpeningStats(
   // Calculate round win rates after opening outcomes (unused but kept for future use)
   const _roundsAfterOpeningKill = sumBy(
     matches,
-    (m) => m.openingKills * 0.7 // Approximation: 70% win rate after opening kill
+    (m) => m.openingKills * 0.7, // Approximation: 70% win rate after opening kill
   );
   const _roundsAfterOpeningDeath = sumBy(
     matches,
-    (m) => m.openingDeaths * 0.35 // Approximation: 35% win rate after opening death
+    (m) => m.openingDeaths * 0.35, // Approximation: 35% win rate after opening death
   );
   void _roundsAfterOpeningKill;
   void _roundsAfterOpeningDeath;
@@ -434,12 +449,17 @@ export function aggregateOpeningStats(
 /**
  * Aggregate clutch statistics
  */
-export function aggregateClutchStats(matches: readonly PlayerMatchData[]): AggregatedClutchStats {
+export function aggregateClutchStats(
+  matches: readonly PlayerMatchData[],
+): AggregatedClutchStats {
   const totalClutches = sumBy(matches, (m) => m.clutchAttempts);
   const clutchesWon = sumBy(matches, (m) => m.clutchWins);
   const totalRounds = sumBy(matches, (m) => m.roundsPlayed);
 
-  const makeClutchBreakdown = (attempts: number, wins: number): AggregatedClutchByOpponent => ({
+  const makeClutchBreakdown = (
+    attempts: number,
+    wins: number,
+  ): AggregatedClutchByOpponent => ({
     attempts,
     wins,
     successRate: safePercentage(wins, attempts),
@@ -454,23 +474,23 @@ export function aggregateClutchStats(matches: readonly PlayerMatchData[]): Aggre
     byOpponents: {
       vs1: makeClutchBreakdown(
         sumBy(matches, (m) => m.clutchVs1Attempts),
-        sumBy(matches, (m) => m.clutchVs1Wins)
+        sumBy(matches, (m) => m.clutchVs1Wins),
       ),
       vs2: makeClutchBreakdown(
         sumBy(matches, (m) => m.clutchVs2Attempts),
-        sumBy(matches, (m) => m.clutchVs2Wins)
+        sumBy(matches, (m) => m.clutchVs2Wins),
       ),
       vs3: makeClutchBreakdown(
         sumBy(matches, (m) => m.clutchVs3Attempts),
-        sumBy(matches, (m) => m.clutchVs3Wins)
+        sumBy(matches, (m) => m.clutchVs3Wins),
       ),
       vs4: makeClutchBreakdown(
         sumBy(matches, (m) => m.clutchVs4Attempts),
-        sumBy(matches, (m) => m.clutchVs4Wins)
+        sumBy(matches, (m) => m.clutchVs4Wins),
       ),
       vs5: makeClutchBreakdown(
         sumBy(matches, (m) => m.clutchVs5Attempts),
-        sumBy(matches, (m) => m.clutchVs5Wins)
+        sumBy(matches, (m) => m.clutchVs5Wins),
       ),
     },
     bySide: {
@@ -493,7 +513,7 @@ export function aggregateClutchStats(matches: readonly PlayerMatchData[]): Aggre
  * Aggregate utility statistics
  */
 export function aggregateUtilityStats(
-  matches: readonly PlayerMatchData[]
+  matches: readonly PlayerMatchData[],
 ): AggregatedUtilityStats {
   const totalRounds = sumBy(matches, (m) => m.roundsPlayed);
   const flashesThrown = sumBy(matches, (m) => m.flashesThrown);
@@ -517,7 +537,10 @@ export function aggregateUtilityStats(
       thrown: sumBy(matches, (m) => m.heGrenadesThrown),
       totalDamage: heDamage,
       enemiesHit: 0, // Requires grenade-level data
-      avgDamagePerGrenade: safeRate(heDamage, sumBy(matches, (m) => m.heGrenadesThrown)),
+      avgDamagePerGrenade: safeRate(
+        heDamage,
+        sumBy(matches, (m) => m.heGrenadesThrown),
+      ),
       kills: 0,
     },
     smoke: {
@@ -529,7 +552,10 @@ export function aggregateUtilityStats(
       thrown: sumBy(matches, (m) => m.molotovsThrown),
       totalDamage: molotovDamage,
       enemiesHit: 0,
-      avgDamagePerMolotov: safeRate(molotovDamage, sumBy(matches, (m) => m.molotovsThrown)),
+      avgDamagePerMolotov: safeRate(
+        molotovDamage,
+        sumBy(matches, (m) => m.molotovsThrown),
+      ),
       kills: 0,
       areadenied: 0,
     },
@@ -549,7 +575,7 @@ export function aggregateUtilityStats(
  * Aggregate economy statistics
  */
 export function aggregateEconomyStats(
-  matches: readonly PlayerMatchData[]
+  matches: readonly PlayerMatchData[],
 ): AggregatedEconomyStats {
   const totalSpent = sumBy(matches, (m) => m.totalSpent);
   const totalKills = sumBy(matches, (m) => m.kills);
@@ -558,7 +584,7 @@ export function aggregateEconomyStats(
   const makeBuyTypePerf = (
     rounds: number,
     roundsWon: number,
-    _matchData: readonly PlayerMatchData[]
+    _matchData: readonly PlayerMatchData[],
   ): BuyTypePerformance => ({
     roundsPlayed: rounds,
     kills: 0, // Would need per-round data
@@ -576,22 +602,22 @@ export function aggregateEconomyStats(
       pistol: makeBuyTypePerf(
         sumBy(matches, (m) => m.pistolRounds),
         sumBy(matches, (m) => m.pistolRoundsWon),
-        matches
+        matches,
       ),
       eco: makeBuyTypePerf(
         sumBy(matches, (m) => m.ecoRounds),
         sumBy(matches, (m) => m.ecoRoundsWon),
-        matches
+        matches,
       ),
       forceBuy: makeBuyTypePerf(
         sumBy(matches, (m) => m.forceRounds),
         sumBy(matches, (m) => m.forceRoundsWon),
-        matches
+        matches,
       ),
       fullBuy: makeBuyTypePerf(
         sumBy(matches, (m) => m.fullBuyRounds),
         sumBy(matches, (m) => m.fullBuyRoundsWon),
-        matches
+        matches,
       ),
     },
     saves: {
@@ -617,7 +643,7 @@ export function aggregateEconomyStats(
  * Calculate consistency metrics
  */
 export function calculateConsistencyMetrics(
-  matches: readonly PlayerMatchData[]
+  matches: readonly PlayerMatchData[],
 ): ConsistencyMetrics {
   const ratings = matches.map((m) => m.rating);
   const kasts = matches.map((m) => m.kast);
@@ -626,7 +652,7 @@ export function calculateConsistencyMetrics(
   const floorCeiling = calculateFloorCeiling(ratings);
   const badGameRate = safePercentage(
     countWhere(matches, (m) => m.rating < 0.8),
-    matches.length
+    matches.length,
   );
 
   return {
@@ -656,10 +682,10 @@ export function calculateConsistencyMetrics(
  * Calculate player form analysis
  */
 export function calculateFormAnalysis(
-  matches: readonly PlayerMatchData[]
+  matches: readonly PlayerMatchData[],
 ): PlayerFormAnalysis {
   const sortedMatches = [...matches].sort(
-    (a, b) => b.playedAt.getTime() - a.playedAt.getTime()
+    (a, b) => b.playedAt.getTime() - a.playedAt.getTime(),
   );
 
   const allRatings = sortedMatches.map((m) => m.rating);
@@ -677,7 +703,12 @@ export function calculateFormAnalysis(
     confidence: regression.rSquared,
     prediction:
       regression.rSquared > 0.3
-        ? Number((regression.intercept + regression.slope * recentRatings.length).toFixed(2))
+        ? Number(
+            (
+              regression.intercept +
+              regression.slope * recentRatings.length
+            ).toFixed(2),
+          )
         : null,
   };
 
@@ -709,7 +740,10 @@ export function calculateFormAnalysis(
     streaks: {
       currentWinStreak,
       currentLossStreak,
-      currentRatingStreak: Math.max(ratingStreaks.aboveAvg, ratingStreaks.belowAvg),
+      currentRatingStreak: Math.max(
+        ratingStreaks.aboveAvg,
+        ratingStreaks.belowAvg,
+      ),
       longestWinStreak,
       longestLossStreak,
     },
@@ -735,7 +769,7 @@ export function calculateFormAnalysis(
  * Calculate peak performances
  */
 export function calculatePeakPerformances(
-  matches: readonly PlayerMatchData[]
+  matches: readonly PlayerMatchData[],
 ): PeakPerformances {
   if (matches.length === 0) {
     const emptyPeak: MatchPeak = {
@@ -769,17 +803,22 @@ export function calculatePeakPerformances(
   const byKills = [...matches].sort((a, b) => b.kills - a.kills)[0]!;
   const byAdr = [...matches].sort(
     (a, b) =>
-      calculateADR(b.damage, b.roundsPlayed) - calculateADR(a.damage, a.roundsPlayed)
+      calculateADR(b.damage, b.roundsPlayed) -
+      calculateADR(a.damage, a.roundsPlayed),
   )[0]!;
-  const byClutches = [...matches].sort((a, b) => b.clutchWins - a.clutchWins)[0]!;
-  const byOpenings = [...matches].sort((a, b) => b.openingKills - a.openingKills)[0]!;
+  const byClutches = [...matches].sort(
+    (a, b) => b.clutchWins - a.clutchWins,
+  )[0]!;
+  const byOpenings = [...matches].sort(
+    (a, b) => b.openingKills - a.openingKills,
+  )[0]!;
   const byMultiKills = [...matches].sort(
     (a, b) =>
       b.doubleKills +
       b.tripleKills +
       b.quadKills +
       b.aces -
-      (a.doubleKills + a.tripleKills + a.quadKills + a.aces)
+      (a.doubleKills + a.tripleKills + a.quadKills + a.aces),
   )[0]!;
 
   // Calculate achievements
@@ -810,7 +849,8 @@ export function calculatePeakPerformances(
     achievements.push({
       type: "clutch_1v5" as AchievementType,
       count: clutch1v5,
-      lastAchieved: matches.find((m) => m.clutchVs5Wins > 0)?.playedAt ?? new Date(),
+      lastAchieved:
+        matches.find((m) => m.clutchVs5Wins > 0)?.playedAt ?? new Date(),
     });
   }
 
@@ -819,7 +859,8 @@ export function calculatePeakPerformances(
     achievements.push({
       type: "rating_2_plus" as AchievementType,
       count: rating2Plus,
-      lastAchieved: matches.find((m) => m.rating >= 2.0)?.playedAt ?? new Date(),
+      lastAchieved:
+        matches.find((m) => m.rating >= 2.0)?.playedAt ?? new Date(),
     });
   }
 
@@ -835,7 +876,10 @@ export function calculatePeakPerformances(
   return {
     highestRating: createPeak(byRating, byRating.rating),
     highestKills: createPeak(byKills, byKills.kills),
-    highestAdr: createPeak(byAdr, calculateADR(byAdr.damage, byAdr.roundsPlayed)),
+    highestAdr: createPeak(
+      byAdr,
+      calculateADR(byAdr.damage, byAdr.roundsPlayed),
+    ),
     mostClutches: createPeak(byClutches, byClutches.clutchWins),
     mostOpeningKills: createPeak(byOpenings, byOpenings.openingKills),
     mostMultiKills: createPeak(
@@ -843,7 +887,7 @@ export function calculatePeakPerformances(
       byMultiKills.doubleKills +
         byMultiKills.tripleKills +
         byMultiKills.quadKills +
-        byMultiKills.aces
+        byMultiKills.aces,
     ),
     achievements,
   };
@@ -868,11 +912,11 @@ export function calculatePercentiles(
     impact: number;
     utilityDamage: number;
   },
-  peerStats: readonly typeof playerStats[]
+  peerStats: readonly (typeof playerStats)[],
 ): PlayerPercentiles {
   const calcPercentile = (
     value: number,
-    getter: (s: typeof playerStats) => number
+    getter: (s: typeof playerStats) => number,
   ): number => {
     const peerValues = peerStats.map(getter);
     return Number(percentileRank(peerValues, value).toFixed(0));
@@ -886,14 +930,17 @@ export function calculatePercentiles(
     hsPercent: calcPercentile(playerStats.hsPercent, (s) => s.hsPercent),
     openingSuccessRate: calcPercentile(
       playerStats.openingSuccessRate,
-      (s) => s.openingSuccessRate
+      (s) => s.openingSuccessRate,
     ),
     clutchSuccessRate: calcPercentile(
       playerStats.clutchSuccessRate,
-      (s) => s.clutchSuccessRate
+      (s) => s.clutchSuccessRate,
     ),
     impact: calcPercentile(playerStats.impact, (s) => s.impact),
-    utilityDamage: calcPercentile(playerStats.utilityDamage, (s) => s.utilityDamage),
+    utilityDamage: calcPercentile(
+      playerStats.utilityDamage,
+      (s) => s.utilityDamage,
+    ),
   };
 
   // Weighted average for overall percentile
@@ -966,11 +1013,14 @@ export function aggregatePlayerProfile(
     impact: number;
     utilityDamage: number;
   }[],
-  windowId: "all_time" | "last_90d" | "last_30d" | "last_7d" | "last_10_matches" | "last_20_matches" = "all_time"
-): Omit<
-  AggregatedPlayerProfile,
-  "byMap" | "weapons" | "role"
-> {
+  windowId:
+    | "all_time"
+    | "last_90d"
+    | "last_30d"
+    | "last_7d"
+    | "last_10_matches"
+    | "last_20_matches" = "all_time",
+): Omit<AggregatedPlayerProfile, "byMap" | "weapons" | "role"> {
   const startTime = Date.now();
 
   if (matches.length === 0) {
@@ -978,7 +1028,7 @@ export function aggregatePlayerProfile(
   }
 
   const sortedMatches = [...matches].sort(
-    (a, b) => a.playedAt.getTime() - b.playedAt.getTime()
+    (a, b) => a.playedAt.getTime() - b.playedAt.getTime(),
   );
 
   const coreStats = aggregateCoreStats(matches);
@@ -1012,7 +1062,7 @@ export function aggregatePlayerProfile(
     roundCount: sumBy(matches, (m) => m.roundsPlayed),
     daysSpan: Math.ceil(
       (lastMatch.playedAt.getTime() - firstMatch.playedAt.getTime()) /
-        (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24),
     ),
   };
 

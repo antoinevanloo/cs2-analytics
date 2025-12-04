@@ -47,7 +47,7 @@ import { ECONOMY_THRESHOLDS } from "../types/constants";
  * ```
  */
 export function calculateCombatMetrics(
-  roundStats: readonly RoundPlayerStatsInput[]
+  roundStats: readonly RoundPlayerStatsInput[],
 ): CombatMetrics {
   if (roundStats.length === 0) {
     return createEmptyCombatMetrics();
@@ -104,10 +104,10 @@ export function calculateCombatMetrics(
 export function calculateCombatMetricsFromMatch(
   matchStats: MatchPlayerStatsInput,
   kills: readonly KillInput[],
-  roundsPlayed: number
+  roundsPlayed: number,
 ): CombatMetrics {
   const playerKills = kills.filter(
-    (k) => k.attackerSteamId === matchStats.steamId
+    (k) => k.attackerSteamId === matchStats.steamId,
   );
   const headshotKills = playerKills.filter((k) => k.headshot).length;
   const hsPercent =
@@ -148,7 +148,7 @@ export function calculateCombatMetricsFromMatch(
  * @returns Array of weapon stats sorted by kills
  */
 export function calculateWeaponStats(
-  kills: readonly KillInput[]
+  kills: readonly KillInput[],
 ): readonly WeaponCombatMetrics[] {
   if (kills.length === 0) {
     return [];
@@ -215,13 +215,13 @@ export function calculateWeaponStats(
  */
 export function calculateCombatBySide(
   roundStats: readonly RoundPlayerStatsInput[],
-  sideByRound: ReadonlyMap<number, number>
+  sideByRound: ReadonlyMap<number, number>,
 ): CombatBySide {
   const ctRounds = roundStats.filter(
-    (r) => sideByRound.get(r.roundNumber) === 3
+    (r) => sideByRound.get(r.roundNumber) === 3,
   );
   const tRounds = roundStats.filter(
-    (r) => sideByRound.get(r.roundNumber) === 2
+    (r) => sideByRound.get(r.roundNumber) === 2,
   );
 
   return {
@@ -237,26 +237,25 @@ export function calculateCombatBySide(
  * @returns Combat metrics split by round type
  */
 export function calculateCombatByRoundType(
-  roundStats: readonly RoundPlayerStatsInput[]
+  roundStats: readonly RoundPlayerStatsInput[],
 ): CombatByRoundType {
   const pistolRounds = roundStats.filter(
-    (r) => r.roundNumber === 1 || r.roundNumber === 13
+    (r) => r.roundNumber === 1 || r.roundNumber === 13,
   );
   const ecoRounds = roundStats.filter(
     (r) =>
-      !isPistolRound(r.roundNumber) &&
-      r.equipValue < ECONOMY_THRESHOLDS.ECO
+      !isPistolRound(r.roundNumber) && r.equipValue < ECONOMY_THRESHOLDS.ECO,
   );
   const forceRounds = roundStats.filter(
     (r) =>
       !isPistolRound(r.roundNumber) &&
       r.equipValue >= ECONOMY_THRESHOLDS.ECO &&
-      r.equipValue < ECONOMY_THRESHOLDS.FULL_BUY
+      r.equipValue < ECONOMY_THRESHOLDS.FULL_BUY,
   );
   const fullBuyRounds = roundStats.filter(
     (r) =>
       !isPistolRound(r.roundNumber) &&
-      r.equipValue >= ECONOMY_THRESHOLDS.FULL_BUY
+      r.equipValue >= ECONOMY_THRESHOLDS.FULL_BUY,
   );
 
   return {
@@ -274,7 +273,7 @@ export function calculateCombatByRoundType(
  * @returns Count of rounds with 2, 3, 4, 5 kills
  */
 export function calculateMultiKillRounds(
-  roundStats: readonly RoundPlayerStatsInput[]
+  roundStats: readonly RoundPlayerStatsInput[],
 ): {
   twoK: number;
   threeK: number;
@@ -310,7 +309,7 @@ export function calculateMultiKillRounds(
  * @returns Special kills breakdown
  */
 export function calculateSpecialKills(
-  kills: readonly KillInput[]
+  kills: readonly KillInput[],
 ): SpecialKillsMetrics {
   if (kills.length === 0) {
     return createEmptySpecialKills();
@@ -328,7 +327,7 @@ export function calculateSpecialKills(
   // Count sniper kills for noscope percentage
   const sniperWeapons = ["awp", "ssg08", "g3sg1", "scar20"];
   const sniperKills = kills.filter((k) =>
-    sniperWeapons.includes(k.weapon.toLowerCase().replace("weapon_", ""))
+    sniperWeapons.includes(k.weapon.toLowerCase().replace("weapon_", "")),
   ).length;
 
   // Calculate total special kills (some kills may be multiple types)
@@ -388,7 +387,7 @@ const DISTANCE_THRESHOLDS = {
  * @returns Distance breakdown and statistics
  */
 export function calculateKillDistance(
-  kills: readonly KillInput[]
+  kills: readonly KillInput[],
 ): KillDistanceMetrics {
   if (kills.length === 0) {
     return createEmptyKillDistance();
@@ -428,7 +427,7 @@ export function calculateKillDistance(
 
   // Calculate overall statistics
   const avgDistance = round2(
-    distances.reduce((sum, d) => sum + d, 0) / totalKills
+    distances.reduce((sum, d) => sum + d, 0) / totalKills,
   );
 
   // Median
@@ -446,7 +445,7 @@ export function calculateKillDistance(
     { range: "extreme", percent: extreme.percent },
   ];
   const preferredRange = ranges.reduce((max, r) =>
-    r.percent > max.percent ? r : max
+    r.percent > max.percent ? r : max,
   ).range;
 
   // Calculate variance (spread in distance preferences)
@@ -472,7 +471,7 @@ export function calculateKillDistance(
  */
 function calculateRangeStats(
   kills: readonly KillInput[],
-  totalKills: number
+  totalKills: number,
 ): DistanceRangeStats {
   const count = kills.length;
   const headshots = kills.filter((k) => k.headshot).length;
@@ -494,7 +493,7 @@ function calculateRangeStats(
  * @returns Detailed multi-kill breakdown
  */
 export function calculateMultiKillMetrics(
-  roundStats: readonly RoundPlayerStatsInput[]
+  roundStats: readonly RoundPlayerStatsInput[],
 ): MultiKillMetrics {
   const basic = calculateMultiKillRounds(roundStats);
 
@@ -503,7 +502,7 @@ export function calculateMultiKillMetrics(
 
   const roundsPlayed = roundStats.length;
   const multiKillPercent = round2(
-    safeDiv(totalMultiKillRounds * 100, roundsPlayed)
+    safeDiv(totalMultiKillRounds * 100, roundsPlayed),
   );
 
   // Calculate average kills in multi-kill rounds
@@ -517,7 +516,10 @@ export function calculateMultiKillMetrics(
   // Impact score: weighted sum of multi-kills
   // Weights based on relative difficulty/impact
   const impactScore = round2(
-    basic.twoK * 1.0 + basic.threeK * 2.5 + basic.fourK * 5.0 + basic.fiveK * 10.0
+    basic.twoK * 1.0 +
+      basic.threeK * 2.5 +
+      basic.fourK * 5.0 +
+      basic.fiveK * 10.0,
   );
 
   return {
@@ -549,7 +551,7 @@ export function calculateFirstBloodMetrics(
   kills: readonly KillInput[],
   roundStats: readonly RoundPlayerStatsInput[],
   roundWinners?: ReadonlyMap<number, number>,
-  playerTeam?: number
+  playerTeam?: number,
 ): FirstBloodMetrics {
   const roundsPlayed = roundStats.length;
 
@@ -626,10 +628,10 @@ export function calculateFirstBloodMetrics(
     firstDeathRate: round2(safeDiv(firstDeaths * 100, roundsPlayed)),
     firstKillWeapons,
     roundWinRateAfterFK: round2(
-      safeDiv(roundsWonAfterFK * 100, Math.max(firstKills, 1))
+      safeDiv(roundsWonAfterFK * 100, Math.max(firstKills, 1)),
     ),
     roundWinRateAfterFD: round2(
-      safeDiv(roundsWonAfterFD * 100, Math.max(firstDeaths, 1))
+      safeDiv(roundsWonAfterFD * 100, Math.max(firstDeaths, 1)),
     ),
   };
 }
@@ -724,7 +726,7 @@ function createEmptyFirstBlood(): FirstBloodMetrics {
  */
 function sumField(
   items: readonly RoundPlayerStatsInput[],
-  field: keyof RoundPlayerStatsInput
+  field: keyof RoundPlayerStatsInput,
 ): number {
   return items.reduce((sum, item) => {
     const value = item[field];

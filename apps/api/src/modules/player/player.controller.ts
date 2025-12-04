@@ -3,12 +3,18 @@
  */
 
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+} from "@nestjs/swagger";
 import { PlayerService } from "./player.service";
 import { Public } from "../../common/decorators";
 
-@ApiTags("players")
-@ApiBearerAuth()
+@ApiTags("Players")
+@ApiBearerAuth("JWT-auth")
 @Public() // All player endpoints are read-only and public
 @Controller({ path: "players", version: "1" })
 export class PlayerController {
@@ -29,7 +35,7 @@ export class PlayerController {
   async getPlayerStats(
     @Param("steamId") steamId: string,
     @Query("map") map?: string,
-    @Query("days") days?: number
+    @Query("days") days?: number,
   ) {
     const options: { map?: string; days?: number } = {};
     if (map !== undefined) options.map = map;
@@ -45,7 +51,7 @@ export class PlayerController {
   async getPlayerMatches(
     @Param("steamId") steamId: string,
     @Query("page") page = 1,
-    @Query("limit") limit = 20
+    @Query("limit") limit = 20,
   ) {
     return this.playerService.getPlayerMatches(steamId, { page, limit });
   }
@@ -58,7 +64,7 @@ export class PlayerController {
   async getPlayerHeatmap(
     @Param("steamId") steamId: string,
     @Query("map") map: string,
-    @Query("side") side?: "T" | "CT"
+    @Query("side") side?: "T" | "CT",
   ) {
     const options: { map: string; side?: "T" | "CT" } = { map };
     if (side !== undefined) options.side = side;
@@ -85,7 +91,7 @@ export class PlayerController {
   @ApiQuery({ name: "team", required: false, description: "Filter by team" })
   async searchPlayers(
     @Query("name") name?: string,
-    @Query("team") team?: string
+    @Query("team") team?: string,
   ) {
     const options: { name?: string; team?: string } = {};
     if (name !== undefined) options.name = name;

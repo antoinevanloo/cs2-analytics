@@ -98,9 +98,12 @@ export class DemoService {
   constructor(
     @InjectQueue("demo-parsing") private parsingQueue: Queue,
     private configService: ConfigService,
-    private prisma: PrismaService
+    private prisma: PrismaService,
   ) {
-    this.demoStoragePath = this.configService.get("DEMO_STORAGE_PATH", "/tmp/demos");
+    this.demoStoragePath = this.configService.get(
+      "DEMO_STORAGE_PATH",
+      "/tmp/demos",
+    );
 
     // Ensure storage directory exists
     if (!fs.existsSync(this.demoStoragePath)) {
@@ -191,7 +194,7 @@ export class DemoService {
     // This is memory-efficient: only chunks are in memory at any time
     const { fileSize, fileHash } = await writeStreamWithHash(
       data.fileStream,
-      filePath
+      filePath,
     );
 
     this.logger.log(`Demo streamed to disk: ${filePath} (${fileSize} bytes)`);
@@ -275,7 +278,7 @@ export class DemoService {
           type: "exponential",
           delay: 5000,
         },
-      }
+      },
     );
 
     this.logger.log(`Demo ${id} queued for parsing, job: ${job.id}`);
@@ -334,14 +337,17 @@ export class DemoService {
 
   async getDemoEvents(
     id: string,
-    filters: { eventType?: string; round?: number }
+    filters: { eventType?: string; round?: number },
   ) {
     const demo = await this.prisma.demo.findUnique({ where: { id } });
     if (!demo) {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       return {
         error: "Demo not yet parsed",
         status: demo.status,
@@ -380,7 +386,10 @@ export class DemoService {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       return {
         error: "Demo not yet parsed",
         status: demo.status,
@@ -419,7 +428,10 @@ export class DemoService {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       return {
         error: "Demo not yet parsed",
         status: demo.status,
@@ -452,14 +464,17 @@ export class DemoService {
 
   async getDemoTicks(
     id: string,
-    options: { startTick?: number; endTick?: number; interval?: number }
+    options: { startTick?: number; endTick?: number; interval?: number },
   ) {
     const demo = await this.prisma.demo.findUnique({ where: { id } });
     if (!demo) {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       return {
         error: "Demo not yet parsed",
         status: demo.status,
@@ -481,7 +496,10 @@ export class DemoService {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       return {
         error: "Demo not yet parsed",
         status: demo.status,
@@ -514,7 +532,10 @@ export class DemoService {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       return {
         error: "Demo not yet parsed",
         status: demo.status,
@@ -614,7 +635,7 @@ export class DemoService {
       events?: DemoEvent[];
       grenades?: DemoGrenade[];
       chat_messages?: DemoChatMessage[];
-    }
+    },
   ) {
     const demo = await this.prisma.demo.findUnique({ where: { id } });
     if (!demo) {
@@ -718,7 +739,7 @@ export class DemoService {
 
         const findRoundId = (tick: number) => {
           const round = rounds.find(
-            (r) => tick >= r.startTick && tick <= r.endTick
+            (r) => tick >= r.startTick && tick <= r.endTick,
           );
           return round?.id;
         };
@@ -759,7 +780,7 @@ export class DemoService {
       }
 
       this.logger.log(
-        `Demo ${id} marked as completed with ${data.events?.length || 0} events, ${data.rounds?.length || 0} rounds, ${data.players?.length || 0} players, ${data.grenades?.length || 0} grenades, ${data.chat_messages?.length || 0} chat messages`
+        `Demo ${id} marked as completed with ${data.events?.length || 0} events, ${data.rounds?.length || 0} rounds, ${data.players?.length || 0} players, ${data.grenades?.length || 0} grenades, ${data.chat_messages?.length || 0} chat messages`,
       );
     } catch (error) {
       this.logger.error(`Failed to save demo ${id} data: ${error}`);
@@ -787,7 +808,10 @@ export class DemoService {
     }
 
     // Only allow retry for FAILED or PENDING demos
-    if (demo.status !== DemoStatus.FAILED && demo.status !== DemoStatus.PENDING) {
+    if (
+      demo.status !== DemoStatus.FAILED &&
+      demo.status !== DemoStatus.PENDING
+    ) {
       return {
         id: demo.id,
         status: demo.status,
@@ -818,7 +842,7 @@ export class DemoService {
           type: "exponential",
           delay: 5000,
         },
-      }
+      },
     );
 
     this.logger.log(`Demo ${id} queued for retry parsing, job: ${job.id}`);

@@ -98,7 +98,7 @@ export class AggregationProcessor extends WorkerHost {
 
   constructor(
     private readonly playerAggregation: PlayerAggregationService,
-    private readonly teamAggregation: TeamAggregationService
+    private readonly teamAggregation: TeamAggregationService,
   ) {
     super();
   }
@@ -147,12 +147,13 @@ export class AggregationProcessor extends WorkerHost {
       const duration = Date.now() - startTime;
       this.logger.log(
         `Aggregation completed in ${duration}ms ` +
-          `(${playersUpdated} players, ${teamsUpdated} teams)`
+          `(${playersUpdated} players, ${teamsUpdated} teams)`,
       );
 
       return { type, playersUpdated, teamsUpdated, duration, errors };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       this.logger.error(`Failed to process aggregation job: ${errorMessage}`);
       throw error;
     }
@@ -165,7 +166,9 @@ export class AggregationProcessor extends WorkerHost {
   /**
    * Update a single player's aggregation
    */
-  private async processPlayerUpdate(job: Job<AggregationJobData>): Promise<number> {
+  private async processPlayerUpdate(
+    job: Job<AggregationJobData>,
+  ): Promise<number> {
     const { steamId, window = "all_time" } = job.data;
 
     if (!steamId) {
@@ -187,7 +190,9 @@ export class AggregationProcessor extends WorkerHost {
   /**
    * Update a single team's aggregation
    */
-  private async processTeamUpdate(job: Job<AggregationJobData>): Promise<number> {
+  private async processTeamUpdate(
+    job: Job<AggregationJobData>,
+  ): Promise<number> {
     const { teamId, window = "all_time" } = job.data;
 
     if (!teamId) {
@@ -211,7 +216,7 @@ export class AggregationProcessor extends WorkerHost {
    */
   private async processBatchPlayers(
     job: Job<AggregationJobData>,
-    errors: string[]
+    errors: string[],
   ): Promise<number> {
     const { steamIds = [], window = "all_time" } = job.data;
 
@@ -249,7 +254,7 @@ export class AggregationProcessor extends WorkerHost {
    */
   private async processBatchTeams(
     job: Job<AggregationJobData>,
-    errors: string[]
+    errors: string[],
   ): Promise<number> {
     const { teamIds = [], window = "all_time" } = job.data;
 
@@ -287,7 +292,7 @@ export class AggregationProcessor extends WorkerHost {
    */
   private async processFullRecompute(
     job: Job<AggregationJobData>,
-    errors: string[]
+    errors: string[],
   ): Promise<{ players: number; teams: number }> {
     const { steamIds = [], teamIds = [], window = "all_time" } = job.data;
 
@@ -347,7 +352,7 @@ export class AggregationProcessor extends WorkerHost {
   @OnWorkerEvent("failed")
   onFailed(job: Job<AggregationJobData> | undefined, error: Error) {
     this.logger.error(
-      `Job ${job?.id ?? "unknown"} failed (type: ${job?.data.type ?? "unknown"}): ${error.message}`
+      `Job ${job?.id ?? "unknown"} failed (type: ${job?.data.type ?? "unknown"}): ${error.message}`,
     );
   }
 

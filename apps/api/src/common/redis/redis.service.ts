@@ -13,7 +13,12 @@
  * @module common/redis
  */
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Redis from "ioredis";
 
@@ -45,7 +50,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           maxRetriesPerRequest: 3,
           retryStrategy: (times) => {
             if (times > 3) {
-              this.logger.warn("Redis connection failed, operating without cache");
+              this.logger.warn(
+                "Redis connection failed, operating without cache",
+              );
               return null; // Stop retrying
             }
             return Math.min(times * 200, 2000);
@@ -61,7 +68,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           maxRetriesPerRequest: 3,
           retryStrategy: (times) => {
             if (times > 3) {
-              this.logger.warn("Redis connection failed, operating without cache");
+              this.logger.warn(
+                "Redis connection failed, operating without cache",
+              );
               return null;
             }
             return Math.min(times * 200, 2000);
@@ -87,7 +96,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       await this.client.connect();
     } catch (error) {
-      this.logger.warn(`Failed to connect to Redis: ${error}. Operating without cache.`);
+      this.logger.warn(
+        `Failed to connect to Redis: ${error}. Operating without cache.`,
+      );
       this.client = null;
     }
   }
@@ -210,7 +221,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /**
    * Set multiple values in cache with TTL (in milliseconds)
    */
-  async setMany<T>(entries: ReadonlyMap<string, T>, ttlMs: number): Promise<boolean> {
+  async setMany<T>(
+    entries: ReadonlyMap<string, T>,
+    ttlMs: number,
+  ): Promise<boolean> {
     if (!this.isAvailable() || entries.size === 0) return false;
 
     try {

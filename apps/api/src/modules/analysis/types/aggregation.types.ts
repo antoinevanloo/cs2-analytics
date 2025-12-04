@@ -23,7 +23,13 @@
  */
 export interface TimeWindow {
   /** Window identifier */
-  readonly id: "all_time" | "last_90d" | "last_30d" | "last_7d" | "last_10_matches" | "last_20_matches";
+  readonly id:
+    | "all_time"
+    | "last_90d"
+    | "last_30d"
+    | "last_7d"
+    | "last_10_matches"
+    | "last_20_matches";
 
   /** Human-readable label */
   readonly label: string;
@@ -41,13 +47,24 @@ export interface TimeWindow {
 /**
  * Available time windows for aggregation
  */
-export const TIME_WINDOWS: Record<string, Omit<TimeWindow, "startDate" | "endDate">> = {
+export const TIME_WINDOWS: Record<
+  string,
+  Omit<TimeWindow, "startDate" | "endDate">
+> = {
   all_time: { id: "all_time", label: "All Time", matchLimit: null },
   last_90d: { id: "last_90d", label: "Last 90 Days", matchLimit: null },
   last_30d: { id: "last_30d", label: "Last 30 Days", matchLimit: null },
   last_7d: { id: "last_7d", label: "Last 7 Days", matchLimit: null },
-  last_10_matches: { id: "last_10_matches", label: "Last 10 Matches", matchLimit: 10 },
-  last_20_matches: { id: "last_20_matches", label: "Last 20 Matches", matchLimit: 20 },
+  last_10_matches: {
+    id: "last_10_matches",
+    label: "Last 10 Matches",
+    matchLimit: 10,
+  },
+  last_20_matches: {
+    id: "last_20_matches",
+    label: "Last 20 Matches",
+    matchLimit: 20,
+  },
 } as const;
 
 // =============================================================================
@@ -692,7 +709,14 @@ export interface PlayerRoleAnalysis {
 /**
  * Available player roles
  */
-export type PlayerRole = "entry" | "awper" | "support" | "lurker" | "igl" | "anchor" | "hybrid";
+export type PlayerRole =
+  | "entry"
+  | "awper"
+  | "support"
+  | "lurker"
+  | "igl"
+  | "anchor"
+  | "hybrid";
 
 /**
  * Metrics that indicate role
@@ -802,7 +826,14 @@ export interface PlayerFormAnalysis {
 /**
  * Form indicator
  */
-export type FormIndicator = "on_fire" | "hot" | "warm" | "average" | "cold" | "ice_cold" | "unknown";
+export type FormIndicator =
+  | "on_fire"
+  | "hot"
+  | "warm"
+  | "average"
+  | "cold"
+  | "ice_cold"
+  | "unknown";
 
 /**
  * Trend analysis
@@ -1142,7 +1173,12 @@ export interface TeamMapStats {
   readonly avgRoundDiff: number;
   readonly ctWinRate: number;
   readonly tWinRate: number;
-  readonly preference: "strong" | "comfortable" | "developing" | "weak" | "avoid";
+  readonly preference:
+    | "strong"
+    | "comfortable"
+    | "developing"
+    | "weak"
+    | "avoid";
 }
 
 /**

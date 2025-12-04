@@ -314,5 +314,9 @@ export interface MomentumAnalysis {
   readonly coldRounds: readonly number[];
 
   /** Performance trend through match */
-  readonly trend: "started_strong" | "finished_strong" | "consistent" | "inconsistent";
+  readonly trend:
+    | "started_strong"
+    | "finished_strong"
+    | "consistent"
+    | "inconsistent";
 }

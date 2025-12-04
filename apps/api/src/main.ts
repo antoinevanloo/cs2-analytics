@@ -28,7 +28,7 @@ const logger = new Logger("Bootstrap");
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: true })
+    new FastifyAdapter({ logger: true }),
   );
 
   const configService = app.get(ConfigService);
@@ -41,7 +41,10 @@ async function bootstrap() {
   });
 
   // Register cookie support for auth
-  const cookieSecret = configService.get<string>("COOKIE_SECRET", "cs2-analytics-cookie-secret-change-in-prod");
+  const cookieSecret = configService.get<string>(
+    "COOKIE_SECRET",
+    "cs2-analytics-cookie-secret-change-in-prod",
+  );
   await app.register(cookie, {
     secret: cookieSecret,
   });
@@ -67,7 +70,7 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true,
       },
-    })
+    }),
   );
 
   // Global exception filter for standardized error responses
@@ -75,26 +78,70 @@ async function bootstrap() {
 
   // Global authentication guards
   const reflector = app.get(Reflector);
-  app.useGlobalGuards(
-    new JwtAuthGuard(reflector),
-    new RolesGuard(reflector)
-  );
+  app.useGlobalGuards(new JwtAuthGuard(reflector), new RolesGuard(reflector));
 
   // Swagger documentation
   const swaggerConfig = new DocumentBuilder()
     .setTitle("CS2 Analytics API")
-    .setDescription("API for CS2 demo analysis and coaching insights")
-    .setVersion("1.0")
-    .addBearerAuth()
+    .setDescription(
+      `
+## Overview
+API for CS2 demo analysis providing coaching insights, player statistics, and advanced analytics.
+
+## Features
+- **Demo Parsing**: Upload and parse CS2 .dem files
+- **Player Analytics**: Detailed statistics, HLTV Rating 2.0, KAST
+- **Match Analysis**: Round-by-round breakdowns, economy tracking
+- **Team Insights**: Performance trends, role analysis
+
+## Authentication
+This API uses JWT Bearer tokens. Authenticate via Steam OAuth at \`/auth/steam\` to receive tokens.
+
+## Rate Limiting
+- 100 requests per minute for authenticated users
+- 20 requests per minute for unauthenticated users
+      `,
+    )
+    .setVersion("1.0.0")
+    .setContact(
+      "CS2 Analytics Team",
+      "https://github.com/antoinevanloo/cs2-analytics",
+      "support@cs2analytics.io",
+    )
+    .setLicense("MIT", "https://opensource.org/licenses/MIT")
+    .addBearerAuth(
+      {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        description: "Enter your JWT token",
+      },
+      "JWT-auth",
+    )
+    .addTag("Health", "Health check endpoints")
     .addTag("Authentication", "Steam OAuth and token management")
-    .addTag("demos", "Demo file management and parsing")
-    .addTag("players", "Player statistics and profiles")
-    .addTag("rounds", "Round analysis and data")
-    .addTag("analysis", "Advanced analytics and insights")
+    .addTag("Demos", "Demo file upload, parsing, and management")
+    .addTag("Players", "Player statistics and profiles")
+    .addTag("Rounds", "Round analysis and timeline data")
+    .addTag("Analysis", "Advanced analytics and coaching insights")
+    .addTag("Aggregation", "Data aggregation and caching")
+    .addServer("http://localhost:3000", "Development")
+    .addServer("https://api.cs2analytics.io", "Production")
     .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("docs", app, document);
+  const document = SwaggerModule.createDocument(app, swaggerConfig, {
+    operationIdFactory: (_controllerKey: string, methodKey: string) =>
+      methodKey,
+  });
+
+  SwaggerModule.setup("docs", app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: "alpha",
+      operationsSorter: "alpha",
+    },
+    customSiteTitle: "CS2 Analytics API Documentation",
+  });
 
   // Enable graceful shutdown hooks
   app.enableShutdownHooks();

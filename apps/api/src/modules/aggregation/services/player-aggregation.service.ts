@@ -11,7 +11,10 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma";
 import { RedisService } from "../../../common/redis";
 
-import type { AggregatedPlayerProfile, PlayerIdentity } from "../../analysis/types/aggregation.types";
+import type {
+  AggregatedPlayerProfile,
+  PlayerIdentity,
+} from "../../analysis/types/aggregation.types";
 
 import {
   aggregatePlayerProfile,
@@ -23,7 +26,12 @@ import {
   createRoleDetectionInput,
 } from "../../analysis/calculators/aggregation/role.calculator";
 
-import { groupBy, mean, safePercentage, safeRate } from "../../analysis/calculators/aggregation/stats.calculator";
+import {
+  groupBy,
+  mean,
+  safePercentage,
+  safeRate,
+} from "../../analysis/calculators/aggregation/stats.calculator";
 
 import {
   calculateKast,
@@ -114,8 +122,13 @@ export class PlayerAggregationService {
   /**
    * Get or compute player aggregated profile
    */
-  async getPlayerProfile(steamId: string, window: TimeWindowKey = "all_time"): Promise<AggregatedPlayerProfile> {
-    this.logger.log(`Getting player profile for ${steamId} (window: ${window})`);
+  async getPlayerProfile(
+    steamId: string,
+    window: TimeWindowKey = "all_time",
+  ): Promise<AggregatedPlayerProfile> {
+    this.logger.log(
+      `Getting player profile for ${steamId} (window: ${window})`,
+    );
 
     // Check Redis cache first
     const cacheKey = this.getCacheKey(steamId, window);
@@ -133,7 +146,10 @@ export class PlayerAggregationService {
   /**
    * Force recompute player profile
    */
-  async recomputePlayerProfile(steamId: string, window: TimeWindowKey = "all_time"): Promise<AggregatedPlayerProfile> {
+  async recomputePlayerProfile(
+    steamId: string,
+    window: TimeWindowKey = "all_time",
+  ): Promise<AggregatedPlayerProfile> {
     this.logger.log(`Force recomputing profile for ${steamId}`);
     return this.computeAndStoreProfile(steamId, window);
   }
@@ -143,7 +159,7 @@ export class PlayerAggregationService {
    */
   async getPlayerProfiles(
     steamIds: readonly string[],
-    window: TimeWindowKey = "all_time"
+    window: TimeWindowKey = "all_time",
   ): Promise<Map<string, AggregatedPlayerProfile>> {
     const results = new Map<string, AggregatedPlayerProfile>();
 
@@ -167,7 +183,7 @@ export class PlayerAggregationService {
     });
 
     this.logger.debug(
-      `Batch fetch: ${steamIds.length - toCompute.length}/${steamIds.length} cache hits`
+      `Batch fetch: ${steamIds.length - toCompute.length}/${steamIds.length} cache hits`,
     );
 
     // Compute missing profiles in parallel (batched to avoid overload)
@@ -177,10 +193,12 @@ export class PlayerAggregationService {
       const profiles = await Promise.all(
         batch.map((id) =>
           this.computeAndStoreProfile(id, window).catch((err) => {
-            this.logger.warn(`Failed to compute profile for ${id}: ${err.message}`);
+            this.logger.warn(
+              `Failed to compute profile for ${id}: ${err.message}`,
+            );
             return null;
-          })
-        )
+          }),
+        ),
       );
 
       batch.forEach((id, idx) => {
@@ -199,7 +217,7 @@ export class PlayerAggregationService {
    * Uses real aggregated data from the database.
    */
   async getPeerStats(
-    minMatches = CACHE_CONFIG.MIN_MATCHES_FOR_PEER_STATS
+    minMatches = CACHE_CONFIG.MIN_MATCHES_FOR_PEER_STATS,
   ): Promise<
     readonly {
       rating: number;
@@ -243,30 +261,53 @@ export class PlayerAggregationService {
       const matchCount = p.matchStats.length;
 
       // Calculate real opening success rate
-      const totalFirstKills = p.matchStats.reduce((sum, m) => sum + m.firstKills, 0);
-      const totalFirstDeaths = p.matchStats.reduce((sum, m) => sum + m.firstDeaths, 0);
+      const totalFirstKills = p.matchStats.reduce(
+        (sum, m) => sum + m.firstKills,
+        0,
+      );
+      const totalFirstDeaths = p.matchStats.reduce(
+        (sum, m) => sum + m.firstDeaths,
+        0,
+      );
       const totalOpeningDuels = totalFirstKills + totalFirstDeaths;
-      const openingSuccessRate = totalOpeningDuels > 0
-        ? safePercentage(totalFirstKills, totalOpeningDuels)
-        : 50;
+      const openingSuccessRate =
+        totalOpeningDuels > 0
+          ? safePercentage(totalFirstKills, totalOpeningDuels)
+          : 50;
 
       // Calculate real clutch success rate
-      const totalClutchWins = p.matchStats.reduce((sum, m) => sum + m.clutchesWon, 0);
-      const totalClutchAttempts = p.matchStats.reduce((sum, m) => sum + m.clutchesPlayed, 0);
-      const clutchSuccessRate = totalClutchAttempts > 0
-        ? safePercentage(totalClutchWins, totalClutchAttempts)
-        : 30;
+      const totalClutchWins = p.matchStats.reduce(
+        (sum, m) => sum + m.clutchesWon,
+        0,
+      );
+      const totalClutchAttempts = p.matchStats.reduce(
+        (sum, m) => sum + m.clutchesPlayed,
+        0,
+      );
+      const clutchSuccessRate =
+        totalClutchAttempts > 0
+          ? safePercentage(totalClutchWins, totalClutchAttempts)
+          : 30;
 
       // Calculate average rating from matches
-      const avgRating = matchCount > 0
-        ? p.matchStats.reduce((sum, m) => sum + (m.rating ?? 1.0), 0) / matchCount
-        : 1.0;
+      const avgRating =
+        matchCount > 0
+          ? p.matchStats.reduce((sum, m) => sum + (m.rating ?? 1.0), 0) /
+            matchCount
+          : 1.0;
 
       // Calculate average utility damage per round
-      const totalUtilityDmg = p.matchStats.reduce((sum, m) => sum + m.utilityDamage, 0);
-      const avgUtilityDamage = p.totalRounds > 0
-        ? safeRate(totalUtilityDmg * (p.totalMatches / Math.max(matchCount, 1)), p.totalRounds)
-        : 10;
+      const totalUtilityDmg = p.matchStats.reduce(
+        (sum, m) => sum + m.utilityDamage,
+        0,
+      );
+      const avgUtilityDamage =
+        p.totalRounds > 0
+          ? safeRate(
+              totalUtilityDmg * (p.totalMatches / Math.max(matchCount, 1)),
+              p.totalRounds,
+            )
+          : 10;
 
       // KAST approximation based on survival rate and K/D
       // Players with good K/D and survival tend to have higher KAST
@@ -274,14 +315,19 @@ export class PlayerAggregationService {
       const estimatedKast = Math.min(95, Math.max(50, 65 + (kd - 1) * 10));
 
       // Impact approximation based on opening success and clutch rate
-      const estimatedImpact = 0.7 + (openingSuccessRate / 100) * 0.4 + (clutchSuccessRate / 100) * 0.2;
+      const estimatedImpact =
+        0.7 +
+        (openingSuccessRate / 100) * 0.4 +
+        (clutchSuccessRate / 100) * 0.2;
 
       return {
         rating: Number(avgRating.toFixed(2)),
         kast: Number(estimatedKast.toFixed(1)),
         adr: Number(safeRate(p.totalDamage, p.totalRounds).toFixed(1)),
         kd: Number(kd.toFixed(2)),
-        hsPercent: Number(safePercentage(p.totalHsKills, p.totalKills).toFixed(1)),
+        hsPercent: Number(
+          safePercentage(p.totalHsKills, p.totalKills).toFixed(1),
+        ),
         openingSuccessRate: Number(openingSuccessRate.toFixed(1)),
         clutchSuccessRate: Number(clutchSuccessRate.toFixed(1)),
         impact: Number(estimatedImpact.toFixed(2)),
@@ -296,7 +342,7 @@ export class PlayerAggregationService {
    */
   private async loadPlayerMatchData(
     steamId: string,
-    window: TimeWindowKey
+    window: TimeWindowKey,
   ): Promise<{ identity: PlayerIdentity; matches: PlayerMatchData[] }> {
     const player = await this.prisma.player.findUnique({
       where: { steamId },
@@ -374,11 +420,15 @@ export class PlayerAggregationService {
             clutchWins: ms.clutchesWon,
           },
         ];
-      })
+      }),
     );
 
     // Load KAST, Impact, Multi-kills, Special kills, Trade kills (real data!)
-    const matchAnalysis = await this.loadMatchAnalysis(steamId, demoIds, matchStatsMap);
+    const matchAnalysis = await this.loadMatchAnalysis(
+      steamId,
+      demoIds,
+      matchStatsMap,
+    );
 
     const identity: PlayerIdentity = {
       steamId: player.steamId,
@@ -412,11 +462,28 @@ export class PlayerAggregationService {
         const analysis = matchAnalysis.get(ms.demoId);
 
         // CT/T split from actual data or balanced approximation
-        const ctStats = demoRoundStats?.ct ?? this.approximateCtStats(ms.kills, ms.deaths, ms.damage, totalRounds, myScore);
-        const tStats = demoRoundStats?.t ?? this.approximateTStats(ms.kills, ms.deaths, ms.damage, totalRounds, myScore);
+        const ctStats =
+          demoRoundStats?.ct ??
+          this.approximateCtStats(
+            ms.kills,
+            ms.deaths,
+            ms.damage,
+            totalRounds,
+            myScore,
+          );
+        const tStats =
+          demoRoundStats?.t ??
+          this.approximateTStats(
+            ms.kills,
+            ms.deaths,
+            ms.damage,
+            totalRounds,
+            myScore,
+          );
 
         // Economy from actual data or config-based approximation
-        const economy = demoEconomy ?? this.approximateEconomy(totalRounds, myScore);
+        const economy =
+          demoEconomy ?? this.approximateEconomy(totalRounds, myScore);
 
         return {
           demoId: ms.demoId,
@@ -455,7 +522,8 @@ export class PlayerAggregationService {
           blindKills: analysis?.specialKills.blindKills ?? 0,
           tradeKills: analysis?.tradeKills.tradeKills ?? 0,
           timesTraded: analysis?.tradeKills.timesTraded ?? 0,
-          tradeOpportunities: analysis?.tradeKills.tradeOpportunities ?? ms.deaths,
+          tradeOpportunities:
+            analysis?.tradeKills.tradeOpportunities ?? ms.deaths,
           openingKills: ms.firstKills,
           openingDeaths: ms.firstDeaths,
           openingAttempts: ms.firstKills + ms.firstDeaths,
@@ -503,7 +571,7 @@ export class PlayerAggregationService {
    */
   private async loadRoundLevelStats(
     steamId: string,
-    demoIds: string[]
+    demoIds: string[],
   ): Promise<Map<string, { ct: SideStats; t: SideStats }>> {
     if (demoIds.length === 0) return new Map();
 
@@ -557,7 +625,7 @@ export class PlayerAggregationService {
    */
   private async loadEconomyData(
     steamId: string,
-    demoIds: string[]
+    demoIds: string[],
   ): Promise<Map<string, EconomyStats>> {
     if (demoIds.length === 0) return new Map();
 
@@ -630,7 +698,7 @@ export class PlayerAggregationService {
     deaths: number,
     damage: number,
     totalRounds: number,
-    roundsWon: number
+    roundsWon: number,
   ): SideStats {
     // Standard MR12: 12 rounds per half (approximation)
     const ctRounds = Math.min(totalRounds, MAP_CONFIG.ROUNDS_PER_HALF);
@@ -653,7 +721,7 @@ export class PlayerAggregationService {
     deaths: number,
     damage: number,
     totalRounds: number,
-    roundsWon: number
+    roundsWon: number,
   ): SideStats {
     const tRounds = Math.max(0, totalRounds - MAP_CONFIG.ROUNDS_PER_HALF);
     const ratio = tRounds / totalRounds;
@@ -671,7 +739,10 @@ export class PlayerAggregationService {
    * Approximate economy breakdown when round-level data is unavailable.
    * Uses configurable distribution from ECONOMY_CONFIG.
    */
-  private approximateEconomy(totalRounds: number, roundsWon: number): EconomyStats {
+  private approximateEconomy(
+    totalRounds: number,
+    roundsWon: number,
+  ): EconomyStats {
     const dist = ECONOMY_CONFIG.DEFAULT_ROUND_DISTRIBUTION;
     const winRates = ECONOMY_CONFIG.EXPECTED_WIN_RATES;
 
@@ -706,7 +777,18 @@ export class PlayerAggregationService {
   private async loadMatchAnalysis(
     steamId: string,
     demoIds: string[],
-    matchStatsMap: Map<string, { kills: number; deaths: number; roundsPlayed: number; roundsWon: number; openingKills: number; openingDeaths: number; clutchWins: number }>
+    matchStatsMap: Map<
+      string,
+      {
+        kills: number;
+        deaths: number;
+        roundsPlayed: number;
+        roundsWon: number;
+        openingKills: number;
+        openingDeaths: number;
+        clutchWins: number;
+      }
+    >,
   ): Promise<Map<string, MatchAnalysisData>> {
     if (demoIds.length === 0) return new Map();
 
@@ -730,10 +812,7 @@ export class PlayerAggregationService {
       this.prisma.kill.findMany({
         where: {
           demoId: { in: demoIds },
-          OR: [
-            { attackerSteamId: steamId },
-            { victimSteamId: steamId },
-          ],
+          OR: [{ attackerSteamId: steamId }, { victimSteamId: steamId }],
         },
         select: {
           demoId: true,
@@ -835,16 +914,29 @@ export class PlayerAggregationService {
   /**
    * Compute and store player profile
    */
-  private async computeAndStoreProfile(steamId: string, window: TimeWindowKey): Promise<AggregatedPlayerProfile> {
+  private async computeAndStoreProfile(
+    steamId: string,
+    window: TimeWindowKey,
+  ): Promise<AggregatedPlayerProfile> {
     const startTime = Date.now();
-    const { identity, matches } = await this.loadPlayerMatchData(steamId, window);
+    const { identity, matches } = await this.loadPlayerMatchData(
+      steamId,
+      window,
+    );
 
     if (matches.length === 0) {
-      throw new NotFoundException(`No matches found for player ${steamId} in window ${window}`);
+      throw new NotFoundException(
+        `No matches found for player ${steamId} in window ${window}`,
+      );
     }
 
     const peerStats = await this.getPeerStats();
-    const baseProfile = aggregatePlayerProfile(identity, matches, peerStats, window);
+    const baseProfile = aggregatePlayerProfile(
+      identity,
+      matches,
+      peerStats,
+      window,
+    );
 
     // Compute map-specific stats
     const byMap = this.computeMapStats(matches);
@@ -870,7 +962,9 @@ export class PlayerAggregationService {
     await this.redis.set(cacheKey, profile, CACHE_CONFIG.PLAYER_PROFILE_TTL_MS);
 
     const duration = Date.now() - startTime;
-    this.logger.log(`Computed profile for ${steamId} in ${duration}ms (${matches.length} matches)`);
+    this.logger.log(
+      `Computed profile for ${steamId} in ${duration}ms (${matches.length} matches)`,
+    );
 
     return profile;
   }
@@ -878,7 +972,9 @@ export class PlayerAggregationService {
   /**
    * Compute map-specific statistics
    */
-  private computeMapStats(matches: readonly PlayerMatchData[]): AggregatedPlayerProfile["byMap"] {
+  private computeMapStats(
+    matches: readonly PlayerMatchData[],
+  ): AggregatedPlayerProfile["byMap"] {
     const mapGroups = groupBy(matches, (m) => m.mapName);
     type MapStats = AggregatedPlayerProfile["byMap"][number];
     const results: MapStats[] = [];
@@ -890,17 +986,23 @@ export class PlayerAggregationService {
       const totalKills = mapMatches.reduce((sum, m) => sum + m.kills, 0);
       const totalDeaths = mapMatches.reduce((sum, m) => sum + m.deaths, 0);
       const totalDamage = mapMatches.reduce((sum, m) => sum + m.damage, 0);
-      const totalRounds = mapMatches.reduce((sum, m) => sum + m.roundsPlayed, 0);
-      const totalHeadshots = mapMatches.reduce((sum, m) => sum + m.headshotKills, 0);
+      const totalRounds = mapMatches.reduce(
+        (sum, m) => sum + m.roundsPlayed,
+        0,
+      );
+      const totalHeadshots = mapMatches.reduce(
+        (sum, m) => sum + m.headshotKills,
+        0,
+      );
       const avgRating = mean(mapMatches.map((m) => m.rating));
       const avgKast = mean(mapMatches.map((m) => m.kast));
       const ctWinRate = safePercentage(
         mapMatches.reduce((sum, m) => sum + m.ctRoundsWon, 0),
-        mapMatches.reduce((sum, m) => sum + m.ctRounds, 0)
+        mapMatches.reduce((sum, m) => sum + m.ctRounds, 0),
       );
       const tWinRate = safePercentage(
         mapMatches.reduce((sum, m) => sum + m.tRoundsWon, 0),
-        mapMatches.reduce((sum, m) => sum + m.tRounds, 0)
+        mapMatches.reduce((sum, m) => sum + m.tRounds, 0),
       );
 
       results.push({
@@ -918,18 +1020,27 @@ export class PlayerAggregationService {
           avgKast: Number(avgKast.toFixed(1)),
           adr: Number(safeRate(totalDamage, totalRounds).toFixed(1)),
           kdRatio: Number(safeRate(totalKills, totalDeaths || 1).toFixed(2)),
-          hsPercent: Number(safePercentage(totalHeadshots, totalKills).toFixed(1)),
+          hsPercent: Number(
+            safePercentage(totalHeadshots, totalKills).toFixed(1),
+          ),
         },
         sides: {
           ctWinRate: Number(ctWinRate.toFixed(1)),
           tWinRate: Number(tWinRate.toFixed(1)),
-          preferredSide: Math.abs(ctWinRate - tWinRate) < 5 ? "balanced" : ctWinRate > tWinRate ? "CT" : "T",
+          preferredSide:
+            Math.abs(ctWinRate - tWinRate) < 5
+              ? "balanced"
+              : ctWinRate > tWinRate
+                ? "CT"
+                : "T",
         },
         positions: { strongestPosition: null, weakestPosition: null },
       });
     }
 
-    results.sort((a: MapStats, b: MapStats) => b.matchesPlayed - a.matchesPlayed);
+    results.sort(
+      (a: MapStats, b: MapStats) => b.matchesPlayed - a.matchesPlayed,
+    );
     return results;
   }
 
@@ -946,6 +1057,8 @@ export class PlayerAggregationService {
   async invalidatePlayerCache(steamId: string): Promise<void> {
     const pattern = `aggregation:player:${steamId}:*`;
     const deleted = await this.redis.deletePattern(pattern);
-    this.logger.debug(`Invalidated ${deleted} cache entries for player ${steamId}`);
+    this.logger.debug(
+      `Invalidated ${deleted} cache entries for player ${steamId}`,
+    );
   }
 }

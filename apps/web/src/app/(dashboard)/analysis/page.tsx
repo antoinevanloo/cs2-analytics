@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -132,7 +138,9 @@ export default function AnalysisPage() {
           <div className="text-center py-12 text-muted-foreground">
             <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No recent analyses</p>
-            <p className="text-sm">Select a demo to generate your first analysis</p>
+            <p className="text-sm">
+              Select a demo to generate your first analysis
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -56,7 +56,7 @@ export function createHashTransform(algorithm = "sha256"): Transform & {
  */
 export async function writeStreamWithHash(
   input: Readable,
-  outputPath: string
+  outputPath: string,
 ): Promise<StreamWriteResult> {
   const dir = path.dirname(outputPath);
   await fs.mkdir(dir, { recursive: true });
@@ -87,7 +87,7 @@ export async function writeStreamWithHash(
  * Calculate hash of an existing file using streams
  */
 export async function calculateFileHashStream(
-  filePath: string
+  filePath: string,
 ): Promise<string> {
   const hash = createHash("sha256");
   const readStream = createReadStream(filePath);
@@ -103,15 +103,19 @@ export async function calculateFileHashStream(
  */
 export function createStreamingFormData(
   filePath: string,
-  filename: string
-): { stream: Readable; contentType: string; getContentLength: () => Promise<number> } {
+  filename: string,
+): {
+  stream: Readable;
+  contentType: string;
+  getContentLength: () => Promise<number>;
+} {
   const boundary = `----FormBoundary${Date.now().toString(16)}`;
   const CRLF = "\r\n";
 
   const header = Buffer.from(
     `--${boundary}${CRLF}` +
       `Content-Disposition: form-data; name="file"; filename="${filename}"${CRLF}` +
-      `Content-Type: application/octet-stream${CRLF}${CRLF}`
+      `Content-Type: application/octet-stream${CRLF}${CRLF}`,
   );
 
   const footer = Buffer.from(`${CRLF}--${boundary}--${CRLF}`);
@@ -177,7 +181,7 @@ export async function fileExists(filePath: string): Promise<boolean> {
  * Get file stats
  */
 export async function getFileStats(
-  filePath: string
+  filePath: string,
 ): Promise<{ size: number; mtime: Date } | null> {
   try {
     const stats = await fs.stat(filePath);

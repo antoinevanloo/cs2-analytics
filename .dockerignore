@@ -1,0 +1,76 @@
+# Dependencies
+node_modules
+**/node_modules
+.pnpm-store
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+*.tsbuildinfo
+
+# Python
+__pycache__
+**/__pycache__
+*.pyc
+.venv
+**/.venv
+.pytest_cache
+**/.pytest_cache
+*.egg-info
+**/*.egg-info
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test files
+coverage
+**/coverage
+.nyc_output
+**/.nyc_output
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Demo files (large)
+*.dem
+demos/
+**/demos/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp

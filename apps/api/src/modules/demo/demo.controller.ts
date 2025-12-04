@@ -37,8 +37,8 @@ import { Public, Roles } from "../../common/decorators";
 // Maximum demo file size (500MB - typical competitive demo ~150MB)
 const MAX_DEMO_SIZE = 500 * 1024 * 1024;
 
-@ApiTags("demos")
-@ApiBearerAuth()
+@ApiTags("Demos")
+@ApiBearerAuth("JWT-auth")
 @Controller({ path: "demos", version: "1" })
 export class DemoController {
   constructor(private readonly demoService: DemoService) {}
@@ -102,12 +102,9 @@ export class DemoController {
       });
     } catch (error) {
       // Handle file size limit exceeded
-      if (
-        error instanceof Error &&
-        error.message.includes("limit")
-      ) {
+      if (error instanceof Error && error.message.includes("limit")) {
         throw new PayloadTooLargeException(
-          `Demo file exceeds maximum size of ${MAX_DEMO_SIZE / 1024 / 1024}MB`
+          `Demo file exceeds maximum size of ${MAX_DEMO_SIZE / 1024 / 1024}MB`,
         );
       }
       throw error;
@@ -120,7 +117,7 @@ export class DemoController {
   @ApiParam({ name: "id", description: "Demo UUID" })
   async parseDemo(
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() options: ParseOptionsDto
+    @Body() options: ParseOptionsDto,
   ) {
     return this.demoService.queueForParsing(id, options);
   }
@@ -153,12 +150,20 @@ export class DemoController {
   @Public()
   @ApiOperation({ summary: "Get events from a parsed demo" })
   @ApiParam({ name: "id", description: "Demo UUID" })
-  @ApiQuery({ name: "type", required: false, description: "Filter by event type" })
-  @ApiQuery({ name: "round", required: false, description: "Filter by round number" })
+  @ApiQuery({
+    name: "type",
+    required: false,
+    description: "Filter by event type",
+  })
+  @ApiQuery({
+    name: "round",
+    required: false,
+    description: "Filter by round number",
+  })
   async getDemoEvents(
     @Param("id", ParseUUIDPipe) id: string,
     @Query("type") eventType?: string,
-    @Query("round") round?: string
+    @Query("round") round?: string,
   ) {
     const filters: { eventType?: string; round?: number } = {};
     if (eventType) filters.eventType = eventType;
@@ -190,14 +195,19 @@ export class DemoController {
   @ApiParam({ name: "id", description: "Demo UUID" })
   @ApiQuery({ name: "startTick", required: false })
   @ApiQuery({ name: "endTick", required: false })
-  @ApiQuery({ name: "interval", required: false, description: "Sample interval" })
+  @ApiQuery({
+    name: "interval",
+    required: false,
+    description: "Sample interval",
+  })
   async getDemoTicks(
     @Param("id", ParseUUIDPipe) id: string,
     @Query("startTick") startTick?: number,
     @Query("endTick") endTick?: number,
-    @Query("interval") interval?: number
+    @Query("interval") interval?: number,
   ) {
-    const options: { startTick?: number; endTick?: number; interval?: number } = {};
+    const options: { startTick?: number; endTick?: number; interval?: number } =
+      {};
     if (startTick !== undefined) options.startTick = startTick;
     if (endTick !== undefined) options.endTick = endTick;
     if (interval !== undefined) options.interval = interval;
@@ -229,9 +239,12 @@ export class DemoController {
   async listDemos(
     @Query("page") page = 1,
     @Query("limit") limit = 20,
-    @Query("map") map?: string
+    @Query("map") map?: string,
   ) {
-    const options: { page: number; limit: number; map?: string } = { page, limit };
+    const options: { page: number; limit: number; map?: string } = {
+      page,
+      limit,
+    };
     if (map !== undefined) options.map = map;
     return this.demoService.listDemos(options);
   }

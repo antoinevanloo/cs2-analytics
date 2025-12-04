@@ -153,7 +153,7 @@ export const RoundDetailedSchema = RoundInfoSchema.extend({
         noscope: z.boolean().optional(),
         thrusmoke: z.boolean().optional(),
         attackerblind: z.boolean().optional(),
-      })
+      }),
     )
     .optional(),
 
@@ -167,7 +167,7 @@ export const RoundDetailedSchema = RoundInfoSchema.extend({
         X: z.number(),
         Y: z.number(),
         Z: z.number(),
-      })
+      }),
     )
     .optional(),
 
@@ -175,11 +175,19 @@ export const RoundDetailedSchema = RoundInfoSchema.extend({
   bomb_events: z
     .array(
       z.object({
-        type: z.enum(["begin_plant", "abort_plant", "planted", "begin_defuse", "abort_defuse", "defused", "exploded"]),
+        type: z.enum([
+          "begin_plant",
+          "abort_plant",
+          "planted",
+          "begin_defuse",
+          "abort_defuse",
+          "defused",
+          "exploded",
+        ]),
         tick: z.number().int(),
         player_steamid: z.string().optional(),
         site: z.enum(["A", "B"]).optional(),
-      })
+      }),
     )
     .optional(),
 });
@@ -291,7 +299,7 @@ export const ECONOMY_THRESHOLDS = {
 
 export function determineRoundEconomyType(
   teamEquipmentValue: number,
-  isPistolRound: boolean
+  isPistolRound: boolean,
 ): RoundEconomyType {
   if (isPistolRound) return "pistol";
   if (teamEquipmentValue <= ECONOMY_THRESHOLDS.ECO_MAX) return "eco";

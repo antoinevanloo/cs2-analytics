@@ -58,7 +58,7 @@ export interface OpeningCalculationInput {
  * @returns Opening duel metrics
  */
 export function calculateOpeningDuels(
-  input: OpeningCalculationInput
+  input: OpeningCalculationInput,
 ): OpeningDuelMetrics {
   const {
     steamId,
@@ -166,18 +166,18 @@ export function calculateOpeningDuels(
       roundNumber,
       tick: firstKill.tick,
       winner: {
-        steamId: isWin ? steamId : (firstKill.attackerSteamId || "unknown"),
+        steamId: isWin ? steamId : firstKill.attackerSteamId || "unknown",
         name: isWin
-          ? (playerNames?.get(steamId) || "Unknown")
-          : (playerNames?.get(firstKill.attackerSteamId || "") || "Unknown"),
-        team: isWin ? (playerTeam || 0) : (firstKill.attackerTeam || 0),
+          ? playerNames?.get(steamId) || "Unknown"
+          : playerNames?.get(firstKill.attackerSteamId || "") || "Unknown",
+        team: isWin ? playerTeam || 0 : firstKill.attackerTeam || 0,
       },
       loser: {
         steamId: isWin ? firstKill.victimSteamId : steamId,
         name: isWin
-          ? (playerNames?.get(firstKill.victimSteamId) || "Unknown")
-          : (playerNames?.get(steamId) || "Unknown"),
-        team: isWin ? (firstKill.victimTeam || 0) : (playerTeam || 0),
+          ? playerNames?.get(firstKill.victimSteamId) || "Unknown"
+          : playerNames?.get(steamId) || "Unknown",
+        team: isWin ? firstKill.victimTeam || 0 : playerTeam || 0,
       },
       weapon: firstKill.weapon,
       headshot: firstKill.headshot,
@@ -190,9 +190,8 @@ export function calculateOpeningDuels(
   const winRate = total > 0 ? (wins / total) * 100 : 0;
 
   // Calculate rating impact
-  const ratingImpact = totalRounds > 0
-    ? (wins * 0.15 + losses * -0.1) / totalRounds
-    : 0;
+  const ratingImpact =
+    totalRounds > 0 ? (wins * 0.15 + losses * -0.1) / totalRounds : 0;
 
   // Build side stats
   const bySide = buildSideStats(ctStats, tStats);
@@ -202,7 +201,7 @@ export function calculateOpeningDuels(
     roundsWonAfterOpeningWin,
     roundsLostAfterOpeningWin,
     roundsWonAfterOpeningLoss,
-    roundsLostAfterOpeningLoss
+    roundsLostAfterOpeningLoss,
   );
 
   return {
@@ -223,7 +222,7 @@ export function calculateOpeningDuels(
 export function analyzeOpeningMatchups(
   steamId: string,
   allKills: readonly KillInput[],
-  playerNames?: ReadonlyMap<string, string>
+  playerNames?: ReadonlyMap<string, string>,
 ): OpeningMatchup[] {
   const killsByRound = groupBy(allKills, (k) => k.roundNumber);
   const matchups = new Map<
@@ -279,7 +278,7 @@ export function analyzeOpeningMatchups(
   }
 
   // Sort by total encounters
-  results.sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+  results.sort((a, b) => b.wins + b.losses - (a.wins + a.losses));
 
   return results;
 }
@@ -292,13 +291,18 @@ export function calculateTeamOpenings(
     steamId: string;
     name: string;
     openings: OpeningDuelMetrics;
-  }[]
+  }[],
 ): {
   totalWins: number;
   totalLosses: number;
   winRate: number;
   roundWinRateAfterOpening: number;
-  primaryEntry: { steamId: string; name: string; openingAttempts: number; winRate: number } | null;
+  primaryEntry: {
+    steamId: string;
+    name: string;
+    openingAttempts: number;
+    winRate: number;
+  } | null;
 } {
   if (playerOpenings.length === 0) {
     return {
@@ -314,7 +318,12 @@ export function calculateTeamOpenings(
   let totalLosses = 0;
   let roundsWonAfterOpening = 0;
   let totalOpeningRounds = 0;
-  let primaryEntry: { steamId: string; name: string; openingAttempts: number; winRate: number } | null = null;
+  let primaryEntry: {
+    steamId: string;
+    name: string;
+    openingAttempts: number;
+    winRate: number;
+  } | null = null;
 
   for (const player of playerOpenings) {
     totalWins += player.openings.wins;
@@ -345,7 +354,9 @@ export function calculateTeamOpenings(
   const total = totalWins + totalLosses;
   const winRate = total > 0 ? (totalWins / total) * 100 : 0;
   const roundWinRateAfterOpening =
-    totalOpeningRounds > 0 ? (roundsWonAfterOpening / totalOpeningRounds) * 100 : 0;
+    totalOpeningRounds > 0
+      ? (roundsWonAfterOpening / totalOpeningRounds) * 100
+      : 0;
 
   return {
     totalWins,
@@ -374,7 +385,7 @@ export function getOpeningLabel(winRate: number): string {
 
 function buildSideStats(
   ctStats: { wins: number; losses: number },
-  tStats: { wins: number; losses: number }
+  tStats: { wins: number; losses: number },
 ): OpeningsBySide {
   const ctTotal = ctStats.wins + ctStats.losses;
   const tTotal = tStats.wins + tStats.losses;
@@ -399,7 +410,7 @@ function buildRoundCorrelation(
   wonAfterWin: number,
   lostAfterWin: number,
   wonAfterLoss: number,
-  lostAfterLoss: number
+  lostAfterLoss: number,
 ): OpeningRoundCorrelation {
   const totalAfterWin = wonAfterWin + lostAfterWin;
   const totalAfterLoss = wonAfterLoss + lostAfterLoss;
@@ -408,12 +419,12 @@ function buildRoundCorrelation(
     roundsWonAfterOpeningWin: wonAfterWin,
     roundsLostAfterOpeningWin: lostAfterWin,
     winRateAfterOpeningWin: round2(
-      totalAfterWin > 0 ? (wonAfterWin / totalAfterWin) * 100 : 0
+      totalAfterWin > 0 ? (wonAfterWin / totalAfterWin) * 100 : 0,
     ),
     roundsWonAfterOpeningLoss: wonAfterLoss,
     roundsLostAfterOpeningLoss: lostAfterLoss,
     winRateAfterOpeningLoss: round2(
-      totalAfterLoss > 0 ? (wonAfterLoss / totalAfterLoss) * 100 : 0
+      totalAfterLoss > 0 ? (wonAfterLoss / totalAfterLoss) * 100 : 0,
     ),
   };
 }

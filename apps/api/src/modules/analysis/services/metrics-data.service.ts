@@ -151,24 +151,31 @@ export class MetricsDataService {
       throw new DemoNotFoundError(demoId);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       throw new DemoNotParsedError(demoId, demo.status);
     }
 
     // Fetch all related data in parallel for performance
-    const [players, rounds, kills, grenades, roundPlayerStatsRaw] = await Promise.all([
-      this.fetchPlayers(demoId),
-      this.fetchRounds(demoId),
-      this.fetchKills(demoId),
-      this.fetchGrenades(demoId),
-      this.fetchRoundPlayerStats(demoId),
-    ]);
+    const [players, rounds, kills, grenades, roundPlayerStatsRaw] =
+      await Promise.all([
+        this.fetchPlayers(demoId),
+        this.fetchRounds(demoId),
+        this.fetchKills(demoId),
+        this.fetchGrenades(demoId),
+        this.fetchRoundPlayerStats(demoId),
+      ]);
 
     // Build lookup maps
     const lookups = this.buildLookupMaps(players, rounds);
 
     // Transform round player stats with round numbers
-    const roundPlayerStats = this.transformRoundPlayerStats(roundPlayerStatsRaw, lookups.roundIds);
+    const roundPlayerStats = this.transformRoundPlayerStats(
+      roundPlayerStatsRaw,
+      lookups.roundIds,
+    );
 
     return {
       demoId: demo.id,
@@ -199,7 +206,10 @@ export class MetricsDataService {
    * @param steamId - The player's Steam ID
    * @returns Player-specific match data
    */
-  async getPlayerMatchData(demoId: string, steamId: string): Promise<PlayerMatchData> {
+  async getPlayerMatchData(
+    demoId: string,
+    steamId: string,
+  ): Promise<PlayerMatchData> {
     // Verify demo exists
     const demo = await this.prisma.demo.findUnique({
       where: { id: demoId },
@@ -210,7 +220,10 @@ export class MetricsDataService {
       throw new DemoNotFoundError(demoId);
     }
 
-    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+    if (
+      demo.status !== DemoStatus.COMPLETED &&
+      demo.status !== DemoStatus.PARSED
+    ) {
       throw new DemoNotParsedError(demoId, demo.status);
     }
 
@@ -220,39 +233,42 @@ export class MetricsDataService {
     });
 
     if (!matchStats) {
-      throw new NotFoundException(`Player ${steamId} not found in demo ${demoId}`);
+      throw new NotFoundException(
+        `Player ${steamId} not found in demo ${demoId}`,
+      );
     }
 
     // Fetch all player-specific data in parallel
-    const [roundStatsRaw, kills, deaths, assists, grenades, rounds] = await Promise.all([
-      this.prisma.roundPlayerStats.findMany({
-        where: {
-          round: { demoId },
-          steamId,
-        },
-        include: { round: { select: { roundNumber: true } } },
-      }),
-      this.prisma.kill.findMany({
-        where: { demoId, attackerSteamId: steamId },
-        orderBy: { tick: "asc" },
-      }),
-      this.prisma.kill.findMany({
-        where: { demoId, victimSteamId: steamId },
-        orderBy: { tick: "asc" },
-      }),
-      this.prisma.kill.findMany({
-        where: { demoId, assisterSteamId: steamId },
-        orderBy: { tick: "asc" },
-      }),
-      this.prisma.grenade.findMany({
-        where: { demoId, throwerSteamId: steamId },
-        orderBy: { tick: "asc" },
-      }),
-      this.prisma.round.findMany({
-        where: { demoId },
-        select: { id: true, roundNumber: true },
-      }),
-    ]);
+    const [roundStatsRaw, kills, deaths, assists, grenades, rounds] =
+      await Promise.all([
+        this.prisma.roundPlayerStats.findMany({
+          where: {
+            round: { demoId },
+            steamId,
+          },
+          include: { round: { select: { roundNumber: true } } },
+        }),
+        this.prisma.kill.findMany({
+          where: { demoId, attackerSteamId: steamId },
+          orderBy: { tick: "asc" },
+        }),
+        this.prisma.kill.findMany({
+          where: { demoId, victimSteamId: steamId },
+          orderBy: { tick: "asc" },
+        }),
+        this.prisma.kill.findMany({
+          where: { demoId, assisterSteamId: steamId },
+          orderBy: { tick: "asc" },
+        }),
+        this.prisma.grenade.findMany({
+          where: { demoId, throwerSteamId: steamId },
+          orderBy: { tick: "asc" },
+        }),
+        this.prisma.round.findMany({
+          where: { demoId },
+          select: { id: true, roundNumber: true },
+        }),
+      ]);
 
     // Build round number lookup
     const roundNumById = new Map(rounds.map((r) => [r.id, r.roundNumber]));
@@ -298,7 +314,7 @@ export class MetricsDataService {
    */
   async getTeamEquipByRound(
     demoId: string,
-    teamNum: number
+    teamNum: number,
   ): Promise<ReadonlyMap<number, number>> {
     const roundStats = await this.prisma.roundPlayerStats.findMany({
       where: {
@@ -336,7 +352,7 @@ export class MetricsDataService {
    * Get players grouped by team
    */
   async getPlayersByTeam(
-    demoId: string
+    demoId: string,
   ): Promise<{ team2: MatchPlayerInput[]; team3: MatchPlayerInput[] }> {
     const players = await this.fetchPlayers(demoId);
 
@@ -579,7 +595,7 @@ export class MetricsDataService {
       tradedWithin: number | null;
       assisterSteamId: string | null;
     }>,
-    roundNumById: Map<string, number>
+    roundNumById: Map<string, number>,
   ): KillInput[] {
     return kills.map((k) => ({
       tick: k.tick,
@@ -621,7 +637,7 @@ export class MetricsDataService {
       damageDealt: number;
       enemiesDamaged: number;
     }>,
-    roundNumById: Map<string, number>
+    roundNumById: Map<string, number>,
   ): GrenadeInput[] {
     return grenades.map((g) => ({
       type: g.type,
@@ -658,7 +674,7 @@ export class MetricsDataService {
       clutchVs: number | null;
       clutchWon: boolean | null;
     }>,
-    roundIds: ReadonlyMap<number, string>
+    roundIds: ReadonlyMap<number, string>,
   ): RoundPlayerStatsInput[] {
     // Invert the map: id -> roundNumber
     const roundNumById = new Map<string, number>();
@@ -687,7 +703,7 @@ export class MetricsDataService {
 
   private buildLookupMaps(
     players: readonly MatchPlayerInput[],
-    rounds: readonly RoundInput[]
+    rounds: readonly RoundInput[],
   ): DemoMatchData["lookups"] {
     // Player lookups
     const playerNames = new Map<string, string>();

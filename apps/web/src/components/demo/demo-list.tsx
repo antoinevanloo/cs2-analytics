@@ -5,13 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { mapNameToDisplay, formatDuration } from "@/lib/utils";
 import { DemoListItem } from "@/lib/api";
-import {
-  FileVideo,
-  Clock,
-  MoreVertical,
-  Play,
-  Download,
-} from "lucide-react";
+import { FileVideo, Clock, MoreVertical, Play, Download } from "lucide-react";
 
 interface DemoListProps {
   demos: DemoListItem[];
