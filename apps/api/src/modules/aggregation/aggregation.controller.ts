@@ -342,9 +342,7 @@ export class AggregationController {
   @Roles("admin")
   @ApiOperation({ summary: "Batch recompute multiple profiles (admin only)" })
   @HttpCode(HttpStatus.ACCEPTED)
-  async batchRecompute(
-    @Body() body: BatchRecomputeBody,
-  ): Promise<{
+  async batchRecompute(@Body() body: BatchRecomputeBody): Promise<{
     jobId: string;
     message: string;
     playersQueued: number;
