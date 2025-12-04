@@ -186,6 +186,7 @@ model Demo {
   @@index([mapName])
   @@index([status])
   @@index([playedAt])
+  @@index([status, playedAt])                         // Aggregation: time-windowed queries
 }
 
 enum StorageType {
@@ -327,6 +328,7 @@ model MatchPlayerStats {
   @@index([demoId])
   @@index([playerId])
   @@index([steamId])
+  @@index([steamId, demoId])                          // Aggregation: player matches
 }
 
 model RoundPlayerStats {
@@ -364,6 +366,8 @@ model RoundPlayerStats {
   @@unique([roundId, steamId])
   @@index([roundId])
   @@index([playerId])
+  @@index([steamId])                                  // Aggregation: KAST calculation
+  @@index([steamId, survived])                        // Aggregation: survival rate
 }
 
 // ============================================================================
@@ -424,10 +428,31 @@ model Kill {
   assisterId      String?
   assister        Player?  @relation("Assister", fields: [assisterId], references: [id])
 
+  // Individual indexes
   @@index([demoId])
   @@index([roundId])
   @@index([attackerSteamId])
   @@index([victimSteamId])
+  @@index([tick])
+  @@index([weapon])
+  @@index([headshot])
+
+  // Composite indexes for common query patterns
+  @@index([demoId, tick])                           // Timeline queries
+  @@index([demoId, roundId, tick])                  // Round timeline
+  @@index([demoId, weapon])                         // Weapon stats per demo
+  @@index([attackerSteamId, weapon])                // Player weapon stats
+  @@index([demoId, attackerSteamId])                // Player kills in demo
+  @@index([demoId, headshot])                       // Headshot analysis
+  @@index([roundId, isFirstKill])                   // Opening kills per round
+  @@index([demoId, isTradeKill])                    // Trade kill analysis
+  @@index([roundId, attackerSteamId])               // Aggregation: multi-kills per round
+  @@index([attackerSteamId, isTradeKill])           // Aggregation: trade kills by player
+  @@index([victimSteamId, isTradeKill])             // Aggregation: times traded
+  @@index([demoId, penetrated])                     // Aggregation: wallbang kills
+  @@index([demoId, noscope])                        // Aggregation: noscope kills
+  @@index([demoId, thrusmoke])                      // Aggregation: through smoke kills
+  @@index([demoId, attackerblind])                  // Aggregation: blind kills
 }
 
 // ============================================================================
@@ -496,10 +521,18 @@ model GameEvent {
   demoId          String
   demo            Demo     @relation(fields: [demoId], references: [id], onDelete: Cascade)
 
+  // Individual indexes
   @@index([demoId])
   @@index([eventName])
   @@index([tick])
   @@index([roundNumber])
+
+  // Composite indexes for high-performance queries
+  @@index([demoId, eventName])                      // Filter events by type in demo
+  @@index([demoId, tick])                           // Timeline queries
+  @@index([demoId, roundNumber])                    // Round-specific events
+  @@index([demoId, eventName, tick])                // Event timeline by type
+  @@index([demoId, roundNumber, eventName])         // Round events by type
 }
 
 // ============================================================================

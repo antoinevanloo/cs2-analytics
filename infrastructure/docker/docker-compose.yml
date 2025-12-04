@@ -105,19 +105,61 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: cs2-postgres
-    ports:
-      - "5432:5432"
+    # Internal port only - access via PgBouncer for connection pooling
+    expose:
+      - "5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=cs2analytics
+      # Performance tuning for analytics workloads
+      - POSTGRES_INITDB_ARGS=--data-checksums
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     networks:
       - cs2-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # PgBouncer - Connection Pooling
+  # ==========================================================================
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: cs2-pgbouncer
+    ports:
+      - "5432:5432"
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/cs2analytics
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=500
+      - DEFAULT_POOL_SIZE=25
+      - MIN_POOL_SIZE=5
+      - RESERVE_POOL_SIZE=5
+      - RESERVE_POOL_TIMEOUT=3
+      - MAX_DB_CONNECTIONS=50
+      - SERVER_RESET_QUERY=DISCARD ALL
+      - SERVER_CHECK_QUERY=SELECT 1
+      - SERVER_CHECK_DELAY=30
+      - LOG_CONNECTIONS=0
+      - LOG_DISCONNECTIONS=0
+      - LOG_POOLER_ERRORS=1
+      - STATS_PERIOD=60
+      - AUTH_TYPE=plain
+      - AUTH_USER=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "localhost", "-p", "5432"]
       interval: 10s
       timeout: 5s
       retries: 5

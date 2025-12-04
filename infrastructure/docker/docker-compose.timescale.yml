@@ -1,0 +1,29 @@
+# CS2 Analytics - TimescaleDB Override
+# Use with: docker compose -f docker-compose.yml -f docker-compose.timescale.yml up
+#
+# TimescaleDB is optimized for time-series data and provides:
+# - Automatic time-based partitioning (hypertables)
+# - Improved compression for historical data
+# - Better query performance for time-range queries
+# - Continuous aggregates for real-time analytics
+
+version: "3.9"
+
+services:
+  # Override PostgreSQL with TimescaleDB
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: cs2-timescaledb
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=cs2analytics
+      - TIMESCALEDB_TELEMETRY=off
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+      - ./init-scripts/timescale:/docker-entrypoint-initdb.d
+      - ./config/timescale/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+
+volumes:
+  timescale-data:

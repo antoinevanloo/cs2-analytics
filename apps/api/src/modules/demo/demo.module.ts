@@ -1,16 +1,27 @@
 /**
  * Demo Module - Handles demo file management and parsing
+ *
+ * Features:
+ * - Demo upload and parsing orchestration
+ * - BullMQ queue for async processing
+ * - Automatic analysis trigger after parsing
+ * - Archival service for old demos
  */
 
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
+import { ScheduleModule } from "@nestjs/schedule";
 import { DemoController } from "./demo.controller";
 import { DemoService } from "./demo.service";
 import { ParserService } from "./parser.service";
 import { DemoProcessor } from "./demo.processor";
+import { ArchivalService } from "./archival.service";
+import { AnalysisModule } from "../analysis/analysis.module";
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
+    // Demo parsing queue
     BullModule.registerQueue({
       name: "demo-parsing",
       defaultJobOptions: {
@@ -31,9 +42,11 @@ import { DemoProcessor } from "./demo.processor";
         },
       },
     }),
+    // Import AnalysisModule to access the analysis queue
+    forwardRef(() => AnalysisModule),
   ],
   controllers: [DemoController],
-  providers: [DemoService, ParserService, DemoProcessor],
-  exports: [DemoService, ParserService, BullModule],
+  providers: [DemoService, ParserService, DemoProcessor, ArchivalService],
+  exports: [DemoService, ParserService, ArchivalService, BullModule],
 })
 export class DemoModule {}

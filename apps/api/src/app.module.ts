@@ -2,17 +2,21 @@
  * CS2 Analytics API - Root Application Module
  */
 
-import { Module } from "@nestjs/common";
+import { Module, MiddlewareConsumer, NestModule } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { APP_GUARD } from "@nestjs/core";
 
 import { PrismaModule } from "./common/prisma";
+import { RedisModule } from "./common/redis";
+import { CorrelationIdMiddleware } from "./common/middleware";
+import { AuthModule } from "./modules/auth/auth.module";
 import { DemoModule } from "./modules/demo/demo.module";
 import { PlayerModule } from "./modules/player/player.module";
 import { RoundModule } from "./modules/round/round.module";
 import { AnalysisModule } from "./modules/analysis/analysis.module";
+import { AggregationModule } from "./modules/aggregation/aggregation.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -69,11 +73,18 @@ import { HealthController } from "./health.controller";
     // Database
     PrismaModule,
 
+    // Cache
+    RedisModule,
+
+    // Authentication
+    AuthModule,
+
     // Feature modules
     DemoModule,
     PlayerModule,
     RoundModule,
     AnalysisModule,
+    AggregationModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -84,4 +95,12 @@ import { HealthController } from "./health.controller";
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Configure global middleware
+   */
+  configure(consumer: MiddlewareConsumer) {
+    // Apply correlation ID middleware to all routes
+    consumer.apply(CorrelationIdMiddleware).forRoutes("*");
+  }
+}

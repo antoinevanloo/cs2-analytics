@@ -5,13 +5,16 @@
  * - Concurrency limit to prevent parser overload
  * - Job timeout for hung jobs
  * - Retry with exponential backoff
+ * - Automatic analysis trigger after successful parsing
  */
 
 import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { InjectQueue } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
-import { Job } from "bullmq";
+import { Job, Queue } from "bullmq";
 import { DemoService } from "./demo.service";
 import { ParserService } from "./parser.service";
+import type { AnalysisJobData } from "../analysis/analysis.processor";
 
 interface ParseJobData {
   demoId: string;
@@ -41,7 +44,8 @@ export class DemoProcessor extends WorkerHost {
 
   constructor(
     private demoService: DemoService,
-    private parserService: ParserService
+    private parserService: ParserService,
+    @InjectQueue("demo-analysis") private analysisQueue: Queue<AnalysisJobData>
   ) {
     super();
   }
@@ -88,6 +92,9 @@ export class DemoProcessor extends WorkerHost {
       });
 
       this.logger.log(`Demo ${demoId} parsed successfully`);
+
+      // Queue analysis job automatically after successful parsing
+      await this.queueAnalysis(demoId);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
@@ -96,6 +103,39 @@ export class DemoProcessor extends WorkerHost {
       await this.demoService.markAsFailed(demoId, errorMessage);
 
       throw error; // Re-throw for BullMQ retry mechanism
+    }
+  }
+
+  /**
+   * Queue analysis job after successful parsing
+   * Analysis runs with lower priority to not block new demo parsing
+   */
+  private async queueAnalysis(demoId: string): Promise<void> {
+    try {
+      const job = await this.analysisQueue.add(
+        "analyze-demo",
+        {
+          demoId,
+          type: "full",
+          priority: "normal",
+        },
+        {
+          // Lower priority than parsing jobs
+          priority: 10,
+          // Delay slightly to let DB transactions settle
+          delay: 1000,
+          // Job ID to prevent duplicate analysis
+          jobId: `analysis-${demoId}`,
+        }
+      );
+
+      this.logger.log(`Queued analysis job ${job.id} for demo ${demoId}`);
+    } catch (error) {
+      // Don't fail the parsing job if analysis queueing fails
+      // Analysis can be triggered manually or retried later
+      this.logger.warn(
+        `Failed to queue analysis for demo ${demoId}: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
 }
