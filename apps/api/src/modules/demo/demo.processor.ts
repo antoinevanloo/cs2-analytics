@@ -84,7 +84,7 @@ export class DemoProcessor extends WorkerHost {
       }
 
       this.logger.log(
-        `Parser returned: events=${result.events?.length || 0}, rounds=${result.rounds?.length || 0}, players=${result.players?.length || 0}, grenades=${result.grenades?.length || 0}, chat=${result.chat_messages?.length || 0}`,
+        `Parser returned: events=${result.events?.length || 0}, rounds=${result.rounds?.length || 0}, players=${result.players?.length || 0}, grenades=${result.grenades?.length || 0}, chat=${result.chat_messages?.length || 0}, ticks=${result.ticks?.length || 0}`,
       );
 
       // Store results and mark as completed
@@ -96,6 +96,7 @@ export class DemoProcessor extends WorkerHost {
         grenades: result.grenades as import("./demo.service").DemoGrenade[],
         chat_messages:
           result.chat_messages as import("./demo.service").DemoChatMessage[],
+        ticks: result.ticks as import("./demo.service").DemoTick[],
       });
 
       this.logger.log(`Demo ${demoId} parsed successfully`);

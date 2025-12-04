@@ -12,7 +12,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../common/prisma";
-import { DemoStatus, GameMode, GrenadeType, Prisma } from "@prisma/client";
+import { DemoStatus, GameMode, GrenadeType, Prisma, ReplayEventType } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -89,6 +89,34 @@ export interface DemoEvent {
   tick?: number;
   round?: number;
   [key: string]: unknown;
+}
+
+/**
+ * Tick data from parser - player position/state at a specific tick
+ * Used for 2D replay visualization
+ */
+export interface DemoTick {
+  tick?: number;
+  steamid?: string;
+  name?: string;
+  x?: number;
+  y?: number;
+  z?: number;
+  yaw?: number;
+  pitch?: number;
+  health?: number;
+  armor?: number;
+  is_alive?: boolean;
+  is_ducking?: boolean;
+  is_scoped?: boolean;
+  is_defusing?: boolean;
+  is_planting?: boolean;
+  team?: number;
+  active_weapon?: string;
+  has_defuse_kit?: boolean;
+  has_bomb?: boolean;
+  money?: number;
+  flash_duration?: number;
 }
 
 @Injectable()
@@ -635,6 +663,7 @@ export class DemoService {
       events?: DemoEvent[];
       grenades?: DemoGrenade[];
       chat_messages?: DemoChatMessage[];
+      ticks?: DemoTick[];
     },
   ) {
     const demo = await this.prisma.demo.findUnique({ where: { id } });
@@ -779,8 +808,177 @@ export class DemoService {
         });
       }
 
+      // Insert player ticks for 2D replay (high volume - batch insert)
+      if (data.ticks?.length) {
+        // Get rounds for tick-to-round mapping
+        const roundsForTicks = await this.prisma.round.findMany({
+          where: { demoId: id },
+          select: { id: true, startTick: true, endTick: true },
+          orderBy: { roundNumber: "asc" },
+        });
+
+        // Pre-compute round lookup for efficiency
+        const findRoundIdForTick = (tick: number): string | null => {
+          const round = roundsForTicks.find(
+            (r) => tick >= r.startTick && tick <= r.endTick,
+          );
+          return round?.id ?? null;
+        };
+
+        // Batch insert for performance (1000 ticks per batch)
+        const tickBatchSize = 1000;
+        let ticksInserted = 0;
+
+        for (let i = 0; i < data.ticks.length; i += tickBatchSize) {
+          const batch = data.ticks.slice(i, i + tickBatchSize);
+
+          const tickData = batch.map((t) => {
+            const roundId = findRoundIdForTick(t.tick || 0);
+            return {
+              demoId: id,
+              tick: t.tick || 0,
+              steamId: t.steamid || "",
+              x: t.x || 0,
+              y: t.y || 0,
+              z: t.z || 0,
+              yaw: t.yaw || 0,
+              pitch: t.pitch || 0,
+              health: t.health ?? 100,
+              armor: t.armor ?? 0,
+              isAlive: t.is_alive ?? true,
+              isDucking: t.is_ducking ?? false,
+              isScoped: t.is_scoped ?? false,
+              isDefusing: t.is_defusing ?? false,
+              isPlanting: t.is_planting ?? false,
+              team: t.team || 0,
+              activeWeapon: t.active_weapon ?? null,
+              hasDefuseKit: t.has_defuse_kit ?? false,
+              hasBomb: t.has_bomb ?? false,
+              money: t.money ?? 0,
+              flashDuration: t.flash_duration ?? 0,
+              roundId,
+            };
+          });
+
+          await this.prisma.playerTick.createMany({
+            data: tickData,
+          });
+
+          ticksInserted += batch.length;
+
+          // Log progress for large tick datasets
+          if (ticksInserted % 10000 === 0) {
+            this.logger.debug(
+              `Inserted ${ticksInserted}/${data.ticks.length} ticks for demo ${id}`,
+            );
+          }
+        }
+
+        this.logger.log(
+          `Inserted ${ticksInserted} player ticks for demo ${id}`,
+        );
+      }
+
+      // Create ReplayEvents from game events for 2D visualization overlays
+      if (data.events?.length) {
+        // Get rounds for event-to-round mapping (reuse if already fetched)
+        const roundsForEvents = await this.prisma.round.findMany({
+          where: { demoId: id },
+          select: { id: true, startTick: true, endTick: true, roundNumber: true },
+          orderBy: { roundNumber: "asc" },
+        });
+
+        const findRoundForEvent = (tick: number) => {
+          return roundsForEvents.find(
+            (r) => tick >= r.startTick && tick <= r.endTick,
+          );
+        };
+
+        // Event type mapping
+        const eventTypeMap: Record<string, ReplayEventType | null> = {
+          player_death: ReplayEventType.KILL,
+          bomb_planted: ReplayEventType.BOMB_PLANT,
+          bomb_defused: ReplayEventType.BOMB_DEFUSE,
+          bomb_exploded: ReplayEventType.BOMB_EXPLODE,
+          // player_hurt creates too many events, skip for now
+        };
+
+        const replayEvents: Prisma.ReplayEventCreateManyInput[] = [];
+
+        for (const event of data.events) {
+          const eventType = eventTypeMap[event.event_name || ""];
+          if (!eventType) continue;
+
+          const round = findRoundForEvent(event.tick || 0);
+          if (!round) continue;
+
+          // Build replay event data based on event type
+          const baseEvent = {
+            demoId: id,
+            roundId: round.id,
+            type: eventType,
+            tick: event.tick || 0,
+          };
+
+          if (eventType === ReplayEventType.KILL) {
+            // Kill event - attacker position for visual overlay
+            replayEvents.push({
+              ...baseEvent,
+              x: (event.attacker_x as number) || 0,
+              y: (event.attacker_y as number) || 0,
+              z: (event.attacker_z as number) || 0,
+              endX: (event.victim_x as number) || null,
+              endY: (event.victim_y as number) || null,
+              endZ: (event.victim_z as number) || null,
+              data: {
+                attackerSteamId: String(event.attacker_steamid || ""),
+                attackerName: String(event.attacker_name || ""),
+                victimSteamId: String(event.victim_steamid || ""),
+                victimName: String(event.victim_name || ""),
+                weapon: String(event.weapon || ""),
+                headshot: Boolean(event.headshot),
+                penetrated: Boolean(event.penetrated),
+                noscope: Boolean(event.noscope),
+                throughsmoke: Boolean(event.throughsmoke),
+                attackerblind: Boolean(event.attackerblind),
+              },
+            });
+          } else if (eventType === ReplayEventType.BOMB_PLANT ||
+                     eventType === ReplayEventType.BOMB_DEFUSE ||
+                     eventType === ReplayEventType.BOMB_EXPLODE) {
+            // Bomb events
+            replayEvents.push({
+              ...baseEvent,
+              x: (event.x as number) || 0,
+              y: (event.y as number) || 0,
+              z: (event.z as number) || 0,
+              data: {
+                playerSteamId: String(event.player_steamid || event.userid_steamid || ""),
+                playerName: String(event.player_name || event.userid_name || ""),
+                site: String(event.site || ""),
+              },
+            });
+          }
+        }
+
+        // Batch insert replay events
+        if (replayEvents.length > 0) {
+          const replayEventBatchSize = 500;
+          for (let i = 0; i < replayEvents.length; i += replayEventBatchSize) {
+            const batch = replayEvents.slice(i, i + replayEventBatchSize);
+            await this.prisma.replayEvent.createMany({
+              data: batch,
+            });
+          }
+
+          this.logger.log(
+            `Created ${replayEvents.length} replay events for demo ${id}`,
+          );
+        }
+      }
+
       this.logger.log(
-        `Demo ${id} marked as completed with ${data.events?.length || 0} events, ${data.rounds?.length || 0} rounds, ${data.players?.length || 0} players, ${data.grenades?.length || 0} grenades, ${data.chat_messages?.length || 0} chat messages`,
+        `Demo ${id} marked as completed with ${data.events?.length || 0} events, ${data.rounds?.length || 0} rounds, ${data.players?.length || 0} players, ${data.grenades?.length || 0} grenades, ${data.chat_messages?.length || 0} chat messages, ${data.ticks?.length || 0} ticks`,
       );
     } catch (error) {
       this.logger.error(`Failed to save demo ${id} data: ${error}`);

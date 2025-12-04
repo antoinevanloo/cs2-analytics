@@ -18,6 +18,7 @@ import { PlayerModule } from "./modules/player/player.module";
 import { RoundModule } from "./modules/round/round.module";
 import { AnalysisModule } from "./modules/analysis/analysis.module";
 import { AggregationModule } from "./modules/aggregation/aggregation.module";
+import { ReplayModule } from "./modules/replay/replay.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -89,6 +90,7 @@ import { HealthController } from "./health.controller";
     RoundModule,
     AnalysisModule,
     AggregationModule,
+    ReplayModule,
   ],
   controllers: [HealthController],
   providers: [
