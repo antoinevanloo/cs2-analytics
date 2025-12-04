@@ -2,7 +2,12 @@
  * Prisma Service - Database connection management
  */
 
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from "@nestjs/common";
 import { PrismaClient } from "@cs2-analytics/db";
 
 @Injectable()

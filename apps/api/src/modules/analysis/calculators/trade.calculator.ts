@@ -64,7 +64,7 @@ export function calculateTrades(input: TradeCalculationInput): TradeMetrics {
 
   // Scale threshold based on tick rate
   const tradeThreshold = Math.round(
-    (TRADE_THRESHOLD_TICKS / TICK_RATES.MATCHMAKING) * tickRate
+    (TRADE_THRESHOLD_TICKS / TICK_RATES.MATCHMAKING) * tickRate,
   );
 
   // Group kills by round for efficient processing
@@ -111,7 +111,8 @@ export function calculateTrades(input: TradeCalculationInput): TradeMetrics {
             tradedPlayerSteamId: steamId,
             tradedPlayerName: playerNames?.get(steamId) ?? "Unknown",
             traderSteamId: tradeKill.attackerSteamId,
-            traderName: playerNames?.get(tradeKill.attackerSteamId) ?? "Unknown",
+            traderName:
+              playerNames?.get(tradeKill.attackerSteamId) ?? "Unknown",
             enemySteamId: killerSteamId,
             enemyName: playerNames?.get(killerSteamId) ?? "Unknown",
             tradeTimeTicks: tradeKill.tick - kill.tick,
@@ -152,7 +153,7 @@ export function calculateTrades(input: TradeCalculationInput): TradeMetrics {
           (k) =>
             k.victimSteamId === kill.attackerSteamId &&
             k.tick > kill.tick &&
-            k.tick - kill.tick <= tradeThreshold
+            k.tick - kill.tick <= tradeThreshold,
         );
 
         // It's an opportunity if we could have made the trade
@@ -172,7 +173,7 @@ export function calculateTrades(input: TradeCalculationInput): TradeMetrics {
     tradesGiven,
     tradesReceived,
     tradeSuccessRate: round2(
-      tradeOpportunities > 0 ? (tradesGiven / tradeOpportunities) * 100 : 0
+      tradeOpportunities > 0 ? (tradesGiven / tradeOpportunities) * 100 : 0,
     ),
     tradeOpportunities,
     avgTradeTimeTicks: round2(avgTradeTimeTicks),
@@ -188,7 +189,7 @@ export function calculateTeamTrades(
   teamSteamIds: readonly string[],
   allKills: readonly KillInput[],
   tickRate: number = 64,
-  playerNames?: ReadonlyMap<string, string>
+  playerNames?: ReadonlyMap<string, string>,
 ): {
   totalTradesGiven: number;
   totalTradesReceived: number;
@@ -210,7 +211,9 @@ export function calculateTeamTrades(
       tickRate,
     };
     if (playerNames) {
-      (tradeInput as { playerNames?: ReadonlyMap<string, string> }).playerNames = playerNames;
+      (
+        tradeInput as { playerNames?: ReadonlyMap<string, string> }
+      ).playerNames = playerNames;
     }
     const trades = calculateTrades(tradeInput);
 
@@ -226,9 +229,13 @@ export function calculateTeamTrades(
     totalTradesGiven,
     totalTradesReceived: tradeCount,
     tradeSuccessRate: round2(
-      totalOpportunities > 0 ? (totalTradesGiven / totalOpportunities) * 100 : 0
+      totalOpportunities > 0
+        ? (totalTradesGiven / totalOpportunities) * 100
+        : 0,
     ),
-    avgTradeTime: round2(tradeCount > 0 ? totalTradeTime / tradeCount / tickRate : 0),
+    avgTradeTime: round2(
+      tradeCount > 0 ? totalTradeTime / tradeCount / tickRate : 0,
+    ),
     playerTrades,
   };
 }
@@ -239,7 +246,7 @@ export function calculateTeamTrades(
 export function analyzeTradeRelationships(
   teamSteamIds: readonly string[],
   allKills: readonly KillInput[],
-  tickRate: number = 64
+  tickRate: number = 64,
 ): Map<string, Map<string, number>> {
   const relationships = new Map<string, Map<string, number>>();
 
@@ -249,7 +256,7 @@ export function analyzeTradeRelationships(
   }
 
   const tradeThreshold = Math.round(
-    (TRADE_THRESHOLD_TICKS / TICK_RATES.MATCHMAKING) * tickRate
+    (TRADE_THRESHOLD_TICKS / TICK_RATES.MATCHMAKING) * tickRate,
   );
 
   const killsByRound = groupBy(allKills, (k) => k.roundNumber);
@@ -262,10 +269,7 @@ export function analyzeTradeRelationships(
       if (!death) continue;
 
       // Check if a teammate died
-      if (
-        teamSteamIds.includes(death.victimSteamId) &&
-        death.attackerSteamId
-      ) {
+      if (teamSteamIds.includes(death.victimSteamId) && death.attackerSteamId) {
         // Look for trade
         for (let j = i + 1; j < sortedKills.length; j++) {
           const tradeKill = sortedKills[j];
@@ -321,14 +325,14 @@ const CHAIN_THRESHOLD_TICKS = 640;
 export function calculateTradeChains(
   allKills: readonly KillInput[],
   playerTeam: number,
-  tickRate: number = 64
+  tickRate: number = 64,
 ): TradeChainMetrics {
   if (allKills.length === 0) {
     return createEmptyTradeChainMetrics();
   }
 
   const chainThreshold = Math.round(
-    (CHAIN_THRESHOLD_TICKS / TICK_RATES.MATCHMAKING) * tickRate
+    (CHAIN_THRESHOLD_TICKS / TICK_RATES.MATCHMAKING) * tickRate,
   );
 
   const killsByRound = groupBy(allKills, (k) => k.roundNumber);
@@ -336,22 +340,29 @@ export function calculateTradeChains(
 
   for (const [roundNumber, roundKills] of killsByRound) {
     const sortedKills = [...roundKills].sort((a, b) => a.tick - b.tick);
-    const chainEvents = findChainsInRound(sortedKills, roundNumber, chainThreshold, tickRate);
+    const chainEvents = findChainsInRound(
+      sortedKills,
+      roundNumber,
+      chainThreshold,
+      tickRate,
+    );
     chains.push(...chainEvents);
   }
 
   // Calculate aggregate metrics
   const totalChains = chains.length;
-  const avgChainLength = totalChains > 0
-    ? round2(chains.reduce((sum, c) => sum + c.length, 0) / totalChains)
-    : 0;
-  const longestChain = totalChains > 0
-    ? Math.max(...chains.map((c) => c.length))
-    : 0;
+  const avgChainLength =
+    totalChains > 0
+      ? round2(chains.reduce((sum, c) => sum + c.length, 0) / totalChains)
+      : 0;
+  const longestChain =
+    totalChains > 0 ? Math.max(...chains.map((c) => c.length)) : 0;
 
   // Count chains won by player's team
   const chainsWon = chains.filter((c) => c.winnerTeam === playerTeam).length;
-  const chainWinRate = round2(totalChains > 0 ? (chainsWon / totalChains) * 100 : 0);
+  const chainWinRate = round2(
+    totalChains > 0 ? (chainsWon / totalChains) * 100 : 0,
+  );
 
   // Breakdown by chain length
   const byLength = calculateChainLengthBreakdown(chains, playerTeam);
@@ -374,7 +385,7 @@ function findChainsInRound(
   kills: readonly KillInput[],
   roundNumber: number,
   chainThreshold: number,
-  tickRate: number
+  tickRate: number,
 ): TradeChainEvent[] {
   const chains: TradeChainEvent[] = [];
   const usedKillIndices = new Set<number>();
@@ -411,7 +422,8 @@ function findChainsInRound(
         // Check if this is a trade (killing the person who just killed)
         if (nextKill.attackerSteamId === lastVictimSteamId) {
           // This is a trade - the victim from last kill is now getting revenge
-          const timeSincePrevious = (nextKill.tick - currentKill.tick) / tickRate;
+          const timeSincePrevious =
+            (nextKill.tick - currentKill.tick) / tickRate;
           chainKills.push(createChainKill(nextKill, timeSincePrevious, true));
           usedKillIndices.add(j);
 
@@ -474,7 +486,7 @@ function findChainsInRound(
 function createChainKill(
   kill: KillInput,
   timeSincePrevious: number,
-  isTrade: boolean
+  isTrade: boolean,
 ): TradeChainKill {
   return {
     tick: kill.tick,
@@ -495,7 +507,7 @@ function createChainKill(
  */
 function calculateChainLengthBreakdown(
   chains: readonly TradeChainEvent[],
-  playerTeam: number
+  playerTeam: number,
 ): TradeChainLengthBreakdown {
   const length2 = chains.filter((c) => c.length === 2);
   const length3 = chains.filter((c) => c.length === 3);
@@ -515,14 +527,15 @@ function calculateChainLengthBreakdown(
  */
 function calculateChainLengthStats(
   chains: readonly TradeChainEvent[],
-  playerTeam: number
+  playerTeam: number,
 ): ChainLengthStats {
   const count = chains.length;
   const won = chains.filter((c) => c.winnerTeam === playerTeam).length;
   const winRate = round2(count > 0 ? (won / count) * 100 : 0);
-  const avgDuration = count > 0
-    ? round2(chains.reduce((sum, c) => sum + c.durationSeconds, 0) / count)
-    : 0;
+  const avgDuration =
+    count > 0
+      ? round2(chains.reduce((sum, c) => sum + c.durationSeconds, 0) / count)
+      : 0;
 
   return { count, won, winRate, avgDuration };
 }
@@ -535,9 +548,9 @@ function calculateChainLengthStats(
  * Timing thresholds (in seconds from round start)
  */
 const TIMING_THRESHOLDS = {
-  EARLY: 20,   // First 20 seconds = entry phase
-  MID: 60,     // 20-60 seconds = mid-round
-  LATE: 120,   // 60+ seconds = late round
+  EARLY: 20, // First 20 seconds = entry phase
+  MID: 60, // 20-60 seconds = mid-round
+  LATE: 120, // 60+ seconds = late round
 } as const;
 
 /**
@@ -553,7 +566,7 @@ const TIMING_THRESHOLDS = {
 export function calculateTradeTimingMetrics(
   trades: readonly TradeEvent[],
   rounds: readonly RoundInput[],
-  tickRate: number = 64
+  tickRate: number = 64,
 ): TradeTimingMetrics {
   if (trades.length === 0) {
     return createEmptyTradeTimingMetrics();
@@ -563,7 +576,10 @@ export function calculateTradeTimingMetrics(
   const roundBombPlantTicks = new Map<number, number>();
 
   for (const round of rounds) {
-    roundStartTicks.set(round.roundNumber, round.freezeEndTick ?? round.startTick);
+    roundStartTicks.set(
+      round.roundNumber,
+      round.freezeEndTick ?? round.startTick,
+    );
     if (round.bombPlantTick !== undefined && round.bombPlantTick !== null) {
       roundBombPlantTicks.set(round.roundNumber, round.bombPlantTick);
     }
@@ -580,7 +596,8 @@ export function calculateTradeTimingMetrics(
     const secondsIntoRound = (trade.tick - roundStart) / tickRate;
 
     const bombPlantTick = roundBombPlantTicks.get(trade.roundNumber);
-    const isPostPlant = bombPlantTick !== undefined && trade.tick > bombPlantTick;
+    const isPostPlant =
+      bombPlantTick !== undefined && trade.tick > bombPlantTick;
 
     // Categorize by timing
     if (secondsIntoRound <= TIMING_THRESHOLDS.EARLY) {
@@ -603,7 +620,7 @@ export function calculateTradeTimingMetrics(
   const totalTrades = trades.length;
   const allTradeTimes = trades.map((t) => t.tradeTimeSeconds);
   const avgReactionTime = round2(
-    allTradeTimes.reduce((sum, t) => sum + t, 0) / totalTrades
+    allTradeTimes.reduce((sum, t) => sum + t, 0) / totalTrades,
   );
   const fastestTradeTime = Math.min(...allTradeTimes);
 
@@ -623,13 +640,14 @@ export function calculateTradeTimingMetrics(
  */
 function createTradeTimingPhase(
   trades: readonly TradeEvent[],
-  totalTrades: number
+  totalTrades: number,
 ): TradeTimingPhase {
   const count = trades.length;
   const percent = round2(totalTrades > 0 ? (count / totalTrades) * 100 : 0);
-  const avgTradeTime = count > 0
-    ? round2(trades.reduce((sum, t) => sum + t.tradeTimeSeconds, 0) / count)
-    : 0;
+  const avgTradeTime =
+    count > 0
+      ? round2(trades.reduce((sum, t) => sum + t.tradeTimeSeconds, 0) / count)
+      : 0;
 
   return {
     trades: count,
@@ -656,7 +674,7 @@ function createTradeTimingPhase(
 export function calculateTradeEffectiveness(
   trades: readonly TradeEvent[],
   roundWinners: ReadonlyMap<number, number>,
-  playerTeam: number
+  playerTeam: number,
 ): TradeEffectivenessMetrics {
   if (trades.length === 0) {
     return createEmptyTradeEffectivenessMetrics();
@@ -678,7 +696,7 @@ export function calculateTradeEffectiveness(
   }
 
   const tradeWinImpact = round2(
-    trades.length > 0 ? (tradesLeadingToWin / trades.length) * 100 : 0
+    trades.length > 0 ? (tradesLeadingToWin / trades.length) * 100 : 0,
   );
 
   // Average man advantage is 0 for trades (even exchange) unless it's a chain
@@ -686,7 +704,9 @@ export function calculateTradeEffectiveness(
   const avgManAdvantageCreated = 0;
 
   // Trade value score combines win impact and trade success
-  const tradeValueScore = round2(tradeWinImpact * 0.8 + (tradesInWonRounds > tradesInLostRounds ? 20 : 0));
+  const tradeValueScore = round2(
+    tradeWinImpact * 0.8 + (tradesInWonRounds > tradesInLostRounds ? 20 : 0),
+  );
 
   return {
     tradesLeadingToWin,
@@ -717,10 +737,14 @@ export function calculateTradeRelationships(
   teamSteamIds: readonly string[],
   allKills: readonly KillInput[],
   playerNames: ReadonlyMap<string, string>,
-  tickRate: number = 64
+  tickRate: number = 64,
 ): TradeRelationship[] {
   const relationships: TradeRelationship[] = [];
-  const relationshipMap = analyzeTradeRelationships(teamSteamIds, allKills, tickRate);
+  const relationshipMap = analyzeTradeRelationships(
+    teamSteamIds,
+    allKills,
+    tickRate,
+  );
 
   // Create relationship objects for each pair
   for (let i = 0; i < teamSteamIds.length; i++) {
@@ -730,13 +754,16 @@ export function calculateTradeRelationships(
 
       if (!player1 || !player2) continue;
 
-      const player1TradesPlayer2 = relationshipMap.get(player1)?.get(player2) ?? 0;
-      const player2TradesPlayer1 = relationshipMap.get(player2)?.get(player1) ?? 0;
+      const player1TradesPlayer2 =
+        relationshipMap.get(player1)?.get(player2) ?? 0;
+      const player2TradesPlayer1 =
+        relationshipMap.get(player2)?.get(player1) ?? 0;
       const totalTrades = player1TradesPlayer2 + player2TradesPlayer1;
 
       if (totalTrades > 0) {
         // Synergy score: higher when trades are balanced between both players
-        const balance = Math.min(player1TradesPlayer2, player2TradesPlayer1) /
+        const balance =
+          Math.min(player1TradesPlayer2, player2TradesPlayer1) /
           Math.max(player1TradesPlayer2, player2TradesPlayer1, 1);
         const synergyScore = round2(totalTrades * (0.5 + balance * 0.5));
 
@@ -779,7 +806,7 @@ export function calculateExtendedTradeMetrics(
   rounds: readonly RoundInput[],
   roundWinners: ReadonlyMap<number, number>,
   teamSteamIds: readonly string[],
-  playerTeam: number
+  playerTeam: number,
 ): ExtendedTradeMetrics {
   const { allKills, tickRate = 64, playerNames } = input;
 
@@ -793,7 +820,11 @@ export function calculateExtendedTradeMetrics(
   const timing = calculateTradeTimingMetrics(core.trades, rounds, tickRate);
 
   // Calculate effectiveness metrics
-  const effectiveness = calculateTradeEffectiveness(core.trades, roundWinners, playerTeam);
+  const effectiveness = calculateTradeEffectiveness(
+    core.trades,
+    roundWinners,
+    playerTeam,
+  );
 
   // Calculate relationships
   const relationships = playerNames
@@ -801,7 +832,12 @@ export function calculateExtendedTradeMetrics(
     : [];
 
   // Calculate overall score
-  const overallScore = calculateTradeOverallScore(core, chains, timing, effectiveness);
+  const overallScore = calculateTradeOverallScore(
+    core,
+    chains,
+    timing,
+    effectiveness,
+  );
 
   // Determine skill label
   const skillLabel = getTradeSkillLabel(overallScore);
@@ -824,15 +860,19 @@ function calculateTradeOverallScore(
   core: TradeMetrics,
   chains: TradeChainMetrics,
   timing: TradeTimingMetrics,
-  effectiveness: TradeEffectivenessMetrics
+  effectiveness: TradeEffectivenessMetrics,
 ): number {
   // Weight different components
   const successRateScore = core.tradeSuccessRate * 0.3;
-  const reactionTimeScore = Math.max(0, (5 - timing.avgReactionTime) / 5 * 30); // Max 30 points for fast trades
+  const reactionTimeScore = Math.max(
+    0,
+    ((5 - timing.avgReactionTime) / 5) * 30,
+  ); // Max 30 points for fast trades
   const chainScore = Math.min(chains.chainWinRate, 100) * 0.2;
   const effectivenessScore = effectiveness.tradeWinImpact * 0.2;
 
-  const totalScore = successRateScore + reactionTimeScore + chainScore + effectivenessScore;
+  const totalScore =
+    successRateScore + reactionTimeScore + chainScore + effectivenessScore;
   return round2(Math.min(100, Math.max(0, totalScore)));
 }
 

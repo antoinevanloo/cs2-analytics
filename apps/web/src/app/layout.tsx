@@ -8,8 +8,16 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "CS2 Analytics - Demo Analysis Platform",
-  description: "Professional CS2 demo analysis and coaching platform for esports teams",
-  keywords: ["CS2", "Counter-Strike", "analytics", "demo", "esports", "coaching"],
+  description:
+    "Professional CS2 demo analysis and coaching platform for esports teams",
+  keywords: [
+    "CS2",
+    "Counter-Strike",
+    "analytics",
+    "demo",
+    "esports",
+    "coaching",
+  ],
 };
 
 export default function RootLayout({

@@ -4,7 +4,11 @@
  * Tests for grenade usage analysis.
  */
 
-import { calculateUtility, getUtilityLabel, calculateTeamUtility } from "./utility.calculator";
+import {
+  calculateUtility,
+  getUtilityLabel,
+  calculateTeamUtility,
+} from "./utility.calculator";
 import type { GrenadeInput } from "../types/inputs.types";
 
 describe("Utility Calculator", () => {
@@ -25,9 +29,26 @@ describe("Utility Calculator", () => {
 
     it("should calculate flash metrics correctly", () => {
       const grenades: GrenadeInput[] = [
-        createGrenade({ type: "flashbang", enemiesBlinded: 2, teammatesBlinded: 0, totalBlindDuration: 4.5 }),
-        createGrenade({ type: "flashbang", enemiesBlinded: 1, teammatesBlinded: 1, totalBlindDuration: 2.0, roundNumber: 2 }),
-        createGrenade({ type: "flashbang", enemiesBlinded: 0, teammatesBlinded: 2, totalBlindDuration: 0, roundNumber: 3 }),
+        createGrenade({
+          type: "flashbang",
+          enemiesBlinded: 2,
+          teammatesBlinded: 0,
+          totalBlindDuration: 4.5,
+        }),
+        createGrenade({
+          type: "flashbang",
+          enemiesBlinded: 1,
+          teammatesBlinded: 1,
+          totalBlindDuration: 2.0,
+          roundNumber: 2,
+        }),
+        createGrenade({
+          type: "flashbang",
+          enemiesBlinded: 0,
+          teammatesBlinded: 2,
+          totalBlindDuration: 0,
+          roundNumber: 3,
+        }),
       ];
 
       const result = calculateUtility({
@@ -46,9 +67,23 @@ describe("Utility Calculator", () => {
 
     it("should calculate HE grenade metrics correctly", () => {
       const grenades: GrenadeInput[] = [
-        createGrenade({ type: "hegrenade", damageDealt: 50, enemiesDamaged: 2 }),
-        createGrenade({ type: "hegrenade", damageDealt: 30, enemiesDamaged: 1, roundNumber: 2 }),
-        createGrenade({ type: "hegrenade", damageDealt: 0, enemiesDamaged: 0, roundNumber: 3 }),
+        createGrenade({
+          type: "hegrenade",
+          damageDealt: 50,
+          enemiesDamaged: 2,
+        }),
+        createGrenade({
+          type: "hegrenade",
+          damageDealt: 30,
+          enemiesDamaged: 1,
+          roundNumber: 2,
+        }),
+        createGrenade({
+          type: "hegrenade",
+          damageDealt: 0,
+          enemiesDamaged: 0,
+          roundNumber: 3,
+        }),
       ];
 
       const result = calculateUtility({
@@ -67,7 +102,12 @@ describe("Utility Calculator", () => {
     it("should calculate Molotov/Incendiary metrics correctly", () => {
       const grenades: GrenadeInput[] = [
         createGrenade({ type: "molotov", damageDealt: 100, enemiesDamaged: 2 }),
-        createGrenade({ type: "incendiary", damageDealt: 50, enemiesDamaged: 1, roundNumber: 2 }),
+        createGrenade({
+          type: "incendiary",
+          damageDealt: 50,
+          enemiesDamaged: 1,
+          roundNumber: 2,
+        }),
       ];
 
       const result = calculateUtility({
@@ -117,8 +157,17 @@ describe("Utility Calculator", () => {
 
     it("should only count grenades thrown by the player", () => {
       const grenades: GrenadeInput[] = [
-        createGrenade({ type: "hegrenade", damageDealt: 50, throwerSteamId: steamId }),
-        createGrenade({ type: "hegrenade", damageDealt: 100, throwerSteamId: "otherPlayer", roundNumber: 2 }),
+        createGrenade({
+          type: "hegrenade",
+          damageDealt: 50,
+          throwerSteamId: steamId,
+        }),
+        createGrenade({
+          type: "hegrenade",
+          damageDealt: 100,
+          throwerSteamId: "otherPlayer",
+          roundNumber: 2,
+        }),
       ];
 
       const result = calculateUtility({
@@ -170,12 +219,20 @@ describe("Utility Calculator", () => {
         {
           steamId: "player1",
           name: "Player1",
-          utility: createUtilityMetrics({ totalUtilityDamage: 100, utilityDamagePerRound: 10, flashEffectiveness: 60 }),
+          utility: createUtilityMetrics({
+            totalUtilityDamage: 100,
+            utilityDamagePerRound: 10,
+            flashEffectiveness: 60,
+          }),
         },
         {
           steamId: "player2",
           name: "Player2",
-          utility: createUtilityMetrics({ totalUtilityDamage: 150, utilityDamagePerRound: 15, flashEffectiveness: 80 }),
+          utility: createUtilityMetrics({
+            totalUtilityDamage: 150,
+            utilityDamagePerRound: 15,
+            flashEffectiveness: 80,
+          }),
         },
       ];
 
@@ -238,11 +295,13 @@ function createGrenade(overrides: Partial<GrenadeInput> = {}): GrenadeInput {
   };
 }
 
-function createUtilityMetrics(overrides: {
-  totalUtilityDamage?: number;
-  utilityDamagePerRound?: number;
-  flashEffectiveness?: number;
-} = {}) {
+function createUtilityMetrics(
+  overrides: {
+    totalUtilityDamage?: number;
+    utilityDamagePerRound?: number;
+    flashEffectiveness?: number;
+  } = {},
+) {
   return {
     flash: {
       thrown: 0,

@@ -12,7 +12,10 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createReadStream, promises as fsPromises } from "fs";
 import * as path from "path";
-import { CircuitBreaker, CircuitBreakerOpenError } from "../../common/resilience";
+import {
+  CircuitBreaker,
+  CircuitBreakerOpenError,
+} from "../../common/resilience";
 import { fileExists } from "../../common/streaming";
 
 interface ParseResult {
@@ -40,10 +43,7 @@ export class ParserService implements OnModuleInit {
   private readonly HEALTH_TIMEOUT = 5000;
 
   constructor(private configService: ConfigService) {
-    this.parserUrl = this.configService.get(
-      "PARSER_URL",
-      "http://parser:8001"
-    );
+    this.parserUrl = this.configService.get("PARSER_URL", "http://parser:8001");
 
     // Configure timeouts based on environment
     const isProduction = this.configService.get("NODE_ENV") === "production";
@@ -99,7 +99,7 @@ export class ParserService implements OnModuleInit {
       extractChat?: boolean;
       events?: string[];
       properties?: string[];
-    } = {}
+    } = {},
   ): Promise<ParseResult> {
     // Check file exists before consuming circuit breaker attempt
     const exists = await fileExists(demoPath);
@@ -125,7 +125,10 @@ export class ParserService implements OnModuleInit {
         const formData = await this.createStreamingFormData(demoPath, filename);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.PARSE_TIMEOUT);
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          this.PARSE_TIMEOUT,
+        );
 
         const response = await fetch(
           `${this.parserUrl}/parse/sync?${params.toString()}`,
@@ -133,7 +136,7 @@ export class ParserService implements OnModuleInit {
             method: "POST",
             body: formData,
             signal: controller.signal,
-          }
+          },
         );
 
         clearTimeout(timeoutId);
@@ -168,7 +171,9 @@ export class ParserService implements OnModuleInit {
     } catch (error) {
       // Handle circuit breaker open state
       if (error instanceof CircuitBreakerOpenError) {
-        this.logger.warn(`Circuit breaker open, retry in ${error.retryAfterMs}ms`);
+        this.logger.warn(
+          `Circuit breaker open, retry in ${error.retryAfterMs}ms`,
+        );
         return {
           success: false,
           error: `Parser service temporarily unavailable. Retry in ${Math.ceil(error.retryAfterMs / 1000)} seconds.`,
@@ -189,7 +194,7 @@ export class ParserService implements OnModuleInit {
    */
   private async createStreamingFormData(
     filePath: string,
-    filename: string
+    filename: string,
   ): Promise<FormData> {
     // Get file stats for size
     const stats = await fsPromises.stat(filePath);
@@ -210,9 +215,7 @@ export class ParserService implements OnModuleInit {
     const formData = new FormData();
     formData.append("file", blob, filename);
 
-    this.logger.debug(
-      `Created FormData for ${filename} (${stats.size} bytes)`
-    );
+    this.logger.debug(`Created FormData for ${filename} (${stats.size} bytes)`);
 
     return formData;
   }
@@ -228,7 +231,7 @@ export class ParserService implements OnModuleInit {
       tickInterval?: number;
       extractGrenades?: boolean;
       extractChat?: boolean;
-    } = {}
+    } = {},
   ): Promise<{ jobId: string } | { error: string }> {
     try {
       const exists = await fileExists(demoPath);
@@ -253,7 +256,7 @@ export class ParserService implements OnModuleInit {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -274,7 +277,10 @@ export class ParserService implements OnModuleInit {
   async checkHealth(): Promise<boolean> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.HEALTH_TIMEOUT);
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        this.HEALTH_TIMEOUT,
+      );
 
       const response = await fetch(`${this.parserUrl}/health`, {
         signal: controller.signal,
@@ -311,9 +317,7 @@ export class ParserService implements OnModuleInit {
     error?: string;
   } | null> {
     try {
-      const response = await fetch(
-        `${this.parserUrl}/parse/status/${jobId}`
-      );
+      const response = await fetch(`${this.parserUrl}/parse/status/${jobId}`);
       if (response.ok) {
         return (await response.json()) as {
           status: string;

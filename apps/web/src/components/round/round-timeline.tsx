@@ -83,8 +83,7 @@ export function RoundTimeline({
       {/* Timeline bar */}
       <div className="h-2 bg-muted rounded-full relative">
         {events.map((event, index) => {
-          const position =
-            ((event.tick - startTick) / totalDuration) * 100;
+          const position = ((event.tick - startTick) / totalDuration) * 100;
           return (
             <div
               key={index}
@@ -156,9 +155,7 @@ export function KillFeed({ kills }: { kills: Kill[] }) {
             {kill.wallbang && (
               <span className="text-purple-500 text-xs">WB</span>
             )}
-            {kill.noscope && (
-              <span className="text-green-500 text-xs">NS</span>
-            )}
+            {kill.noscope && <span className="text-green-500 text-xs">NS</span>}
             {kill.thrusmoke && (
               <span className="text-gray-400 text-xs">TS</span>
             )}

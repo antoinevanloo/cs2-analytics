@@ -20,7 +20,12 @@ describe("KAST Calculator", () => {
       ];
       const allKills: KillInput[] = [];
 
-      const result = calculateKAST({ steamId, roundStats, allKills, tickRate: 64 });
+      const result = calculateKAST({
+        steamId,
+        roundStats,
+        allKills,
+        tickRate: 64,
+      });
 
       expect(result.kast).toBe(100);
       expect(result.roundsWithKill).toBe(3);
@@ -34,7 +39,12 @@ describe("KAST Calculator", () => {
       ];
       const allKills: KillInput[] = [];
 
-      const result = calculateKAST({ steamId, roundStats, allKills, tickRate: 64 });
+      const result = calculateKAST({
+        steamId,
+        roundStats,
+        allKills,
+        tickRate: 64,
+      });
 
       expect(result.kast).toBe(100);
       expect(result.roundsWithSurvival).toBe(3);
@@ -42,13 +52,33 @@ describe("KAST Calculator", () => {
 
     it("should return 100% KAST when player has assists every round", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ kills: 0, assists: 1, survived: false, roundNumber: 1 }),
-        createRoundStats({ kills: 0, assists: 2, survived: false, roundNumber: 2 }),
-        createRoundStats({ kills: 0, assists: 1, survived: false, roundNumber: 3 }),
+        createRoundStats({
+          kills: 0,
+          assists: 1,
+          survived: false,
+          roundNumber: 1,
+        }),
+        createRoundStats({
+          kills: 0,
+          assists: 2,
+          survived: false,
+          roundNumber: 2,
+        }),
+        createRoundStats({
+          kills: 0,
+          assists: 1,
+          survived: false,
+          roundNumber: 3,
+        }),
       ];
       const allKills: KillInput[] = [];
 
-      const result = calculateKAST({ steamId, roundStats, allKills, tickRate: 64 });
+      const result = calculateKAST({
+        steamId,
+        roundStats,
+        allKills,
+        tickRate: 64,
+      });
 
       expect(result.kast).toBe(100);
       expect(result.roundsWithAssist).toBe(3);
@@ -56,8 +86,18 @@ describe("KAST Calculator", () => {
 
     it("should count traded rounds correctly", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ kills: 0, survived: false, deaths: 1, roundNumber: 1 }),
-        createRoundStats({ kills: 0, survived: false, deaths: 1, roundNumber: 2 }),
+        createRoundStats({
+          kills: 0,
+          survived: false,
+          deaths: 1,
+          roundNumber: 1,
+        }),
+        createRoundStats({
+          kills: 0,
+          survived: false,
+          deaths: 1,
+          roundNumber: 2,
+        }),
       ];
 
       // Player was traded in round 1 (killed within 5s of dying)
@@ -85,7 +125,12 @@ describe("KAST Calculator", () => {
         }),
       ];
 
-      const result = calculateKAST({ steamId, roundStats, allKills, tickRate: 64 });
+      const result = calculateKAST({
+        steamId,
+        roundStats,
+        allKills,
+        tickRate: 64,
+      });
 
       // Round 1: traded (counted)
       // Round 2: not traded, no kill, no assist, no survive (not counted)
@@ -95,23 +140,67 @@ describe("KAST Calculator", () => {
 
     it("should return 0% KAST when player has no contribution", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ kills: 0, assists: 0, survived: false, deaths: 1, roundNumber: 1 }),
-        createRoundStats({ kills: 0, assists: 0, survived: false, deaths: 1, roundNumber: 2 }),
+        createRoundStats({
+          kills: 0,
+          assists: 0,
+          survived: false,
+          deaths: 1,
+          roundNumber: 1,
+        }),
+        createRoundStats({
+          kills: 0,
+          assists: 0,
+          survived: false,
+          deaths: 1,
+          roundNumber: 2,
+        }),
       ];
       const allKills: KillInput[] = [];
 
-      const result = calculateKAST({ steamId, roundStats, allKills, tickRate: 64 });
+      const result = calculateKAST({
+        steamId,
+        roundStats,
+        allKills,
+        tickRate: 64,
+      });
 
       expect(result.kast).toBe(0);
     });
 
     it("should handle mixed rounds correctly", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ kills: 2, assists: 0, survived: false, roundNumber: 1 }), // K
-        createRoundStats({ kills: 0, assists: 1, survived: false, roundNumber: 2 }), // A
-        createRoundStats({ kills: 0, assists: 0, survived: true, roundNumber: 3 }), // S
-        createRoundStats({ kills: 0, assists: 0, survived: false, deaths: 1, roundNumber: 4 }), // T (via trade)
-        createRoundStats({ kills: 0, assists: 0, survived: false, deaths: 1, roundNumber: 5 }), // nothing
+        createRoundStats({
+          kills: 2,
+          assists: 0,
+          survived: false,
+          roundNumber: 1,
+        }), // K
+        createRoundStats({
+          kills: 0,
+          assists: 1,
+          survived: false,
+          roundNumber: 2,
+        }), // A
+        createRoundStats({
+          kills: 0,
+          assists: 0,
+          survived: true,
+          roundNumber: 3,
+        }), // S
+        createRoundStats({
+          kills: 0,
+          assists: 0,
+          survived: false,
+          deaths: 1,
+          roundNumber: 4,
+        }), // T (via trade)
+        createRoundStats({
+          kills: 0,
+          assists: 0,
+          survived: false,
+          deaths: 1,
+          roundNumber: 5,
+        }), // nothing
       ];
 
       // Add trade kill for round 4
@@ -130,7 +219,12 @@ describe("KAST Calculator", () => {
         }),
       ];
 
-      const result = calculateKAST({ steamId, roundStats, allKills, tickRate: 64 });
+      const result = calculateKAST({
+        steamId,
+        roundStats,
+        allKills,
+        tickRate: 64,
+      });
 
       expect(result.roundsWithKill).toBe(1);
       expect(result.roundsWithAssist).toBe(1);
@@ -177,7 +271,9 @@ describe("KAST Calculator", () => {
 // Test Helpers
 // ==============================================================================
 
-function createRoundStats(overrides: Partial<RoundPlayerStatsInput> = {}): RoundPlayerStatsInput {
+function createRoundStats(
+  overrides: Partial<RoundPlayerStatsInput> = {},
+): RoundPlayerStatsInput {
   return {
     steamId: "76561198000000001",
     roundNumber: 1,

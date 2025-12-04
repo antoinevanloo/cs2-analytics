@@ -77,7 +77,9 @@ export type WeaponType = z.infer<typeof WeaponTypeSchema>;
 // Common Schemas
 // ============================================================================
 
-export const SteamIdSchema = z.string().regex(/^\d{17}$/, "Invalid Steam ID format");
+export const SteamIdSchema = z
+  .string()
+  .regex(/^\d{17}$/, "Invalid Steam ID format");
 export type SteamId = z.infer<typeof SteamIdSchema>;
 
 export const Vector3Schema = z.object({

@@ -57,21 +57,21 @@ export class ArchivalService {
 
   constructor(
     private configService: ConfigService,
-    private prisma: PrismaService
+    private prisma: PrismaService,
   ) {
     this.config = {
       enabled: this.configService.get("ARCHIVAL_ENABLED", "true") === "true",
       thresholdMonths: parseInt(
         this.configService.get("ARCHIVAL_THRESHOLD_MONTHS", "6"),
-        10
+        10,
       ),
       batchSize: parseInt(
         this.configService.get("ARCHIVAL_BATCH_SIZE", "10"),
-        10
+        10,
       ),
       archiveStoragePath: this.configService.get(
         "ARCHIVE_STORAGE_PATH",
-        "/tmp/demos/archive"
+        "/tmp/demos/archive",
       ),
       deleteOriginalAfterArchive:
         this.configService.get("ARCHIVAL_DELETE_ORIGINAL", "false") === "true",
@@ -81,7 +81,7 @@ export class ArchivalService {
 
     this.logger.log(
       `Archival service initialized: ${this.config.enabled ? "enabled" : "disabled"}, ` +
-        `threshold: ${this.config.thresholdMonths} months`
+        `threshold: ${this.config.thresholdMonths} months`,
     );
   }
 
@@ -116,7 +116,7 @@ export class ArchivalService {
     const failed = results.filter((r) => !r.success).length;
 
     this.logger.log(
-      `Archival job completed: ${successful} archived, ${failed} failed`
+      `Archival job completed: ${successful} archived, ${failed} failed`,
     );
   }
 
@@ -126,7 +126,7 @@ export class ArchivalService {
   async archiveOldDemos(): Promise<ArchivalResult[]> {
     const thresholdDate = new Date();
     thresholdDate.setMonth(
-      thresholdDate.getMonth() - this.config.thresholdMonths
+      thresholdDate.getMonth() - this.config.thresholdMonths,
     );
 
     // Find demos to archive
@@ -208,7 +208,7 @@ export class ArchivalService {
       const originalPath = demo.storagePath;
       const archivePath = path.join(
         this.config.archiveStoragePath,
-        `${demoId}.dem.gz`
+        `${demoId}.dem.gz`,
       );
 
       // Get original file size
@@ -245,7 +245,7 @@ export class ArchivalService {
 
       this.logger.log(
         `Archived demo ${demoId}: ${originalSize} -> ${archivedSize} bytes ` +
-          `(${Math.round((1 - archivedSize / originalSize) * 100)}% reduction)`
+          `(${Math.round((1 - archivedSize / originalSize) * 100)}% reduction)`,
       );
 
       return {
@@ -269,7 +269,7 @@ export class ArchivalService {
    */
   private async compressFile(
     inputPath: string,
-    outputPath: string
+    outputPath: string,
   ): Promise<void> {
     const gzip = createGzip({ level: 9 });
     const source = createReadStream(inputPath);
@@ -294,7 +294,7 @@ export class ArchivalService {
     // For now, we keep the events but could delete them for space savings
 
     this.logger.debug(
-      `Event summary for demo ${demoId}: ${eventSummary.length} event types`
+      `Event summary for demo ${demoId}: ${eventSummary.length} event types`,
     );
 
     // Optional: Delete raw events after creating summary
@@ -304,7 +304,9 @@ export class ArchivalService {
   /**
    * Restore an archived demo
    */
-  async restoreDemo(demoId: string): Promise<{ success: boolean; error?: string }> {
+  async restoreDemo(
+    demoId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     const demo = await this.prisma.demo.findUnique({
       where: { id: demoId },
     });
@@ -362,7 +364,7 @@ export class ArchivalService {
   > {
     const thresholdDate = new Date();
     thresholdDate.setMonth(
-      thresholdDate.getMonth() - this.config.thresholdMonths
+      thresholdDate.getMonth() - this.config.thresholdMonths,
     );
 
     const candidates = await this.prisma.demo.findMany({
@@ -395,7 +397,7 @@ export class ArchivalService {
       ...c,
       daysSinceParsed: c.parsedAt
         ? Math.floor(
-            (now.getTime() - c.parsedAt.getTime()) / (1000 * 60 * 60 * 24)
+            (now.getTime() - c.parsedAt.getTime()) / (1000 * 60 * 60 * 24),
           )
         : 0,
     }));

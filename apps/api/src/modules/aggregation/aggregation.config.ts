@@ -629,7 +629,7 @@ export function getSkillTierFromPercentile(percentile: number): SkillTier {
 export function getFormStatus(
   recentRating: number,
   lifetimeRating: number,
-  trendDirection: number
+  trendDirection: number,
 ): "on_fire" | "hot" | "warm" | "average" | "cold" | "ice_cold" {
   const { STATUS_THRESHOLDS } = FORM_CONFIG;
   const ratio = recentRating / lifetimeRating;

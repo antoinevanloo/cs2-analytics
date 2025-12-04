@@ -111,7 +111,9 @@ export class AnalysisStorageService {
   /**
    * Create a new analysis record
    */
-  async createAnalysis(options: CreateAnalysisOptions): Promise<AnalysisRecord> {
+  async createAnalysis(
+    options: CreateAnalysisOptions,
+  ): Promise<AnalysisRecord> {
     const { demoId, type, requestedById } = options;
 
     this.logger.debug(`Creating ${type} analysis for demo ${demoId}`);
@@ -150,7 +152,7 @@ export class AnalysisStorageService {
    */
   async markAsCompleted(
     analysisId: string,
-    results: StoredAnalysisResults
+    results: StoredAnalysisResults,
   ): Promise<AnalysisRecord> {
     this.logger.debug(`Marking analysis ${analysisId} as completed`);
 
@@ -169,7 +171,10 @@ export class AnalysisStorageService {
   /**
    * Mark analysis as failed with error message
    */
-  async markAsFailed(analysisId: string, error: string): Promise<AnalysisRecord> {
+  async markAsFailed(
+    analysisId: string,
+    error: string,
+  ): Promise<AnalysisRecord> {
     this.logger.warn(`Marking analysis ${analysisId} as failed: ${error}`);
 
     const analysis = await this.prisma.analysis.update({
@@ -189,13 +194,15 @@ export class AnalysisStorageService {
    */
   async updateAnalysis(
     analysisId: string,
-    payload: AnalysisUpdatePayload
+    payload: AnalysisUpdatePayload,
   ): Promise<AnalysisRecord> {
     const analysis = await this.prisma.analysis.update({
       where: { id: analysisId },
       data: {
         ...(payload.status && { status: payload.status }),
-        ...(payload.results && { results: payload.results as unknown as Prisma.JsonObject }),
+        ...(payload.results && {
+          results: payload.results as unknown as Prisma.JsonObject,
+        }),
         ...(payload.error && { error: payload.error }),
         ...(payload.startedAt && { startedAt: payload.startedAt }),
         ...(payload.completedAt && { completedAt: payload.completedAt }),
@@ -225,7 +232,7 @@ export class AnalysisStorageService {
    */
   async getLatestAnalysis(
     demoId: string,
-    type: AnalysisType
+    type: AnalysisType,
   ): Promise<AnalysisRecord | null> {
     const analysis = await this.prisma.analysis.findFirst({
       where: {
@@ -254,7 +261,9 @@ export class AnalysisStorageService {
   /**
    * Get analyses by status
    */
-  async getAnalysesByStatus(status: AnalysisStatus): Promise<readonly AnalysisRecord[]> {
+  async getAnalysesByStatus(
+    status: AnalysisStatus,
+  ): Promise<readonly AnalysisRecord[]> {
     const analyses = await this.prisma.analysis.findMany({
       where: { status },
       orderBy: { createdAt: "asc" },
@@ -266,7 +275,9 @@ export class AnalysisStorageService {
   /**
    * Get pending analyses (for queue processing)
    */
-  async getPendingAnalyses(limit: number = 10): Promise<readonly AnalysisRecord[]> {
+  async getPendingAnalyses(
+    limit: number = 10,
+  ): Promise<readonly AnalysisRecord[]> {
     const analyses = await this.prisma.analysis.findMany({
       where: { status: AnalysisStatus.PENDING },
       orderBy: { createdAt: "asc" },
@@ -279,7 +290,9 @@ export class AnalysisStorageService {
   /**
    * Get stale processing analyses (stuck for more than timeout)
    */
-  async getStaleProcessingAnalyses(timeoutMinutes: number = 30): Promise<readonly AnalysisRecord[]> {
+  async getStaleProcessingAnalyses(
+    timeoutMinutes: number = 30,
+  ): Promise<readonly AnalysisRecord[]> {
     const cutoff = new Date(Date.now() - timeoutMinutes * 60 * 1000);
 
     const analyses = await this.prisma.analysis.findMany({
@@ -303,7 +316,7 @@ export class AnalysisStorageService {
   async storePlayerMetrics(
     demoId: string,
     playerMetrics: readonly PlayerMatchMetricsResult[],
-    requestedById?: string
+    requestedById?: string,
   ): Promise<AnalysisRecord> {
     const analysis = await this.createAnalysis({
       demoId,
@@ -332,7 +345,7 @@ export class AnalysisStorageService {
       economyFlow: EconomyFlowResult;
       tradeAnalysis: TradeAnalysisResult;
     },
-    requestedById?: string
+    requestedById?: string,
   ): Promise<AnalysisRecord> {
     const analysis = await this.createAnalysis({
       demoId,
@@ -350,7 +363,10 @@ export class AnalysisStorageService {
   /**
    * Check if an analysis already exists and is completed
    */
-  async hasCompletedAnalysis(demoId: string, type: AnalysisType): Promise<boolean> {
+  async hasCompletedAnalysis(
+    demoId: string,
+    type: AnalysisType,
+  ): Promise<boolean> {
     const count = await this.prisma.analysis.count({
       where: {
         demoId,
@@ -382,7 +398,9 @@ export class AnalysisStorageService {
    * Build stored results with metadata
    */
   private buildStoredResults(
-    data: Partial<Omit<StoredAnalysisResults, "version" | "analyzedAt" | "summary">>
+    data: Partial<
+      Omit<StoredAnalysisResults, "version" | "analyzedAt" | "summary">
+    >,
   ): StoredAnalysisResults {
     const summary = this.buildSummary(data);
 
@@ -398,7 +416,9 @@ export class AnalysisStorageService {
    * Build summary from analysis data
    */
   private buildSummary(
-    data: Partial<Omit<StoredAnalysisResults, "version" | "analyzedAt" | "summary">>
+    data: Partial<
+      Omit<StoredAnalysisResults, "version" | "analyzedAt" | "summary">
+    >,
   ): StoredAnalysisResults["summary"] {
     const { playerMetrics, matchOverview } = data;
 
@@ -415,25 +435,32 @@ export class AnalysisStorageService {
 
     // Find MVP (highest rating)
     const sortedByRating = [...playerMetrics].sort(
-      (a, b) => b.rating.rating - a.rating.rating
+      (a, b) => b.rating.rating - a.rating.rating,
     );
     const mvp = sortedByRating[0];
 
     // Calculate totals
-    const totalKills = playerMetrics.reduce((sum, p) => sum + p.combat.kills, 0);
+    const totalKills = playerMetrics.reduce(
+      (sum, p) => sum + p.combat.kills,
+      0,
+    );
     const avgRating =
-      playerMetrics.reduce((sum, p) => sum + p.rating.rating, 0) / playerMetrics.length;
+      playerMetrics.reduce((sum, p) => sum + p.rating.rating, 0) /
+      playerMetrics.length;
 
     // Check if advanced metrics are populated
     const hasAdvancedMetrics = playerMetrics.some(
-      (p) => p.specialKills && p.specialKills.wallbangs >= 0
+      (p) => p.specialKills && p.specialKills.wallbangs >= 0,
     );
 
     return {
       mvpSteamId: mvp?.steamId ?? null,
       mvpRating: mvp ? round2(mvp.rating.rating) : null,
       totalKills,
-      totalRounds: matchOverview?.metadata.totalRounds ?? playerMetrics[0]?.combat.roundsPlayed ?? 0,
+      totalRounds:
+        matchOverview?.metadata.totalRounds ??
+        playerMetrics[0]?.combat.roundsPlayed ??
+        0,
       avgRating: round2(avgRating),
       hasAdvancedMetrics,
     };

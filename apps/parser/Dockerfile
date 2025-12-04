@@ -30,6 +30,11 @@ RUN uv pip install --no-cache -e ".[dev]"
 # ============================================================================
 FROM python:3.11-slim as production
 
+# Add labels
+LABEL org.opencontainers.image.source="https://github.com/antoinevanloo/cs2-analytics"
+LABEL org.opencontainers.image.description="CS2 Analytics Demo Parser"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 # Install runtime dependencies only

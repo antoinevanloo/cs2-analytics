@@ -32,14 +32,12 @@ export interface ValidationResult {
  */
 export function validateRoundStats(
   roundStats: unknown,
-  fieldName: string = "roundStats"
+  fieldName: string = "roundStats",
 ): asserts roundStats is readonly RoundPlayerStatsInput[] {
   if (!Array.isArray(roundStats)) {
-    throw new InvalidInputError(
-      `${fieldName} must be an array`,
-      fieldName,
-      { received: typeof roundStats }
-    );
+    throw new InvalidInputError(`${fieldName} must be an array`, fieldName, {
+      received: typeof roundStats,
+    });
   }
 
   for (let i = 0; i < roundStats.length; i++) {
@@ -48,7 +46,7 @@ export function validateRoundStats(
       throw new InvalidInputError(
         `Invalid round stats at index ${i}`,
         `${fieldName}[${i}]`,
-        { round }
+        { round },
       );
     }
   }
@@ -59,14 +57,12 @@ export function validateRoundStats(
  */
 export function validateKills(
   kills: unknown,
-  fieldName: string = "kills"
+  fieldName: string = "kills",
 ): asserts kills is readonly KillInput[] {
   if (!Array.isArray(kills)) {
-    throw new InvalidInputError(
-      `${fieldName} must be an array`,
-      fieldName,
-      { received: typeof kills }
-    );
+    throw new InvalidInputError(`${fieldName} must be an array`, fieldName, {
+      received: typeof kills,
+    });
   }
 
   for (let i = 0; i < kills.length; i++) {
@@ -75,7 +71,7 @@ export function validateKills(
       throw new InvalidInputError(
         `Invalid kill at index ${i}`,
         `${fieldName}[${i}]`,
-        { kill }
+        { kill },
       );
     }
   }
@@ -86,21 +82,16 @@ export function validateKills(
  */
 export function validateSteamId(
   steamId: unknown,
-  fieldName: string = "steamId"
+  fieldName: string = "steamId",
 ): asserts steamId is string {
   if (typeof steamId !== "string") {
-    throw new InvalidInputError(
-      `${fieldName} must be a string`,
-      fieldName,
-      { received: typeof steamId }
-    );
+    throw new InvalidInputError(`${fieldName} must be a string`, fieldName, {
+      received: typeof steamId,
+    });
   }
 
   if (steamId.length === 0) {
-    throw new InvalidInputError(
-      `${fieldName} cannot be empty`,
-      fieldName
-    );
+    throw new InvalidInputError(`${fieldName} cannot be empty`, fieldName);
   }
 
   // Steam64 IDs are 17 digits starting with 7656
@@ -110,11 +101,10 @@ export function validateSteamId(
   const isLegacy = /^STEAM_\d+:\d+:\d+$/.test(steamId);
 
   if (!isSteam64 && !isSteam3 && !isLegacy) {
-    throw new InvalidInputError(
-      `${fieldName} has invalid format`,
-      fieldName,
-      { received: steamId, expected: "Steam64, Steam3, or Legacy format" }
-    );
+    throw new InvalidInputError(`${fieldName} has invalid format`, fieldName, {
+      received: steamId,
+      expected: "Steam64, Steam3, or Legacy format",
+    });
   }
 }
 
@@ -123,7 +113,7 @@ export function validateSteamId(
  */
 export function validateMinimumRounds(
   actualRounds: number,
-  metricType: keyof typeof MINIMUM_ROUNDS = "BASIC_STATS"
+  metricType: keyof typeof MINIMUM_ROUNDS = "BASIC_STATS",
 ): void {
   const required = MINIMUM_ROUNDS[metricType];
 
@@ -132,7 +122,7 @@ export function validateMinimumRounds(
       `Insufficient rounds for ${metricType}. Need at least ${required}, got ${actualRounds}`,
       required,
       actualRounds,
-      { metricType }
+      { metricType },
     );
   }
 }
@@ -142,28 +132,23 @@ export function validateMinimumRounds(
  */
 export function validatePositiveNumber(
   value: unknown,
-  fieldName: string
+  fieldName: string,
 ): asserts value is number {
   if (typeof value !== "number") {
-    throw new InvalidInputError(
-      `${fieldName} must be a number`,
-      fieldName,
-      { received: typeof value }
-    );
+    throw new InvalidInputError(`${fieldName} must be a number`, fieldName, {
+      received: typeof value,
+    });
   }
 
   if (isNaN(value)) {
-    throw new InvalidInputError(
-      `${fieldName} is NaN`,
-      fieldName
-    );
+    throw new InvalidInputError(`${fieldName} is NaN`, fieldName);
   }
 
   if (value < 0) {
     throw new InvalidInputError(
       `${fieldName} must be non-negative`,
       fieldName,
-      { received: value }
+      { received: value },
     );
   }
 }
@@ -173,7 +158,7 @@ export function validatePositiveNumber(
  */
 export function validateTickRate(
   tickRate: unknown,
-  fieldName: string = "tickRate"
+  fieldName: string = "tickRate",
 ): asserts tickRate is number {
   validatePositiveNumber(tickRate, fieldName);
 
@@ -182,7 +167,7 @@ export function validateTickRate(
     throw new InvalidInputError(
       `${fieldName} must be 32, 64, or 128`,
       fieldName,
-      { received: tickRate, valid: validTickRates }
+      { received: tickRate, valid: validTickRates },
     );
   }
 }
@@ -227,7 +212,7 @@ function isValidKillInput(obj: unknown): obj is KillInput {
  * Type guard for MatchPlayerStatsInput
  */
 export function isValidMatchPlayerStats(
-  obj: unknown
+  obj: unknown,
 ): obj is MatchPlayerStatsInput {
   if (typeof obj !== "object" || obj === null) return false;
 
@@ -290,15 +275,18 @@ export function validateRatingInput(input: {
       validateTickRate(input.tickRate);
     } catch (e) {
       warnings.push(
-        `Invalid tickRate, using default: ${e instanceof Error ? e.message : "unknown error"}`
+        `Invalid tickRate, using default: ${e instanceof Error ? e.message : "unknown error"}`,
       );
     }
   }
 
   // Check for minimum rounds
-  if (Array.isArray(input.roundStats) && input.roundStats.length < MINIMUM_ROUNDS.RATING) {
+  if (
+    Array.isArray(input.roundStats) &&
+    input.roundStats.length < MINIMUM_ROUNDS.RATING
+  ) {
     warnings.push(
-      `Only ${input.roundStats.length} rounds. Rating may be unreliable (recommend ${MINIMUM_ROUNDS.RATING}+)`
+      `Only ${input.roundStats.length} rounds. Rating may be unreliable (recommend ${MINIMUM_ROUNDS.RATING}+)`,
     );
   }
 

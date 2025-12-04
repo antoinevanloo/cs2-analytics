@@ -106,7 +106,7 @@ export interface KillAnalysisResult {
  */
 export function calculateMultiKills(
   kills: readonly KillEventData[],
-  playerSteamId: string
+  playerSteamId: string,
 ): MultiKillStats {
   // Filter to player's kills
   const playerKills = kills.filter((k) => k.attackerSteamId === playerSteamId);
@@ -149,7 +149,7 @@ export function calculateMultiKills(
  */
 export function calculateSpecialKills(
   kills: readonly KillEventData[],
-  playerSteamId: string
+  playerSteamId: string,
 ): SpecialKillStats {
   const playerKills = kills.filter((k) => k.attackerSteamId === playerSteamId);
 
@@ -184,17 +184,17 @@ export function calculateSpecialKills(
 export function calculateTradeKills(
   kills: readonly KillEventData[],
   playerSteamId: string,
-  deaths: number
+  deaths: number,
 ): TradeKillStats {
   // Count trade kills (kills where isTradeKill is true and player is attacker)
   const tradeKills = kills.filter(
-    (k) => k.attackerSteamId === playerSteamId && k.isTradeKill
+    (k) => k.attackerSteamId === playerSteamId && k.isTradeKill,
   ).length;
 
   // Count times player was traded (killed, then their killer was killed within trade window)
   // This is marked as isTradeKill on the subsequent kill
   const timesTraded = kills.filter(
-    (k) => k.victimSteamId === playerSteamId && k.isTradeKill
+    (k) => k.victimSteamId === playerSteamId && k.isTradeKill,
   ).length;
 
   // Trade opportunities = deaths (could have been traded)
@@ -226,7 +226,7 @@ export function calculateTradeKills(
 export function analyzeKills(
   kills: readonly KillEventData[],
   playerSteamId: string,
-  deaths: number
+  deaths: number,
 ): KillAnalysisResult {
   return {
     multiKills: calculateMultiKills(kills, playerSteamId),
@@ -243,14 +243,17 @@ export function analyzeKills(
  * Aggregate multi-kill stats across multiple matches
  */
 export function aggregateMultiKills(
-  stats: readonly MultiKillStats[]
+  stats: readonly MultiKillStats[],
 ): MultiKillStats {
   return {
     doubleKills: stats.reduce((sum, s) => sum + s.doubleKills, 0),
     tripleKills: stats.reduce((sum, s) => sum + s.tripleKills, 0),
     quadKills: stats.reduce((sum, s) => sum + s.quadKills, 0),
     aces: stats.reduce((sum, s) => sum + s.aces, 0),
-    totalMultiKillRounds: stats.reduce((sum, s) => sum + s.totalMultiKillRounds, 0),
+    totalMultiKillRounds: stats.reduce(
+      (sum, s) => sum + s.totalMultiKillRounds,
+      0,
+    ),
   };
 }
 
@@ -258,7 +261,7 @@ export function aggregateMultiKills(
  * Aggregate special kill stats across multiple matches
  */
 export function aggregateSpecialKills(
-  stats: readonly SpecialKillStats[]
+  stats: readonly SpecialKillStats[],
 ): SpecialKillStats {
   return {
     wallbangKills: stats.reduce((sum, s) => sum + s.wallbangKills, 0),
@@ -272,11 +275,14 @@ export function aggregateSpecialKills(
  * Aggregate trade kill stats across multiple matches
  */
 export function aggregateTradeKills(
-  stats: readonly TradeKillStats[]
+  stats: readonly TradeKillStats[],
 ): TradeKillStats {
   const totalTradeKills = stats.reduce((sum, s) => sum + s.tradeKills, 0);
   const totalTimesTraded = stats.reduce((sum, s) => sum + s.timesTraded, 0);
-  const totalOpportunities = stats.reduce((sum, s) => sum + s.tradeOpportunities, 0);
+  const totalOpportunities = stats.reduce(
+    (sum, s) => sum + s.tradeOpportunities,
+    0,
+  );
 
   return {
     tradeKills: totalTradeKills,

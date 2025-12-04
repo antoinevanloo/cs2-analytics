@@ -48,7 +48,11 @@ export class InvalidInputError extends AnalysisError {
   readonly statusCode = 400;
   readonly field: string | undefined;
 
-  constructor(message: string, field?: string, context?: Record<string, unknown>) {
+  constructor(
+    message: string,
+    field?: string,
+    context?: Record<string, unknown>,
+  ) {
     super(message, { ...context, field });
     this.field = field;
   }
@@ -67,7 +71,7 @@ export class InsufficientDataError extends AnalysisError {
     message: string,
     required: number,
     actual: number,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ) {
     super(message, { ...context, required, actual });
     this.required = required;
@@ -86,7 +90,7 @@ export class CalculationError extends AnalysisError {
   constructor(
     message: string,
     operation: string,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ) {
     super(message, { ...context, operation });
     this.operation = operation;
@@ -176,7 +180,7 @@ export function err<E extends AnalysisError>(error: E): Result<never, E> {
  * Check if result is success
  */
 export function isOk<T, E extends AnalysisError>(
-  result: Result<T, E>
+  result: Result<T, E>,
 ): result is { success: true; data: T } {
   return result.success;
 }
@@ -185,7 +189,7 @@ export function isOk<T, E extends AnalysisError>(
  * Check if result is error
  */
 export function isErr<T, E extends AnalysisError>(
-  result: Result<T, E>
+  result: Result<T, E>,
 ): result is { success: false; error: E } {
   return !result.success;
 }
@@ -205,7 +209,7 @@ export function unwrap<T, E extends AnalysisError>(result: Result<T, E>): T {
  */
 export function unwrapOr<T, E extends AnalysisError>(
   result: Result<T, E>,
-  defaultValue: T
+  defaultValue: T,
 ): T {
   if (result.success) {
     return result.data;

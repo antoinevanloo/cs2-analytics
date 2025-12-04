@@ -104,7 +104,7 @@ export function memoize<TArgs extends unknown[], TResult>(
     ttlMs?: number;
     maxSize?: number;
     keyFn?: (...args: TArgs) => string;
-  } = {}
+  } = {},
 ): (...args: TArgs) => TResult {
   const cache = new MemoCache<string, TResult>(options);
   const keyFn = options.keyFn ?? ((...args) => JSON.stringify(args));
@@ -131,7 +131,7 @@ export class SinglePassAggregator<T> {
 
   constructor(
     private readonly extractor: (item: T) => number,
-    private readonly collectValues: boolean = false
+    private readonly collectValues: boolean = false,
   ) {}
 
   /**
@@ -227,7 +227,7 @@ export async function processBatch<T, R>(
     batchSize?: number;
     onProgress?: (processed: number, total: number) => void;
     onBatchComplete?: (results: R[], batchIndex: number) => void;
-  } = {}
+  } = {},
 ): Promise<R[]> {
   const { batchSize = 100, onProgress, onBatchComplete } = options;
   const results: R[] = [];
@@ -267,7 +267,7 @@ export async function processBatch<T, R>(
  */
 export function groupBy<T, K extends string | number>(
   items: readonly T[],
-  keyFn: (item: T) => K
+  keyFn: (item: T) => K,
 ): Map<K, T[]> {
   const groups = new Map<K, T[]>();
 
@@ -290,7 +290,7 @@ export function groupBy<T, K extends string | number>(
  */
 export function indexBy<T, K extends string | number>(
   items: readonly T[],
-  keyFn: (item: T) => K
+  keyFn: (item: T) => K,
 ): Map<K, T> {
   const index = new Map<K, T>();
 
@@ -309,7 +309,7 @@ export interface MultiPassCollector<T> {
 }
 
 export function createMultiCollector<T>(
-  collectors: MultiPassCollector<T>[]
+  collectors: MultiPassCollector<T>[],
 ): (items: readonly T[]) => void {
   return (items: readonly T[]) => {
     for (const item of items) {

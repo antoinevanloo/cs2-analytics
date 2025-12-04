@@ -28,7 +28,7 @@ const logger = new Logger("Bootstrap");
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: true })
+    new FastifyAdapter({ logger: true }),
   );
 
   const configService = app.get(ConfigService);
@@ -41,7 +41,10 @@ async function bootstrap() {
   });
 
   // Register cookie support for auth
-  const cookieSecret = configService.get<string>("COOKIE_SECRET", "cs2-analytics-cookie-secret-change-in-prod");
+  const cookieSecret = configService.get<string>(
+    "COOKIE_SECRET",
+    "cs2-analytics-cookie-secret-change-in-prod",
+  );
   await app.register(cookie, {
     secret: cookieSecret,
   });
@@ -67,7 +70,7 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true,
       },
-    })
+    }),
   );
 
   // Global exception filter for standardized error responses
@@ -75,10 +78,7 @@ async function bootstrap() {
 
   // Global authentication guards
   const reflector = app.get(Reflector);
-  app.useGlobalGuards(
-    new JwtAuthGuard(reflector),
-    new RolesGuard(reflector)
-  );
+  app.useGlobalGuards(new JwtAuthGuard(reflector), new RolesGuard(reflector));
 
   // Swagger documentation
   const swaggerConfig = new DocumentBuilder()

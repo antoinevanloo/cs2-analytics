@@ -8,7 +8,13 @@
  * - Event logging
  */
 
-import { Module, Global, OnModuleInit, OnModuleDestroy, Logger } from "@nestjs/common";
+import {
+  Module,
+  Global,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
@@ -23,7 +29,11 @@ import { InjectQueue } from "@nestjs/bullmq";
         const redisUrl = configService.get<string>("REDIS_URL");
         const isProduction = configService.get("NODE_ENV") === "production";
 
-        let connection: { host: string; port: number; maxRetriesPerRequest: null };
+        let connection: {
+          host: string;
+          port: number;
+          maxRetriesPerRequest: null;
+        };
 
         if (redisUrl) {
           const url = new URL(redisUrl);
@@ -80,7 +90,7 @@ export class QueueHealthService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @InjectQueue("demo-parsing") private demoQueue: Queue,
-    private configService: ConfigService
+    private configService: ConfigService,
   ) {}
 
   async onModuleInit() {
@@ -104,12 +114,17 @@ export class QueueHealthService implements OnModuleInit, OnModuleDestroy {
       const stalledJobs = await this.demoQueue.getJobs(["active"]);
 
       if (stalledJobs.length > 0) {
-        this.logger.warn(`Found ${stalledJobs.length} potentially stalled jobs, moving to waiting`);
+        this.logger.warn(
+          `Found ${stalledJobs.length} potentially stalled jobs, moving to waiting`,
+        );
 
         for (const job of stalledJobs) {
           try {
             // Move back to waiting queue for retry
-            await job.moveToFailed(new Error("Job recovered after restart"), job.token || "recovery");
+            await job.moveToFailed(
+              new Error("Job recovered after restart"),
+              job.token || "recovery",
+            );
             await job.retry();
             this.logger.log(`Recovered stalled job ${job.id}`);
           } catch (err) {
@@ -135,7 +150,7 @@ export class QueueHealthService implements OnModuleInit, OnModuleDestroy {
 
         this.logger.debug(
           `Queue status: waiting=${counts.waiting}, active=${counts.active}, ` +
-            `completed=${counts.completed}, failed=${counts.failed}, paused=${isPaused}`
+            `completed=${counts.completed}, failed=${counts.failed}, paused=${isPaused}`,
         );
 
         // Alert if too many failed jobs

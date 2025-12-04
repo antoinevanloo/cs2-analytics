@@ -25,17 +25,17 @@ python -m src.api
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/info` | Parser capabilities |
-| POST | `/parse/upload` | Upload and parse demo |
-| POST | `/parse/path` | Parse from local path |
-| POST | `/parse/sync` | Synchronous parsing |
-| POST | `/parse/stream` | Streaming output |
-| GET | `/parse/status/{job_id}` | Get job status |
-| POST | `/extract/events` | Extract events only |
-| POST | `/extract/metadata` | Extract metadata only |
+| Method | Endpoint                 | Description           |
+| ------ | ------------------------ | --------------------- |
+| GET    | `/health`                | Health check          |
+| GET    | `/info`                  | Parser capabilities   |
+| POST   | `/parse/upload`          | Upload and parse demo |
+| POST   | `/parse/path`            | Parse from local path |
+| POST   | `/parse/sync`            | Synchronous parsing   |
+| POST   | `/parse/stream`          | Streaming output      |
+| GET    | `/parse/status/{job_id}` | Get job status        |
+| POST   | `/extract/events`        | Extract events only   |
+| POST   | `/extract/metadata`      | Extract metadata only |
 
 ## Available Data
 
@@ -43,7 +43,7 @@ python -m src.api
 
 - Position: X, Y, Z, pitch, yaw, velocity
 - Health: health, armor, is_alive, has_helmet
-- Weapons: active_weapon_*, inventory
+- Weapons: active*weapon*\*, inventory
 - Economy: balance, equipment_value, cash_spent
 - Combat: kills, deaths, assists, damage
 - State: is_scoped, ducking, flash_alpha
@@ -60,13 +60,13 @@ python -m src.api
 
 Environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST` | `0.0.0.0` | Server host |
-| `PORT` | `8001` | Server port |
-| `REDIS_URL` | `redis://localhost:6379` | Redis connection |
-| `STORAGE_TYPE` | `local` | Storage backend |
-| `LOG_LEVEL` | `INFO` | Logging level |
+| Variable       | Default                  | Description      |
+| -------------- | ------------------------ | ---------------- |
+| `HOST`         | `0.0.0.0`                | Server host      |
+| `PORT`         | `8001`                   | Server port      |
+| `REDIS_URL`    | `redis://localhost:6379` | Redis connection |
+| `STORAGE_TYPE` | `local`                  | Storage backend  |
+| `LOG_LEVEL`    | `INFO`                   | Logging level    |
 
 ## Docker
 

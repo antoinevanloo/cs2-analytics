@@ -71,7 +71,8 @@ export class ParseOptionsDto {
   events?: string[];
 
   @ApiPropertyOptional({
-    description: "Specific player properties to extract (null = high frequency)",
+    description:
+      "Specific player properties to extract (null = high frequency)",
     type: [String],
   })
   @IsArray()

@@ -16,6 +16,22 @@
     "test": {
       "dependsOn": ["build"]
     },
+    "test:unit": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "test:cov": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "typecheck": {
       "dependsOn": ["^build"]
     },

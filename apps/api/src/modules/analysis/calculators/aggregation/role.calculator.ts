@@ -198,11 +198,17 @@ export function calculateAggression(input: RoleDetectionInput): number {
   const openingFactor = input.openingDuelRate * 100;
   const contactFactor = input.firstContactRate * 100;
   const survivalFactor = (1 - input.avgTimeAlive) * 100;
-  const kdFactor = Math.min(100, (input.killsPerRound / input.deathsPerRound) * 50);
+  const kdFactor = Math.min(
+    100,
+    (input.killsPerRound / input.deathsPerRound) * 50,
+  );
 
   return Math.min(
     100,
-    openingFactor * 0.3 + contactFactor * 0.3 + survivalFactor * 0.2 + kdFactor * 0.2
+    openingFactor * 0.3 +
+      contactFactor * 0.3 +
+      survivalFactor * 0.2 +
+      kdFactor * 0.2,
   );
 }
 
@@ -256,7 +262,9 @@ export function calculateClutchAbility(input: RoleDetectionInput): number {
 /**
  * Determine aim style from headshot percentage
  */
-export function determineAimStyle(hsPercent: number): "spray" | "burst" | "tap" | "mixed" {
+export function determineAimStyle(
+  hsPercent: number,
+): "spray" | "burst" | "tap" | "mixed" {
   const { HEADSHOT_THRESHOLDS } = AIM_STYLE_CONFIG;
 
   if (hsPercent > HEADSHOT_THRESHOLDS.HEADHUNTER) return "tap";
@@ -274,7 +282,7 @@ export function determineAimStyle(hsPercent: number): "spray" | "burst" | "tap" 
  */
 export function detectPlayerRole(
   input: RoleDetectionInput,
-  hsPercent: number
+  hsPercent: number,
 ): PlayerRoleAnalysis {
   // Calculate all role scores
   const entryScore = calculateEntryScore(input);
@@ -298,7 +306,10 @@ export function detectPlayerRole(
   let primaryRole: PlayerRole = "hybrid";
   let maxScore = 0;
 
-  for (const [role, score] of Object.entries(scores) as [PlayerRole, number][]) {
+  for (const [role, score] of Object.entries(scores) as [
+    PlayerRole,
+    number,
+  ][]) {
     if (role !== "hybrid" && role !== "igl" && score > maxScore) {
       maxScore = score;
       primaryRole = role;
@@ -309,16 +320,28 @@ export function detectPlayerRole(
   let secondaryRole: PlayerRole | null = null;
   let secondMaxScore = 0;
 
-  for (const [role, score] of Object.entries(scores) as [PlayerRole, number][]) {
-    if (role !== primaryRole && role !== "hybrid" && role !== "igl" && score > secondMaxScore) {
+  for (const [role, score] of Object.entries(scores) as [
+    PlayerRole,
+    number,
+  ][]) {
+    if (
+      role !== primaryRole &&
+      role !== "hybrid" &&
+      role !== "igl" &&
+      score > secondMaxScore
+    ) {
       secondMaxScore = score;
       secondaryRole = role;
     }
   }
 
   // Only assign secondary if it's significant
-  const { MIN_PRIMARY_ROLE_SCORE, SECONDARY_ROLE_MIN_PERCENTAGE } = ROLE_DETECTION_CONFIG.THRESHOLDS;
-  if (secondMaxScore < maxScore * SECONDARY_ROLE_MIN_PERCENTAGE || secondMaxScore < MIN_PRIMARY_ROLE_SCORE * 0.75) {
+  const { MIN_PRIMARY_ROLE_SCORE, SECONDARY_ROLE_MIN_PERCENTAGE } =
+    ROLE_DETECTION_CONFIG.THRESHOLDS;
+  if (
+    secondMaxScore < maxScore * SECONDARY_ROLE_MIN_PERCENTAGE ||
+    secondMaxScore < MIN_PRIMARY_ROLE_SCORE * 0.75
+  ) {
     secondaryRole = null;
   }
 
@@ -400,7 +423,9 @@ import { sumBy, safeRate, safePercentage } from "./stats.calculator";
 /**
  * Convert aggregated match data to role detection input
  */
-export function createRoleDetectionInput(matches: readonly PlayerMatchData[]): RoleDetectionInput {
+export function createRoleDetectionInput(
+  matches: readonly PlayerMatchData[],
+): RoleDetectionInput {
   const totalRounds = sumBy(matches, (m) => m.roundsPlayed);
   const totalKills = sumBy(matches, (m) => m.kills);
   const totalDeaths = sumBy(matches, (m) => m.deaths);

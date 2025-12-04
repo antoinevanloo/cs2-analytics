@@ -54,7 +54,7 @@ export class RoundService {
   async getRoundReplay(
     demoId: string,
     roundNumber: number,
-    interval: number = 1
+    interval: number = 1,
   ) {
     return {
       demoId,

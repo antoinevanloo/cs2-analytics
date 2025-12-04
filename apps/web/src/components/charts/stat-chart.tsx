@@ -48,7 +48,10 @@ export function StatChart({
             label
           >
             {data.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell
+                key={`cell-${index}`}
+                fill={COLORS[index % COLORS.length]}
+              />
             ))}
           </Pie>
           <Tooltip />
@@ -62,10 +65,7 @@ export function StatChart({
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-          <XAxis
-            dataKey={xAxisKey}
-            className="text-xs fill-muted-foreground"
-          />
+          <XAxis dataKey={xAxisKey} className="text-xs fill-muted-foreground" />
           <YAxis className="text-xs fill-muted-foreground" />
           <Tooltip
             contentStyle={{
@@ -84,10 +84,7 @@ export function StatChart({
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis
-          dataKey={xAxisKey}
-          className="text-xs fill-muted-foreground"
-        />
+        <XAxis dataKey={xAxisKey} className="text-xs fill-muted-foreground" />
         <YAxis className="text-xs fill-muted-foreground" />
         <Tooltip
           contentStyle={{

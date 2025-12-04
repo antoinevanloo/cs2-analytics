@@ -63,7 +63,7 @@ export class AnalysisProcessor extends WorkerHost {
   constructor(
     private readonly playerMetrics: PlayerMetricsService,
     private readonly matchAnalysis: MatchAnalysisService,
-    private readonly storage: AnalysisStorageService
+    private readonly storage: AnalysisStorageService,
   ) {
     super();
   }
@@ -75,13 +75,15 @@ export class AnalysisProcessor extends WorkerHost {
     const { demoId, type, requestedById } = job.data;
     const startTime = Date.now();
 
-    this.logger.log(`Processing ${type} analysis for demo ${demoId} (job ${job.id})`);
+    this.logger.log(
+      `Processing ${type} analysis for demo ${demoId} (job ${job.id})`,
+    );
 
     try {
       // Check if analysis already exists and is completed
       const existingAnalysis = await this.storage.getLatestAnalysis(
         demoId,
-        AnalysisType.ADVANCED
+        AnalysisType.ADVANCED,
       );
 
       if (existingAnalysis?.status === AnalysisStatus.COMPLETED) {
@@ -90,7 +92,8 @@ export class AnalysisProcessor extends WorkerHost {
           demoId,
           analysisId: existingAnalysis.id,
           playersAnalyzed: existingAnalysis.results?.playerMetrics?.length ?? 0,
-          roundsAnalyzed: existingAnalysis.results?.matchOverview?.metadata.totalRounds ?? 0,
+          roundsAnalyzed:
+            existingAnalysis.results?.matchOverview?.metadata.totalRounds ?? 0,
           duration: 0,
         };
       }
@@ -106,10 +109,18 @@ export class AnalysisProcessor extends WorkerHost {
           result = await this.performFullAnalysis(job, demoId, requestedById);
           break;
         case "players":
-          result = await this.performPlayersOnlyAnalysis(job, demoId, requestedById);
+          result = await this.performPlayersOnlyAnalysis(
+            job,
+            demoId,
+            requestedById,
+          );
           break;
         case "match":
-          result = await this.performMatchOnlyAnalysis(job, demoId, requestedById);
+          result = await this.performMatchOnlyAnalysis(
+            job,
+            demoId,
+            requestedById,
+          );
           break;
         default:
           result = await this.performFullAnalysis(job, demoId, requestedById);
@@ -118,17 +129,20 @@ export class AnalysisProcessor extends WorkerHost {
       const duration = Date.now() - startTime;
       this.logger.log(
         `Analysis completed for demo ${demoId} in ${duration}ms ` +
-          `(${result.playersAnalyzed} players, ${result.roundsAnalyzed} rounds)`
+          `(${result.playersAnalyzed} players, ${result.roundsAnalyzed} rounds)`,
       );
 
       return { ...result, duration };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       this.logger.error(`Failed to analyze demo ${demoId}: ${errorMessage}`);
 
       // Try to mark as failed in storage if we have an analysis record
       try {
-        const pending = await this.storage.getAnalysesByStatus(AnalysisStatus.PROCESSING);
+        const pending = await this.storage.getAnalysesByStatus(
+          AnalysisStatus.PROCESSING,
+        );
         const ourAnalysis = pending.find((a) => a.demoId === demoId);
         if (ourAnalysis) {
           await this.storage.markAsFailed(ourAnalysis.id, errorMessage);
@@ -147,21 +161,23 @@ export class AnalysisProcessor extends WorkerHost {
   private async performFullAnalysis(
     job: Job<AnalysisJobData>,
     demoId: string,
-    requestedById?: string
+    requestedById?: string,
   ): Promise<Omit<AnalysisJobResult, "duration">> {
     // Calculate player metrics (this is the heavy computation)
     await job.updateProgress(20);
-    const playerMetrics = await this.playerMetrics.calculateAllPlayersMetrics(demoId);
+    const playerMetrics =
+      await this.playerMetrics.calculateAllPlayersMetrics(demoId);
 
     await job.updateProgress(50);
 
     // Calculate match-level analysis
-    const [matchOverview, roundAnalysis, economyFlow, tradeAnalysis] = await Promise.all([
-      this.matchAnalysis.getMatchOverview(demoId),
-      this.matchAnalysis.getRoundAnalysis(demoId),
-      this.matchAnalysis.getEconomyFlow(demoId),
-      this.matchAnalysis.getTradeAnalysis(demoId),
-    ]);
+    const [matchOverview, roundAnalysis, economyFlow, tradeAnalysis] =
+      await Promise.all([
+        this.matchAnalysis.getMatchOverview(demoId),
+        this.matchAnalysis.getRoundAnalysis(demoId),
+        this.matchAnalysis.getEconomyFlow(demoId),
+        this.matchAnalysis.getTradeAnalysis(demoId),
+      ]);
 
     await job.updateProgress(80);
 
@@ -175,7 +191,7 @@ export class AnalysisProcessor extends WorkerHost {
         economyFlow,
         tradeAnalysis,
       },
-      requestedById
+      requestedById,
     );
 
     await job.updateProgress(100);
@@ -194,17 +210,18 @@ export class AnalysisProcessor extends WorkerHost {
   private async performPlayersOnlyAnalysis(
     job: Job<AnalysisJobData>,
     demoId: string,
-    requestedById?: string
+    requestedById?: string,
   ): Promise<Omit<AnalysisJobResult, "duration">> {
     await job.updateProgress(20);
-    const playerMetrics = await this.playerMetrics.calculateAllPlayersMetrics(demoId);
+    const playerMetrics =
+      await this.playerMetrics.calculateAllPlayersMetrics(demoId);
 
     await job.updateProgress(80);
 
     const analysisRecord = await this.storage.storePlayerMetrics(
       demoId,
       playerMetrics,
-      requestedById
+      requestedById,
     );
 
     await job.updateProgress(100);
@@ -223,7 +240,7 @@ export class AnalysisProcessor extends WorkerHost {
   private async performMatchOnlyAnalysis(
     job: Job<AnalysisJobData>,
     demoId: string,
-    requestedById?: string
+    requestedById?: string,
   ): Promise<Omit<AnalysisJobResult, "duration">> {
     await job.updateProgress(20);
 
@@ -235,7 +252,8 @@ export class AnalysisProcessor extends WorkerHost {
     await job.updateProgress(80);
 
     // Store with minimal player metrics
-    const playerMetrics = await this.playerMetrics.calculateAllPlayersMetrics(demoId);
+    const playerMetrics =
+      await this.playerMetrics.calculateAllPlayersMetrics(demoId);
 
     const analysisRecord = await this.storage.storeFullMatchAnalysis(
       demoId,
@@ -246,7 +264,7 @@ export class AnalysisProcessor extends WorkerHost {
         economyFlow: await this.matchAnalysis.getEconomyFlow(demoId),
         tradeAnalysis: await this.matchAnalysis.getTradeAnalysis(demoId),
       },
-      requestedById
+      requestedById,
     );
 
     await job.updateProgress(100);
@@ -265,7 +283,9 @@ export class AnalysisProcessor extends WorkerHost {
 
   @OnWorkerEvent("active")
   onActive(job: Job<AnalysisJobData>) {
-    this.logger.debug(`Job ${job.id} is now active for demo ${job.data.demoId}`);
+    this.logger.debug(
+      `Job ${job.id} is now active for demo ${job.data.demoId}`,
+    );
   }
 
   @OnWorkerEvent("completed")
@@ -276,7 +296,7 @@ export class AnalysisProcessor extends WorkerHost {
   @OnWorkerEvent("failed")
   onFailed(job: Job<AnalysisJobData> | undefined, error: Error) {
     this.logger.error(
-      `Job ${job?.id ?? "unknown"} failed for demo ${job?.data.demoId ?? "unknown"}: ${error.message}`
+      `Job ${job?.id ?? "unknown"} failed for demo ${job?.data.demoId ?? "unknown"}: ${error.message}`,
     );
   }
 

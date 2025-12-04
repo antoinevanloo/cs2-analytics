@@ -58,7 +58,7 @@ export class TeamAggregationService {
    */
   async getTeamProfile(
     teamId: string,
-    window: TimeWindowKey = "all_time"
+    window: TimeWindowKey = "all_time",
   ): Promise<AggregatedTeamProfile> {
     this.logger.log(`Getting team profile for ${teamId} (window: ${window})`);
 
@@ -80,7 +80,7 @@ export class TeamAggregationService {
    */
   async recomputeTeamProfile(
     teamId: string,
-    window: TimeWindowKey = "all_time"
+    window: TimeWindowKey = "all_time",
   ): Promise<AggregatedTeamProfile> {
     this.logger.log(`Force recomputing profile for team ${teamId}`);
     return this.computeAndStoreProfile(teamId, window);
@@ -91,7 +91,7 @@ export class TeamAggregationService {
    */
   async getTeamProfileByRoster(
     steamIds: readonly string[],
-    window: TimeWindowKey = "all_time"
+    window: TimeWindowKey = "all_time",
   ): Promise<AggregatedTeamProfile> {
     // Create a deterministic ID from roster
     const sortedIds = [...steamIds].sort();
@@ -116,8 +116,12 @@ export class TeamAggregationService {
    */
   private async loadTeamMatchData(
     teamId: string,
-    window: TimeWindowKey
-  ): Promise<{ identity: TeamIdentity; matches: TeamMatchData[]; roster: RosterEntry[] }> {
+    window: TimeWindowKey,
+  ): Promise<{
+    identity: TeamIdentity;
+    matches: TeamMatchData[];
+    roster: RosterEntry[];
+  }> {
     // Get team info
     const team = await this.prisma.team.findUnique({
       where: { id: teamId },
@@ -151,7 +155,9 @@ export class TeamAggregationService {
     // Use centralized time window configuration
     const windowFilter = getTimeWindowFilter(window);
     const matchLimit = windowFilter.matchLimit;
-    const dateFilter = windowFilter.dateFilter ? { gte: windowFilter.dateFilter } : undefined;
+    const dateFilter = windowFilter.dateFilter
+      ? { gte: windowFilter.dateFilter }
+      : undefined;
 
     // Load demos for this team
     const demoQuery = {
@@ -221,25 +227,29 @@ export class TeamAggregationService {
 
       // Calculate rounds by side
       const ctRounds = demo.rounds.filter((r) =>
-        isTeam1 ? r.roundNumber <= 12 : r.roundNumber > 12
+        isTeam1 ? r.roundNumber <= 12 : r.roundNumber > 12,
       ).length;
       const ctRoundsWon = demo.rounds.filter(
-        (r) => (isTeam1 ? r.roundNumber <= 12 : r.roundNumber > 12) && r.winnerTeam === 3
+        (r) =>
+          (isTeam1 ? r.roundNumber <= 12 : r.roundNumber > 12) &&
+          r.winnerTeam === 3,
       ).length;
       const tRounds = demo.rounds.length - ctRounds;
       const tRoundsWon = demo.rounds.filter(
-        (r) => (isTeam1 ? r.roundNumber > 12 : r.roundNumber <= 12) && r.winnerTeam === 2
+        (r) =>
+          (isTeam1 ? r.roundNumber > 12 : r.roundNumber <= 12) &&
+          r.winnerTeam === 2,
       ).length;
 
       // Calculate situational rounds
       const pistolRounds = demo.rounds.filter(
-        (r) => r.roundNumber === 1 || r.roundNumber === 13
+        (r) => r.roundNumber === 1 || r.roundNumber === 13,
       ).length;
       const pistolRoundsWon = demo.rounds.filter(
         (r) =>
           (r.roundNumber === 1 || r.roundNumber === 13) &&
           ((isTeam1 && r.winnerTeam === (r.roundNumber === 1 ? 2 : 3)) ||
-            (!isTeam1 && r.winnerTeam === (r.roundNumber === 1 ? 3 : 2)))
+            (!isTeam1 && r.winnerTeam === (r.roundNumber === 1 ? 3 : 2))),
       ).length;
 
       // Build player list
@@ -274,13 +284,18 @@ export class TeamAggregationService {
 
         pistolRoundsPlayed: pistolRounds,
         pistolRoundsWon: pistolRoundsWon,
-        ecoRoundsPlayed: demo.rounds.filter((r) => r.roundType === "ECO").length,
+        ecoRoundsPlayed: demo.rounds.filter((r) => r.roundType === "ECO")
+          .length,
         ecoRoundsWon: 0, // Would need to match with winner
         antiEcoRoundsPlayed: 0, // Would need opponent economy data
         antiEcoRoundsWon: 0,
-        forceRoundsPlayed: demo.rounds.filter((r) => r.roundType === "FORCE_BUY").length,
+        forceRoundsPlayed: demo.rounds.filter(
+          (r) => r.roundType === "FORCE_BUY",
+        ).length,
         forceRoundsWon: 0,
-        fullBuyRoundsPlayed: demo.rounds.filter((r) => r.roundType === "FULL_BUY").length,
+        fullBuyRoundsPlayed: demo.rounds.filter(
+          (r) => r.roundType === "FULL_BUY",
+        ).length,
         fullBuyRoundsWon: 0,
 
         totalKills: teamPlayers.reduce((sum, p) => sum + p.kills, 0),
@@ -328,15 +343,20 @@ export class TeamAggregationService {
    */
   private async computeAndStoreProfile(
     teamId: string,
-    window: TimeWindowKey
+    window: TimeWindowKey,
   ): Promise<AggregatedTeamProfile> {
     const startTime = Date.now();
 
     // Load data
-    const { identity, matches, roster } = await this.loadTeamMatchData(teamId, window);
+    const { identity, matches, roster } = await this.loadTeamMatchData(
+      teamId,
+      window,
+    );
 
     if (matches.length === 0) {
-      throw new NotFoundException(`No matches found for team ${teamId} in window ${window}`);
+      throw new NotFoundException(
+        `No matches found for team ${teamId} in window ${window}`,
+      );
     }
 
     // Compute profile
@@ -348,7 +368,7 @@ export class TeamAggregationService {
     const duration = Date.now() - startTime;
     this.logger.log(
       `Computed profile for team ${teamId} in ${duration}ms ` +
-        `(${matches.length} matches, ${profile.period.roundCount} rounds)`
+        `(${matches.length} matches, ${profile.period.roundCount} rounds)`,
     );
 
     return profile;
@@ -360,7 +380,7 @@ export class TeamAggregationService {
   private async computeRosterProfile(
     rosterId: string,
     steamIds: readonly string[],
-    window: TimeWindowKey
+    window: TimeWindowKey,
   ): Promise<AggregatedTeamProfile> {
     const startTime = Date.now();
 
@@ -368,7 +388,9 @@ export class TeamAggregationService {
     // Use centralized time window configuration
     const windowFilter = getTimeWindowFilter(window);
     const matchLimit = windowFilter.matchLimit;
-    const dateFilter = windowFilter.dateFilter ? { gte: windowFilter.dateFilter } : undefined;
+    const dateFilter = windowFilter.dateFilter
+      ? { gte: windowFilter.dateFilter }
+      : undefined;
 
     // Find demos where all these players played together
     const rosterDemoQuery = {
@@ -420,11 +442,15 @@ export class TeamAggregationService {
         teamNums.set(ps.teamNum, (teamNums.get(ps.teamNum) ?? 0) + 1);
       }
       // At least MIN_SAME_TEAM_COUNT players on same team
-      return [...teamNums.values()].some((count) => count >= TEAM_CONFIG.MIN_SAME_TEAM_COUNT);
+      return [...teamNums.values()].some(
+        (count) => count >= TEAM_CONFIG.MIN_SAME_TEAM_COUNT,
+      );
     });
 
     if (validDemos.length === 0) {
-      throw new NotFoundException(`No matches found for roster in window ${window}`);
+      throw new NotFoundException(
+        `No matches found for roster in window ${window}`,
+      );
     }
 
     // Build identity for ad-hoc roster
@@ -488,7 +514,10 @@ export class TeamAggregationService {
         totalDeaths: demo.playerStats.reduce((sum, p) => sum + p.deaths, 0),
         totalDamage: demo.playerStats.reduce((sum, p) => sum + p.damage, 0),
         firstKills: demo.playerStats.reduce((sum, p) => sum + p.firstKills, 0),
-        firstDeaths: demo.playerStats.reduce((sum, p) => sum + p.firstDeaths, 0),
+        firstDeaths: demo.playerStats.reduce(
+          (sum, p) => sum + p.firstDeaths,
+          0,
+        ),
 
         avgEquipValue: 0,
         totalSpent: 0,
@@ -503,7 +532,9 @@ export class TeamAggregationService {
 
     // Build roster
     const roster: RosterEntry[] = steamIds.map((steamId) => {
-      const player = validDemos[0]?.playerStats.find((p) => p.steamId === steamId);
+      const player = validDemos[0]?.playerStats.find(
+        (p) => p.steamId === steamId,
+      );
       return {
         steamId,
         name: player?.playerName ?? "Unknown",
@@ -521,7 +552,7 @@ export class TeamAggregationService {
     const duration = Date.now() - startTime;
     this.logger.log(
       `Computed roster profile in ${duration}ms ` +
-        `(${matches.length} matches, ${profile.period.roundCount} rounds)`
+        `(${matches.length} matches, ${profile.period.roundCount} rounds)`,
     );
 
     return profile;
@@ -536,7 +567,7 @@ export class TeamAggregationService {
    */
   private async getCachedProfile(
     teamId: string,
-    window: TimeWindowKey
+    window: TimeWindowKey,
   ): Promise<{ profile: AggregatedTeamProfile; cachedAt: Date } | null> {
     const cacheKey = `aggregation:team:${teamId}:${window}`;
 
@@ -561,7 +592,10 @@ export class TeamAggregationService {
   /**
    * Check if cached profile is stale
    */
-  private isStale(cached: { profile: AggregatedTeamProfile; cachedAt: Date }): boolean {
+  private isStale(cached: {
+    profile: AggregatedTeamProfile;
+    cachedAt: Date;
+  }): boolean {
     const age = Date.now() - cached.cachedAt.getTime();
     return age > CACHE_CONFIG.TEAM_PROFILE_TTL_MS;
   }
@@ -572,7 +606,7 @@ export class TeamAggregationService {
   private async storeProfile(
     teamId: string,
     window: TimeWindowKey,
-    profile: AggregatedTeamProfile
+    profile: AggregatedTeamProfile,
   ): Promise<void> {
     const cacheKey = `aggregation:team:${teamId}:${window}`;
 

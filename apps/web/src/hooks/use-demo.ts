@@ -30,7 +30,7 @@ export function useDemoStatus(id: string, enabled: boolean = true) {
 
 export function useDemoEvents(
   id: string,
-  filters?: { type?: string; round?: number }
+  filters?: { type?: string; round?: number },
 ) {
   return useQuery({
     queryKey: ["demo-events", id, filters],
@@ -90,7 +90,9 @@ export function useParseDemo() {
     }) => demosApi.parse(id, options),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["demo", variables.id] });
-      queryClient.invalidateQueries({ queryKey: ["demo-status", variables.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["demo-status", variables.id],
+      });
     },
   });
 }

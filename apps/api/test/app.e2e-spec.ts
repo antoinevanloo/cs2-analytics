@@ -1,12 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from "@nestjs/testing";
+import { INestApplication, ValidationPipe } from "@nestjs/common";
 import {
   FastifyAdapter,
   NestFastifyApplication,
-} from '@nestjs/platform-fastify';
-import { AppModule } from '../src/app.module';
+} from "@nestjs/platform-fastify";
+import { AppModule } from "../src/app.module";
 
-describe('App (e2e)', () => {
+describe("App (e2e)", () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -34,17 +34,17 @@ describe('App (e2e)', () => {
     await app.close();
   });
 
-  describe('Health Check', () => {
-    it('/health (GET) should return health status', async () => {
+  describe("Health Check", () => {
+    it("/health (GET) should return health status", async () => {
       const response = await app.inject({
-        method: 'GET',
-        url: '/health',
+        method: "GET",
+        url: "/health",
       });
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.payload);
-      expect(body).toHaveProperty('status');
-      expect(body.status).toBe('ok');
+      expect(body).toHaveProperty("status");
+      expect(body.status).toBe("ok");
     });
   });
 });

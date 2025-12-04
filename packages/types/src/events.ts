@@ -208,7 +208,7 @@ export const FlashbangEventSchema = GrenadeDetonateBaseSchema.extend({
         name: z.string(),
         duration: z.number(),
         is_enemy: z.boolean(),
-      })
+      }),
     )
     .default([]),
   enemies_blinded: z.number().int().default(0),
@@ -226,7 +226,7 @@ export const HEGrenadeEventSchema = GrenadeDetonateBaseSchema.extend({
         name: z.string(),
         damage: z.number().int(),
         is_enemy: z.boolean(),
-      })
+      }),
     )
     .default([]),
   total_damage: z.number().int().default(0),

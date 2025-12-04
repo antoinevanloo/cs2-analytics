@@ -23,7 +23,10 @@ interface FileUpload {
   demoId?: string;
 }
 
-export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) {
+export function DemoUploader({
+  onUploadComplete,
+  onCancel,
+}: DemoUploaderProps) {
   const [uploads, setUploads] = useState<FileUpload[]>([]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -49,8 +52,8 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
   const uploadFile = async (upload: FileUpload, index: number) => {
     setUploads((prev) =>
       prev.map((u, i) =>
-        i === index ? { ...u, status: "uploading", progress: 0 } : u
-      )
+        i === index ? { ...u, status: "uploading", progress: 0 } : u,
+      ),
     );
 
     try {
@@ -60,8 +63,8 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
           prev.map((u, i) =>
             i === index && u.progress < 90
               ? { ...u, progress: u.progress + 10 }
-              : u
-          )
+              : u,
+          ),
         );
       }, 200);
 
@@ -73,17 +76,15 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
         prev.map((u, i) =>
           i === index
             ? { ...u, status: "parsing", progress: 100, demoId: result.id }
-            : u
-        )
+            : u,
+        ),
       );
 
       // Start parsing
       await demosApi.parse(result.id, { extractTicks: false });
 
       setUploads((prev) =>
-        prev.map((u, i) =>
-          i === index ? { ...u, status: "complete" } : u
-        )
+        prev.map((u, i) => (i === index ? { ...u, status: "complete" } : u)),
       );
     } catch (error) {
       setUploads((prev) =>
@@ -94,8 +95,8 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
                 status: "error",
                 error: error instanceof Error ? error.message : "Upload failed",
               }
-            : u
-        )
+            : u,
+        ),
       );
     }
   };
@@ -114,9 +115,12 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
     setUploads((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const allComplete = uploads.length > 0 && uploads.every((u) => u.status === "complete");
+  const allComplete =
+    uploads.length > 0 && uploads.every((u) => u.status === "complete");
   const hasErrors = uploads.some((u) => u.status === "error");
-  const isUploading = uploads.some((u) => u.status === "uploading" || u.status === "parsing");
+  const isUploading = uploads.some(
+    (u) => u.status === "uploading" || u.status === "parsing",
+  );
 
   return (
     <div className="space-y-4">
@@ -127,7 +131,7 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
           "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
           isDragActive
             ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-primary/50"
+            : "border-muted-foreground/25 hover:border-primary/50",
         )}
       >
         <input {...getInputProps()} />
@@ -154,7 +158,9 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
             >
               <File className="h-5 w-5 text-muted-foreground" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{upload.file.name}</p>
+                <p className="text-sm font-medium truncate">
+                  {upload.file.name}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {(upload.file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
@@ -165,7 +171,9 @@ export function DemoUploader({ onUploadComplete, onCancel }: DemoUploaderProps) 
                   <p className="text-xs text-primary mt-1">Parsing...</p>
                 )}
                 {upload.error && (
-                  <p className="text-xs text-destructive mt-1">{upload.error}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {upload.error}
+                  </p>
                 )}
               </div>
               <div className="flex items-center gap-2">

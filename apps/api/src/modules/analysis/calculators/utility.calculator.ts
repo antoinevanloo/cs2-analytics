@@ -51,7 +51,9 @@ export interface UtilityCalculationInput {
  * @param input - Player data and grenade events
  * @returns Utility metrics
  */
-export function calculateUtility(input: UtilityCalculationInput): UtilityMetrics {
+export function calculateUtility(
+  input: UtilityCalculationInput,
+): UtilityMetrics {
   const { steamId, allGrenades, totalRounds, flashAssists = 0 } = input;
 
   if (allGrenades.length === 0 || totalRounds === 0) {
@@ -60,7 +62,7 @@ export function calculateUtility(input: UtilityCalculationInput): UtilityMetrics
 
   // Filter grenades thrown by this player
   const playerGrenades = allGrenades.filter(
-    (g) => g.throwerSteamId === steamId
+    (g) => g.throwerSteamId === steamId,
   );
 
   if (playerGrenades.length === 0) {
@@ -73,7 +75,7 @@ export function calculateUtility(input: UtilityCalculationInput): UtilityMetrics
   // Calculate each type
   const flash = calculateFlashMetrics(
     grenadesByType.get("flashbang") || [],
-    flashAssists
+    flashAssists,
   );
   const heGrenade = calculateHEMetrics(grenadesByType.get("hegrenade") || []);
   const molotov = calculateMolotovMetrics([
@@ -82,7 +84,7 @@ export function calculateUtility(input: UtilityCalculationInput): UtilityMetrics
   ]);
   const smoke = calculateSmokeMetrics(
     grenadesByType.get("smoke") || grenadesByType.get("smokegrenade") || [],
-    totalRounds
+    totalRounds,
   );
   const decoy = calculateDecoyMetrics(grenadesByType.get("decoy") || []);
 
@@ -108,7 +110,7 @@ export function calculateUtility(input: UtilityCalculationInput): UtilityMetrics
  */
 function calculateFlashMetrics(
   flashes: readonly GrenadeInput[],
-  flashAssists: number
+  flashAssists: number,
 ): FlashMetrics {
   if (flashes.length === 0) {
     return {
@@ -203,7 +205,7 @@ function calculateHEMetrics(hes: readonly GrenadeInput[]): HEGrenadeMetrics {
  * Calculate Molotov/Incendiary metrics
  */
 function calculateMolotovMetrics(
-  molotovs: readonly GrenadeInput[]
+  molotovs: readonly GrenadeInput[],
 ): MolotovMetrics {
   if (molotovs.length === 0) {
     return {
@@ -241,7 +243,7 @@ function calculateMolotovMetrics(
  */
 function calculateSmokeMetrics(
   smokes: readonly GrenadeInput[],
-  totalRounds: number
+  totalRounds: number,
 ): SmokeMetrics {
   return {
     thrown: smokes.length,
@@ -266,12 +268,16 @@ export function calculateTeamUtility(
     steamId: string;
     name: string;
     utility: UtilityMetrics;
-  }[]
+  }[],
 ): {
   totalUtilityDamage: number;
   utilityDPR: number;
   avgFlashEffectiveness: number;
-  topUtilityPlayer: { steamId: string; name: string; utilityDamage: number } | null;
+  topUtilityPlayer: {
+    steamId: string;
+    name: string;
+    utilityDamage: number;
+  } | null;
   playerRankings: PlayerUtilityComparison[];
 } {
   if (playerUtilities.length === 0) {
@@ -287,7 +293,11 @@ export function calculateTeamUtility(
   let totalDamage = 0;
   let totalDPR = 0;
   let totalFlashEffectiveness = 0;
-  let topPlayer: { steamId: string; name: string; utilityDamage: number } | null = null;
+  let topPlayer: {
+    steamId: string;
+    name: string;
+    utilityDamage: number;
+  } | null = null;
 
   const rankings: PlayerUtilityComparison[] = [];
 
@@ -332,7 +342,9 @@ export function calculateTeamUtility(
   return {
     totalUtilityDamage: totalDamage,
     utilityDPR: round2(totalDPR / playerUtilities.length),
-    avgFlashEffectiveness: round2(totalFlashEffectiveness / playerUtilities.length),
+    avgFlashEffectiveness: round2(
+      totalFlashEffectiveness / playerUtilities.length,
+    ),
     topUtilityPlayer: topPlayer,
     playerRankings: rankedResults,
   };
@@ -343,7 +355,7 @@ export function calculateTeamUtility(
  */
 export function analyzeUtilityByRoundType(
   grenades: readonly GrenadeInput[],
-  roundTypes: ReadonlyMap<number, "pistol" | "eco" | "force" | "full_buy">
+  roundTypes: ReadonlyMap<number, "pistol" | "eco" | "force" | "full_buy">,
 ): {
   pistol: { thrown: number; damage: number };
   eco: { thrown: number; damage: number };
@@ -414,7 +426,7 @@ export function getUtilityLabel(utilityDPR: number): string {
  */
 export function calculateSmokeKillsMetrics(
   kills: readonly KillInput[],
-  deaths: readonly KillInput[]
+  deaths: readonly KillInput[],
 ): SmokeKillsMetrics {
   if (kills.length === 0) {
     return createEmptySmokeKillsMetrics();
@@ -468,7 +480,7 @@ export function calculateSmokeKillsMetrics(
  * @returns Waste analysis
  */
 export function calculateUtilityWasteMetrics(
-  grenades: readonly GrenadeInput[]
+  grenades: readonly GrenadeInput[],
 ): UtilityWasteMetrics {
   if (grenades.length === 0) {
     return createEmptyUtilityWasteMetrics();
@@ -479,12 +491,15 @@ export function calculateUtilityWasteMetrics(
   const hes = grenades.filter((g) => g.type.toLowerCase() === "hegrenade");
   const molotovs = grenades.filter(
     (g) =>
-      g.type.toLowerCase() === "molotov" || g.type.toLowerCase() === "incendiary"
+      g.type.toLowerCase() === "molotov" ||
+      g.type.toLowerCase() === "incendiary",
   );
 
   // Count wasted grenades
   const wastedFlashes = flashes.filter((f) => f.enemiesBlinded === 0).length;
-  const teamFlashes = flashes.filter((f) => f.teammatesBlinded > 0 && f.enemiesBlinded === 0).length;
+  const teamFlashes = flashes.filter(
+    (f) => f.teammatesBlinded > 0 && f.enemiesBlinded === 0,
+  ).length;
   const wastedHEs = hes.filter((h) => h.damageDealt === 0).length;
   const wastedMolotovs = molotovs.filter((m) => m.damageDealt === 0).length;
 
@@ -517,9 +532,9 @@ export function calculateUtilityWasteMetrics(
   // Weighted: flashes most important, then HEs, then molotovs
   const wasteScore = round2(
     wastedFlashPercent * 0.5 +
-    wastedHEPercent * 0.3 +
-    wastedMolotovPercent * 0.2 +
-    teamFlashPercent * 0.3
+      wastedHEPercent * 0.3 +
+      wastedMolotovPercent * 0.2 +
+      teamFlashPercent * 0.3,
   );
 
   return {
@@ -547,7 +562,7 @@ export function calculateUtilityWasteMetrics(
  */
 export function calculateUtilityScore(
   metrics: UtilityMetrics,
-  waste: UtilityWasteMetrics
+  waste: UtilityWasteMetrics,
 ): { score: number; label: string } {
   // Components:
   // - Flash effectiveness (40%)
@@ -562,9 +577,7 @@ export function calculateUtilityScore(
   // Waste score (inverted - lower waste = higher score)
   const wasteScore = 100 - waste.wasteScore;
 
-  const overall = round2(
-    flashScore * 0.4 + dprScore * 0.3 + wasteScore * 0.3
-  );
+  const overall = round2(flashScore * 0.4 + dprScore * 0.3 + wasteScore * 0.3);
 
   const label = getUtilityLabel(metrics.utilityDamagePerRound);
 

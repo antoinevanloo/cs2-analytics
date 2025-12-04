@@ -74,7 +74,10 @@ export default function PlayersPage() {
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted animate-pulse rounded-md" />
+                <div
+                  key={i}
+                  className="h-16 bg-muted animate-pulse rounded-md"
+                />
               ))}
             </div>
           ) : data?.players?.length === 0 ? (
@@ -101,7 +104,10 @@ export default function PlayersPage() {
                 </thead>
                 <tbody>
                   {data?.players?.map((player: PlayerSearchItem) => (
-                    <tr key={player.steamId} className="border-b hover:bg-muted/50">
+                    <tr
+                      key={player.steamId}
+                      className="border-b hover:bg-muted/50"
+                    >
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
@@ -119,13 +125,22 @@ export default function PlayersPage() {
                         {player.totalMatches || 0}
                       </td>
                       <td className="text-right py-3 px-4">
-                        {formatKD(player.totalKills || 0, player.totalDeaths || 0)}
+                        {formatKD(
+                          player.totalKills || 0,
+                          player.totalDeaths || 0,
+                        )}
                       </td>
                       <td className="text-right py-3 px-4">
-                        {formatADR(player.totalDamage || 0, player.totalRounds || 1)}
+                        {formatADR(
+                          player.totalDamage || 0,
+                          player.totalRounds || 1,
+                        )}
                       </td>
                       <td className="text-right py-3 px-4">
-                        {formatHSP(player.totalHsKills || 0, player.totalKills || 1)}
+                        {formatHSP(
+                          player.totalHsKills || 0,
+                          player.totalKills || 1,
+                        )}
                       </td>
                       <td className="text-right py-3 px-4">
                         <span className="font-medium">
@@ -162,7 +177,9 @@ function StatCard({
     <Card>
       <CardContent className="pt-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-md text-primary">{icon}</div>
+          <div className="p-2 bg-primary/10 rounded-md text-primary">
+            {icon}
+          </div>
           <div>
             <div className="text-2xl font-bold">{value}</div>
             <p className="text-sm text-muted-foreground">{title}</p>

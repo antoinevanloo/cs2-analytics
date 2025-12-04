@@ -17,7 +17,11 @@
  */
 
 import { Injectable, Logger } from "@nestjs/common";
-import { MetricsDataService, type DemoMatchData, type PlayerMatchData } from "./metrics-data.service";
+import {
+  MetricsDataService,
+  type DemoMatchData,
+  type PlayerMatchData,
+} from "./metrics-data.service";
 
 // Import calculators
 import {
@@ -50,12 +54,20 @@ import type {
   CombatMetrics,
   SpecialKillsMetrics,
   KillDistanceMetrics,
-  MultiKillMetrics
+  MultiKillMetrics,
 } from "../types/combat.types";
-import type { HLTVRating2, KASTMetrics, ImpactMetrics } from "../types/rating.types";
+import type {
+  HLTVRating2,
+  KASTMetrics,
+  ImpactMetrics,
+} from "../types/rating.types";
 import type { TradeMetrics, TradeChainMetrics } from "../types/trade.types";
 import type { ClutchMetrics } from "../types/clutch.types";
-import type { UtilityMetrics, SmokeKillsMetrics, UtilityWasteMetrics } from "../types/utility.types";
+import type {
+  UtilityMetrics,
+  SmokeKillsMetrics,
+  UtilityWasteMetrics,
+} from "../types/utility.types";
 import type { EconomyMetrics } from "../types/economy.types";
 import type { OpeningDuelMetrics } from "../types/opening.types";
 
@@ -143,11 +155,27 @@ export interface PlayerMatchMetricsResult {
 export interface PlayerComparisonResult {
   readonly players: readonly PlayerMatchMetricsResult[];
   readonly rankings: {
-    readonly byRating: readonly { steamId: string; name: string; value: number }[];
+    readonly byRating: readonly {
+      steamId: string;
+      name: string;
+      value: number;
+    }[];
     readonly byADR: readonly { steamId: string; name: string; value: number }[];
-    readonly byKAST: readonly { steamId: string; name: string; value: number }[];
-    readonly byImpact: readonly { steamId: string; name: string; value: number }[];
-    readonly byUtility: readonly { steamId: string; name: string; value: number }[];
+    readonly byKAST: readonly {
+      steamId: string;
+      name: string;
+      value: number;
+    }[];
+    readonly byImpact: readonly {
+      steamId: string;
+      name: string;
+      value: number;
+    }[];
+    readonly byUtility: readonly {
+      steamId: string;
+      name: string;
+      value: number;
+    }[];
   };
 }
 
@@ -162,12 +190,17 @@ export class PlayerMetricsService {
    */
   async calculatePlayerMetrics(
     demoId: string,
-    steamId: string
+    steamId: string,
   ): Promise<PlayerMatchMetricsResult> {
-    this.logger.debug(`Calculating metrics for player ${steamId} in demo ${demoId}`);
+    this.logger.debug(
+      `Calculating metrics for player ${steamId} in demo ${demoId}`,
+    );
 
     const matchData = await this.metricsDataService.getFullMatchData(demoId);
-    const playerData = await this.metricsDataService.getPlayerMatchData(demoId, steamId);
+    const playerData = await this.metricsDataService.getPlayerMatchData(
+      demoId,
+      steamId,
+    );
 
     return this.calculateMetricsFromData(playerData, matchData);
   }
@@ -175,14 +208,19 @@ export class PlayerMetricsService {
   /**
    * Calculate metrics for all players in a match
    */
-  async calculateAllPlayersMetrics(demoId: string): Promise<PlayerMatchMetricsResult[]> {
+  async calculateAllPlayersMetrics(
+    demoId: string,
+  ): Promise<PlayerMatchMetricsResult[]> {
     this.logger.debug(`Calculating metrics for all players in demo ${demoId}`);
 
     const matchData = await this.metricsDataService.getFullMatchData(demoId);
     const results: PlayerMatchMetricsResult[] = [];
 
     for (const player of matchData.players) {
-      const playerData = await this.metricsDataService.getPlayerMatchData(demoId, player.steamId);
+      const playerData = await this.metricsDataService.getPlayerMatchData(
+        demoId,
+        player.steamId,
+      );
       const metrics = this.calculateMetricsFromData(playerData, matchData);
       results.push(metrics);
     }
@@ -204,7 +242,10 @@ export class PlayerMetricsService {
         byADR: this.createRanking(players, (p) => p.combat.adr),
         byKAST: this.createRanking(players, (p) => p.kast.kast),
         byImpact: this.createRanking(players, (p) => p.impact.impact),
-        byUtility: this.createRanking(players, (p) => p.utility.utilityDamagePerRound),
+        byUtility: this.createRanking(
+          players,
+          (p) => p.utility.utilityDamagePerRound,
+        ),
       },
     };
   }
@@ -214,7 +255,7 @@ export class PlayerMetricsService {
    */
   async getPlayerSummary(
     demoId: string,
-    steamId: string
+    steamId: string,
   ): Promise<{
     steamId: string;
     name: string;
@@ -251,7 +292,7 @@ export class PlayerMetricsService {
 
   private calculateMetricsFromData(
     playerData: PlayerMatchData,
-    matchData: DemoMatchData
+    matchData: DemoMatchData,
   ): PlayerMatchMetricsResult {
     const { steamId, name, teamNum, roundStats } = playerData;
     const { lookups, metadata } = matchData;
@@ -358,10 +399,17 @@ export class PlayerMetricsService {
     const multiKills = calculateMultiKillMetrics(roundStats);
 
     // 13. Trade chains
-    const tradeChains = calculateTradeChains(allKills, teamNum, metadata.tickRate);
+    const tradeChains = calculateTradeChains(
+      allKills,
+      teamNum,
+      metadata.tickRate,
+    );
 
     // 14. Smoke kills
-    const smokeKills = calculateSmokeKillsMetrics(playerData.kills, playerData.deaths);
+    const smokeKills = calculateSmokeKillsMetrics(
+      playerData.kills,
+      playerData.deaths,
+    );
 
     // 15. Utility waste
     const utilityWaste = calculateUtilityWasteMetrics(playerData.grenades);
@@ -382,7 +430,7 @@ export class PlayerMetricsService {
       impact,
       utility,
       clutches,
-      openings
+      openings,
     );
 
     return {
@@ -426,22 +474,20 @@ export class PlayerMetricsService {
     impact: ImpactMetrics,
     utility: UtilityMetrics,
     clutches: ClutchMetrics,
-    openings: OpeningDuelMetrics
+    openings: OpeningDuelMetrics,
   ): PlayerMatchMetricsResult["summary"] {
     // Combat score
     const combatScore = Math.min(
       100,
       (combat.adr / 100) * 50 +
         Math.min(combat.kd * 25, 30) +
-        (combat.hsPercent / 100) * 20
+        (combat.hsPercent / 100) * 20,
     );
 
     // Impact score
     const impactScore = Math.min(
       100,
-      impact.impact * 50 +
-        openings.winRate * 0.3 +
-        clutches.successRate * 0.2
+      impact.impact * 50 + openings.winRate * 0.3 + clutches.successRate * 0.2,
     );
 
     // Support score
@@ -449,11 +495,14 @@ export class PlayerMetricsService {
       100,
       utility.utilityDamagePerRound * 3 +
         utility.flash.effectivenessRate * 0.3 +
-        kast.roundsWithAssist * 2
+        kast.roundsWithAssist * 2,
     );
 
     // Consistency score
-    const consistencyScore = Math.min(100, kast.kast * 1.1 + kast.roundsWithSurvival * 0.1);
+    const consistencyScore = Math.min(
+      100,
+      kast.kast * 1.1 + kast.roundsWithSurvival * 0.1,
+    );
 
     // Overall rating normalized
     const overallRating = Math.min(100, rating.rating * 50);
@@ -469,7 +518,7 @@ export class PlayerMetricsService {
 
   private createRanking(
     players: readonly PlayerMatchMetricsResult[],
-    getValue: (p: PlayerMatchMetricsResult) => number
+    getValue: (p: PlayerMatchMetricsResult) => number,
   ): { steamId: string; name: string; value: number }[] {
     return [...players]
       .sort((a, b) => getValue(b) - getValue(a))

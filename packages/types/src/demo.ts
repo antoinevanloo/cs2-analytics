@@ -67,7 +67,15 @@ export type TickData = z.infer<typeof TickDataSchema>;
 // ============================================================================
 
 export const GrenadeDataSchema = z.object({
-  type: z.enum(["smoke", "flashbang", "hegrenade", "molotov", "incendiary", "decoy", "inferno"]),
+  type: z.enum([
+    "smoke",
+    "flashbang",
+    "hegrenade",
+    "molotov",
+    "incendiary",
+    "decoy",
+    "inferno",
+  ]),
   event: z.string(),
   tick: z.number().int(),
   X: z.number(),
@@ -86,7 +94,7 @@ export const GrenadeDataSchema = z.object({
         name: z.string(),
         duration: z.number(),
         is_enemy: z.boolean(),
-      })
+      }),
     )
     .optional(),
   enemies_blinded: z.number().int().optional(),
@@ -101,7 +109,7 @@ export const GrenadeDataSchema = z.object({
         name: z.string(),
         damage: z.number().int(),
         is_enemy: z.boolean(),
-      })
+      }),
     )
     .optional(),
   total_damage: z.number().int().optional(),
@@ -186,7 +194,14 @@ export type ParseRequest = z.infer<typeof ParseRequestSchema>;
 
 export const ParseProgressSchema = z.object({
   demo_id: z.string(),
-  status: z.enum(["queued", "parsing", "extracting_events", "extracting_ticks", "complete", "error"]),
+  status: z.enum([
+    "queued",
+    "parsing",
+    "extracting_events",
+    "extracting_ticks",
+    "complete",
+    "error",
+  ]),
   progress_percent: z.number().min(0).max(100),
   current_tick: z.number().int().nullable(),
   total_ticks: z.number().int().nullable(),

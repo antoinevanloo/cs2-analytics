@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -39,7 +45,9 @@ export default function SettingsPage() {
             </div>
             <div>
               <p className="font-medium">Demo User</p>
-              <p className="text-sm text-muted-foreground">demo@cs2analytics.com</p>
+              <p className="text-sm text-muted-foreground">
+                demo@cs2analytics.com
+              </p>
             </div>
             <Button variant="outline" className="ml-auto">
               Edit Profile
@@ -122,9 +130,15 @@ export default function SettingsPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">Light</Button>
-              <Button variant="default" size="sm">Dark</Button>
-              <Button variant="outline" size="sm">System</Button>
+              <Button variant="outline" size="sm">
+                Light
+              </Button>
+              <Button variant="default" size="sm">
+                Dark
+              </Button>
+              <Button variant="outline" size="sm">
+                System
+              </Button>
             </div>
           </div>
         </CardContent>

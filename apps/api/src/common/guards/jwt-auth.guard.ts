@@ -55,7 +55,7 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
         throw new UnauthorizedException("Invalid token");
       }
       throw new UnauthorizedException(
-        err?.message || "Authentication required"
+        err?.message || "Authentication required",
       );
     }
     return user;
