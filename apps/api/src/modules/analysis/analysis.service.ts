@@ -15,10 +15,11 @@
  * @module analysis/analysis
  */
 
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { AnalysisType } from "@prisma/client";
+import { PrismaService } from "../../common/prisma";
 import { MatchAnalysisService } from "./services/match-analysis.service";
 import {
   PlayerMetricsService,
@@ -29,6 +30,12 @@ import {
   type StoredAnalysisResults,
 } from "./services/analysis-storage.service";
 import type { AnalysisJobData } from "./analysis.processor";
+import {
+  simulateRating,
+  analyzeImprovementPotential,
+  getRatingLabel,
+} from "./calculators/rating.calculator";
+import type { RatingComponents } from "./types/rating.types";
 
 @Injectable()
 export class AnalysisService {
@@ -38,6 +45,7 @@ export class AnalysisService {
     private readonly matchAnalysis: MatchAnalysisService,
     private readonly playerMetrics: PlayerMetricsService,
     private readonly storage: AnalysisStorageService,
+    private readonly prisma: PrismaService,
     @InjectQueue("demo-analysis")
     private readonly analysisQueue: Queue<AnalysisJobData>,
   ) {}
@@ -685,5 +693,509 @@ export class AnalysisService {
         name: p.name,
         value: Math.round(getValue(p) * 100) / 100,
       }));
+  }
+
+  // ===========================================================================
+  // HLTV RATING 2.0 ENDPOINTS
+  // ===========================================================================
+
+  /**
+   * Get all player ratings for a demo with full breakdown
+   */
+  async getDemoRatings(demoId: string) {
+    this.logger.debug(`Getting demo ratings for ${demoId}`);
+    const playerMetrics = await this.getPlayerMetricsFromStorage(demoId);
+
+    const ratings = playerMetrics.map((p) => ({
+      steamId: p.steamId,
+      name: p.name,
+      team: p.teamNum,
+      rating: p.rating,
+      ratingLabel: p.ratingLabel,
+      summary: {
+        kast: p.kast.kast,
+        adr: p.combat.adr,
+        kd: p.combat.kd,
+        hsPercent: p.combat.hsPercent,
+        impact: p.impact.impact,
+      },
+    }));
+
+    // Calculate team averages
+    const team1Players = ratings.filter((r) => r.team === 2);
+    const team2Players = ratings.filter((r) => r.team === 3);
+
+    const team1AvgRating =
+      team1Players.length > 0
+        ? team1Players.reduce((sum, p) => sum + p.rating.rating, 0) /
+          team1Players.length
+        : 0;
+
+    const team2AvgRating =
+      team2Players.length > 0
+        ? team2Players.reduce((sum, p) => sum + p.rating.rating, 0) /
+          team2Players.length
+        : 0;
+
+    return {
+      demoId,
+      players: ratings,
+      teamAverages: {
+        team1: {
+          avgRating: Math.round(team1AvgRating * 1000) / 1000,
+          label: getRatingLabel(team1AvgRating),
+          playerCount: team1Players.length,
+        },
+        team2: {
+          avgRating: Math.round(team2AvgRating * 1000) / 1000,
+          label: getRatingLabel(team2AvgRating),
+          playerCount: team2Players.length,
+        },
+      },
+      mvp:
+        ratings.length > 0
+          ? ratings.reduce((a, b) =>
+              a.rating.rating > b.rating.rating ? a : b,
+            )
+          : null,
+    };
+  }
+
+  /**
+   * Get detailed rating for a specific player in a demo
+   */
+  async getPlayerRating(demoId: string, steamId: string) {
+    this.logger.debug(`Getting player rating for ${steamId} in ${demoId}`);
+    const player = await this.getPlayerMetrics(demoId, steamId);
+
+    if (!player) {
+      throw new NotFoundException(
+        `Player ${steamId} not found in demo ${demoId}`,
+      );
+    }
+
+    // Get improvement suggestions
+    const improvements = analyzeImprovementPotential(player.rating.components);
+
+    return {
+      demoId,
+      steamId: player.steamId,
+      name: player.name,
+      team: player.teamNum,
+      rating: player.rating,
+      ratingLabel: player.ratingLabel,
+      detailedStats: {
+        kast: player.kast,
+        combat: player.combat,
+        impact: player.impact,
+        openings: {
+          wins: player.openings.wins,
+          losses: player.openings.losses,
+          winRate: player.openings.winRate,
+        },
+        clutches: {
+          won: player.clutches.won,
+          total: player.clutches.total,
+          successRate: player.clutches.successRate,
+        },
+      },
+      improvements,
+    };
+  }
+
+  /**
+   * Get rating history for a player across matches
+   */
+  async getPlayerRatingHistory(
+    steamId: string,
+    options: { limit?: number; map?: string } = {},
+  ): Promise<{
+    steamId: string;
+    matchCount: number;
+    history: Array<{
+      demoId: string;
+      map: string;
+      playedAt: Date | null;
+      score: string;
+      rating: number;
+      ratingLabel: string;
+      components: RatingComponents;
+      kd: number;
+      adr: number;
+    }>;
+    statistics: {
+      avgRating: number;
+      minRating: number;
+      maxRating: number;
+      trend: number;
+      trendLabel: string;
+    };
+  }> {
+    const { limit = 20, map } = options;
+    this.logger.debug(`Getting rating history for ${steamId}`);
+
+    // Find demos where this player participated
+    const demos = await this.prisma.demo.findMany({
+      where: {
+        playerStats: {
+          some: { steamId },
+        },
+        ...(map && { mapName: map }),
+      },
+      select: {
+        id: true,
+        mapName: true,
+        playedAt: true,
+        team1Score: true,
+        team2Score: true,
+      },
+      orderBy: {
+        playedAt: "desc",
+      },
+      take: limit,
+    });
+
+    // Define the history entry type
+    type RatingHistoryEntry = {
+      demoId: string;
+      map: string;
+      playedAt: Date | null;
+      score: string;
+      rating: number;
+      ratingLabel: string;
+      components: RatingComponents;
+      kd: number;
+      adr: number;
+    };
+
+    // Get ratings for each demo
+    const history: (RatingHistoryEntry | null)[] = await Promise.all(
+      demos.map(async (demo): Promise<RatingHistoryEntry | null> => {
+        try {
+          const playerMetrics = await this.getPlayerMetricsFromStorage(demo.id);
+          const player = playerMetrics.find((p) => p.steamId === steamId);
+
+          if (!player) {
+            return null;
+          }
+
+          return {
+            demoId: demo.id,
+            map: demo.mapName,
+            playedAt: demo.playedAt,
+            score: `${demo.team1Score}-${demo.team2Score}`,
+            rating: player.rating.rating,
+            ratingLabel: player.ratingLabel,
+            components: player.rating.components,
+            kd: player.combat.kd,
+            adr: player.combat.adr,
+          };
+        } catch {
+          // Skip demos without analysis
+          return null;
+        }
+      }),
+    );
+
+    const validHistory: RatingHistoryEntry[] = history.filter(
+      (h): h is RatingHistoryEntry => h !== null,
+    );
+
+    // Calculate statistics
+    const ratings: number[] = validHistory.map((h) => h.rating);
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length
+        : 0;
+
+    const minRating = ratings.length > 0 ? Math.min(...ratings) : 0;
+    const maxRating = ratings.length > 0 ? Math.max(...ratings) : 0;
+
+    // Calculate trend (positive = improving, negative = declining)
+    let trend = 0;
+    if (validHistory.length >= 5) {
+      const recentAvg =
+        validHistory
+          .slice(0, 5)
+          .reduce((sum: number, h: RatingHistoryEntry) => sum + h.rating, 0) /
+        5;
+      const olderAvg =
+        validHistory
+          .slice(-5)
+          .reduce((sum: number, h: RatingHistoryEntry) => sum + h.rating, 0) /
+        5;
+      trend = Math.round((recentAvg - olderAvg) * 1000) / 1000;
+    }
+
+    return {
+      steamId,
+      matchCount: validHistory.length,
+      history: validHistory,
+      statistics: {
+        avgRating: Math.round(avgRating * 1000) / 1000,
+        minRating: Math.round(minRating * 1000) / 1000,
+        maxRating: Math.round(maxRating * 1000) / 1000,
+        trend,
+        trendLabel:
+          trend > 0.02 ? "Improving" : trend < -0.02 ? "Declining" : "Stable",
+      },
+    };
+  }
+
+  /**
+   * Simulate rating with modified stats (what-if analysis)
+   */
+  async simulatePlayerRating(
+    demoId: string,
+    steamId: string,
+    modifications: Partial<RatingComponents>,
+  ) {
+    this.logger.debug(`Simulating rating for ${steamId} in ${demoId}`);
+    const player = await this.getPlayerMetrics(demoId, steamId);
+
+    if (!player) {
+      throw new NotFoundException(
+        `Player ${steamId} not found in demo ${demoId}`,
+      );
+    }
+
+    const baseComponents = player.rating.components;
+    const simulation = simulateRating(baseComponents, modifications);
+
+    return {
+      demoId,
+      steamId,
+      name: player.name,
+      original: {
+        rating: simulation.originalRating,
+        label: getRatingLabel(simulation.originalRating),
+        components: baseComponents,
+      },
+      simulated: {
+        rating: simulation.newRating,
+        label: getRatingLabel(simulation.newRating),
+        components: {
+          ...baseComponents,
+          ...modifications,
+        },
+      },
+      change: simulation.change,
+      changePercent:
+        Math.round((simulation.change / simulation.originalRating) * 10000) /
+        100,
+      modifications,
+      insight: this.generateSimulationInsight(simulation, modifications),
+    };
+  }
+
+  /**
+   * Get improvement suggestions to reach a target rating
+   */
+  async getPlayerRatingImprovements(
+    demoId: string,
+    steamId: string,
+    targetRating: number = 1.1,
+  ) {
+    this.logger.debug(
+      `Getting rating improvements for ${steamId} in ${demoId}`,
+    );
+    const player = await this.getPlayerMetrics(demoId, steamId);
+
+    if (!player) {
+      throw new NotFoundException(
+        `Player ${steamId} not found in demo ${demoId}`,
+      );
+    }
+
+    const improvements = analyzeImprovementPotential(
+      player.rating.components,
+      targetRating,
+    );
+
+    const currentRating = player.rating.rating;
+    const ratingGap = targetRating - currentRating;
+
+    return {
+      demoId,
+      steamId,
+      name: player.name,
+      currentRating,
+      currentLabel: player.ratingLabel,
+      targetRating,
+      targetLabel: getRatingLabel(targetRating),
+      ratingGap: Math.round(ratingGap * 1000) / 1000,
+      alreadyAchieved: ratingGap <= 0,
+      improvements: ratingGap > 0 ? improvements : [],
+      recommendations: this.generateImprovementRecommendations(
+        improvements,
+        player,
+      ),
+    };
+  }
+
+  /**
+   * Get demo leaderboard sorted by rating
+   */
+  async getDemoLeaderboard(demoId: string) {
+    this.logger.debug(`Getting leaderboard for ${demoId}`);
+    const playerMetrics = await this.getPlayerMetricsFromStorage(demoId);
+
+    const leaderboard = [...playerMetrics]
+      .sort((a, b) => b.rating.rating - a.rating.rating)
+      .map((p, index) => ({
+        rank: index + 1,
+        steamId: p.steamId,
+        name: p.name,
+        team: p.teamNum,
+        rating: p.rating.rating,
+        ratingLabel: p.ratingLabel,
+        kast: p.kast.kast,
+        adr: p.combat.adr,
+        kd: p.combat.kd,
+        impact: p.impact.impact,
+        highlights: this.getPlayerHighlights(p, playerMetrics),
+      }));
+
+    return {
+      demoId,
+      leaderboard,
+      mvp: leaderboard[0] || null,
+      highlights: {
+        highestKAST: this.findTopPlayer(playerMetrics, (p) => p.kast.kast),
+        highestADR: this.findTopPlayer(playerMetrics, (p) => p.combat.adr),
+        highestImpact: this.findTopPlayer(
+          playerMetrics,
+          (p) => p.impact.impact,
+        ),
+        bestClutcher: this.findTopPlayer(
+          playerMetrics.filter((p) => p.clutches.total > 0),
+          (p) => p.clutches.successRate,
+        ),
+      },
+    };
+  }
+
+  // ===========================================================================
+  // RATING HELPER METHODS
+  // ===========================================================================
+
+  private generateSimulationInsight(
+    simulation: { newRating: number; change: number; originalRating: number },
+    modifications: Partial<RatingComponents>,
+  ): string {
+    const modKeys = Object.keys(modifications) as (keyof RatingComponents)[];
+    if (modKeys.length === 0) {
+      return "No modifications applied.";
+    }
+
+    const changePercent = Math.abs(
+      Math.round((simulation.change / simulation.originalRating) * 100),
+    );
+
+    if (simulation.change > 0) {
+      return `Improving ${modKeys.join(", ")} would increase your rating by ${changePercent}%.`;
+    } else if (simulation.change < 0) {
+      return `These changes would decrease your rating by ${changePercent}%.`;
+    }
+    return "These changes would not significantly impact your rating.";
+  }
+
+  private generateImprovementRecommendations(
+    improvements: ReturnType<typeof analyzeImprovementPotential>,
+    player: PlayerMatchMetricsResult,
+  ): string[] {
+    const recommendations: string[] = [];
+
+    // Sort by feasibility
+    const easy = improvements.filter((i) => i.feasibility === "easy");
+    const moderate = improvements.filter((i) => i.feasibility === "moderate");
+
+    const easiest = easy[0];
+    if (easiest) {
+      if (easiest.component === "KAST") {
+        recommendations.push(
+          `Focus on survival: aim for ${Math.round(easiest.targetValue)}% KAST (currently ${Math.round(easiest.currentValue)}%)`,
+        );
+      } else if (easiest.component === "ADR") {
+        recommendations.push(
+          `Deal more damage per round: target ${Math.round(easiest.targetValue)} ADR (currently ${Math.round(easiest.currentValue)})`,
+        );
+      }
+    }
+
+    if (player.openings.winRate < 50) {
+      recommendations.push(
+        "Improve opening duel win rate - consider trading more effectively with teammates",
+      );
+    }
+
+    if (player.utility.utilityDamagePerRound < 10) {
+      recommendations.push(
+        "Increase utility damage - practice grenade lineups and coordinate with team",
+      );
+    }
+
+    const mod = moderate[0];
+    if (mod && recommendations.length < 3) {
+      recommendations.push(
+        `Work on ${mod.component}: improve from ${Math.round(mod.currentValue * 100) / 100} to ${Math.round(mod.targetValue * 100) / 100}`,
+      );
+    }
+
+    return recommendations.slice(0, 3);
+  }
+
+  private getPlayerHighlights(
+    player: PlayerMatchMetricsResult,
+    allPlayers: readonly PlayerMatchMetricsResult[],
+  ): string[] {
+    const highlights: string[] = [];
+
+    // Check if top in any category
+    const sortedByRating = [...allPlayers].sort(
+      (a, b) => b.rating.rating - a.rating.rating,
+    );
+    const sortedByADR = [...allPlayers].sort(
+      (a, b) => b.combat.adr - a.combat.adr,
+    );
+    const sortedByKAST = [...allPlayers].sort(
+      (a, b) => b.kast.kast - a.kast.kast,
+    );
+
+    if (sortedByRating[0]?.steamId === player.steamId) {
+      highlights.push("MVP");
+    }
+    if (sortedByADR[0]?.steamId === player.steamId) {
+      highlights.push("Highest ADR");
+    }
+    if (sortedByKAST[0]?.steamId === player.steamId) {
+      highlights.push("Best KAST");
+    }
+    if (player.clutches.won >= 2) {
+      highlights.push(`${player.clutches.won} Clutches`);
+    }
+    if (player.openings.wins >= 3) {
+      highlights.push(`${player.openings.wins} Entry Kills`);
+    }
+
+    return highlights;
+  }
+
+  private findTopPlayer(
+    players: readonly PlayerMatchMetricsResult[],
+    getValue: (p: PlayerMatchMetricsResult) => number,
+  ): { steamId: string; name: string; value: number } | null {
+    if (players.length === 0) return null;
+
+    const sorted = [...players].sort((a, b) => getValue(b) - getValue(a));
+    const top = sorted[0];
+
+    if (!top) return null;
+
+    return {
+      steamId: top.steamId,
+      name: top.name,
+      value: Math.round(getValue(top) * 100) / 100,
+    };
   }
 }
