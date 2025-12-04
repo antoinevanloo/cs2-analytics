@@ -1,0 +1,138 @@
+# CS2 Analytics - Read Replicas Configuration
+# Use with: docker compose -f docker-compose.yml -f docker-compose.replicas.yml up
+#
+# Architecture:
+# - Primary (postgres) handles writes
+# - Replicas (postgres-replica-1, postgres-replica-2) handle reads
+# - PgBouncer routes queries to appropriate nodes
+#
+# For analytics workloads, route heavy read queries to replicas
+
+version: "3.9"
+
+services:
+  # ==========================================================================
+  # Primary PostgreSQL (Write Master)
+  # ==========================================================================
+  postgres:
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+      # Replication user
+      - POSTGRES_REPLICATION_USER=replicator
+      - POSTGRES_REPLICATION_PASSWORD=replicator_password
+    volumes:
+      - ./init-scripts/replication:/docker-entrypoint-initdb.d/replication
+    command: >
+      postgres
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c wal_level=replica
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c hot_standby=on
+
+  # ==========================================================================
+  # Read Replica 1
+  # ==========================================================================
+  postgres-replica-1:
+    image: postgres:16-alpine
+    container_name: cs2-postgres-replica-1
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=cs2analytics
+      - PGUSER=replicator
+      - PGPASSWORD=replicator_password
+    volumes:
+      - replica1-data:/var/lib/postgresql/data
+      - ./config/postgres/postgresql-replica.conf:/etc/postgresql/postgresql.conf:ro
+    command: >
+      bash -c "
+        # Wait for primary to be ready
+        until pg_isready -h postgres -p 5432; do
+          echo 'Waiting for primary...'
+          sleep 2
+        done
+
+        # If data directory is empty, run pg_basebackup
+        if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+          pg_basebackup -h postgres -D /var/lib/postgresql/data -U replicator -v -P -W -Xs -R
+        fi
+
+        # Start postgres in standby mode
+        postgres -c config_file=/etc/postgresql/postgresql.conf
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # Read Replica 2
+  # ==========================================================================
+  postgres-replica-2:
+    image: postgres:16-alpine
+    container_name: cs2-postgres-replica-2
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=cs2analytics
+      - PGUSER=replicator
+      - PGPASSWORD=replicator_password
+    volumes:
+      - replica2-data:/var/lib/postgresql/data
+      - ./config/postgres/postgresql-replica.conf:/etc/postgresql/postgresql.conf:ro
+    command: >
+      bash -c "
+        until pg_isready -h postgres -p 5432; do
+          echo 'Waiting for primary...'
+          sleep 2
+        done
+
+        if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+          pg_basebackup -h postgres -D /var/lib/postgresql/data -U replicator -v -P -W -Xs -R
+        fi
+
+        postgres -c config_file=/etc/postgresql/postgresql.conf
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # HAProxy - Load Balancer for Read Replicas
+  # ==========================================================================
+  haproxy:
+    image: haproxy:2.9-alpine
+    container_name: cs2-haproxy
+    ports:
+      - "5433:5433"  # Read-only port for analytics queries
+    volumes:
+      - ./config/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - postgres
+      - postgres-replica-1
+      - postgres-replica-2
+    networks:
+      - cs2-network
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  replica1-data:
+  replica2-data:

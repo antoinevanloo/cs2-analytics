@@ -1,0 +1,6 @@
+# PgBouncer userlist.txt
+# Format: "username" "password"
+# Passwords can be plain text or md5/scram-sha-256 hashed
+# For production, use SCRAM-SHA-256 hashed passwords
+
+"postgres" "postgres"

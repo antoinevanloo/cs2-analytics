@@ -3,10 +3,13 @@
  */
 
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiParam, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
 import { PlayerService } from "./player.service";
+import { Public } from "../../common/decorators";
 
 @ApiTags("players")
+@ApiBearerAuth()
+@Public() // All player endpoints are read-only and public
 @Controller({ path: "players", version: "1" })
 export class PlayerController {
   constructor(private readonly playerService: PlayerService) {}

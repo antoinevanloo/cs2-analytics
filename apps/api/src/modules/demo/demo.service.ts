@@ -1,5 +1,10 @@
 /**
  * Demo Service - Business logic for demo management with Prisma persistence
+ *
+ * Features:
+ * - Stream-based file upload (memory-efficient)
+ * - Hash calculation during write
+ * - Batch database operations for performance
  */
 
 import { Injectable, NotFoundException, Logger } from "@nestjs/common";
@@ -11,6 +16,8 @@ import { DemoStatus, GameMode, GrenadeType, Prisma } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import type { Readable } from "stream";
+import { writeStreamWithHash } from "../../common/streaming";
 import type { ParseOptionsDto } from "./dto/demo.dto";
 
 // Interfaces for parser data
@@ -161,6 +168,81 @@ export class DemoService {
       id,
       filename: data.filename,
       fileSize: data.buffer.length,
+      status: demo.status,
+      message: data.autoparse
+        ? "Demo uploaded and queued for parsing"
+        : "Demo uploaded successfully. Call POST /demos/:id/parse to start parsing.",
+    };
+  }
+
+  /**
+   * Stream-based upload - Memory efficient for large demo files
+   * Never loads entire file into memory
+   */
+  async uploadDemoStream(data: {
+    filename: string;
+    fileStream: Readable;
+    autoparse: boolean;
+  }) {
+    const id = crypto.randomUUID();
+    const filePath = path.join(this.demoStoragePath, `${id}.dem`);
+
+    // Write stream to disk while calculating hash
+    // This is memory-efficient: only chunks are in memory at any time
+    const { fileSize, fileHash } = await writeStreamWithHash(
+      data.fileStream,
+      filePath
+    );
+
+    this.logger.log(`Demo streamed to disk: ${filePath} (${fileSize} bytes)`);
+
+    // Check if demo already exists (after writing to get hash)
+    const existing = await this.prisma.demo.findUnique({
+      where: { fileHash },
+    });
+
+    if (existing) {
+      // Clean up the duplicate file
+      await fs.promises.unlink(filePath).catch(() => {
+        // Ignore cleanup errors
+      });
+
+      return {
+        id: existing.id,
+        filename: existing.filename,
+        fileSize: existing.fileSize,
+        status: existing.status,
+        message: "Demo already exists",
+        existing: true,
+      };
+    }
+
+    // Create demo record in database
+    const demo = await this.prisma.demo.create({
+      data: {
+        id,
+        filename: data.filename,
+        fileSize,
+        fileHash,
+        storagePath: filePath,
+        storageType: "LOCAL",
+        mapName: "unknown",
+        tickRate: 64,
+        totalTicks: 0,
+        durationSeconds: 0,
+        status: DemoStatus.PENDING,
+      },
+    });
+
+    // Auto-parse if requested
+    if (data.autoparse) {
+      await this.queueForParsing(id, {});
+    }
+
+    return {
+      id,
+      filename: data.filename,
+      fileSize,
       status: demo.status,
       message: data.autoparse
         ? "Demo uploaded and queued for parsing"

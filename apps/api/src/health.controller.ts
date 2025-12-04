@@ -13,6 +13,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { PrismaService } from "./common/prisma";
 import { ParserService } from "./modules/demo/parser.service";
+import { Public } from "./common/decorators";
 
 interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
@@ -29,6 +30,7 @@ interface HealthStatus {
 
 @ApiTags("health")
 @Controller()
+@Public() // All health endpoints are public
 export class HealthController {
   private readonly startTime = Date.now();
 

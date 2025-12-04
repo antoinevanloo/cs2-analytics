@@ -3,10 +3,13 @@
  */
 
 import { Controller, Get, Param, Query, ParseIntPipe } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiParam, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
 import { RoundService } from "./round.service";
+import { Public } from "../../common/decorators";
 
 @ApiTags("rounds")
+@ApiBearerAuth()
+@Public() // All round endpoints are read-only and public
 @Controller({ path: "rounds", version: "1" })
 export class RoundController {
   constructor(private readonly roundService: RoundService) {}
