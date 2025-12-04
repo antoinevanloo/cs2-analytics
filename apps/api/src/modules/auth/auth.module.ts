@@ -29,7 +29,10 @@ import { AuthController } from "./auth.controller";
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>("JWT_SECRET", "cs2-analytics-dev-secret-change-in-prod"),
+        secret: configService.get<string>(
+          "JWT_SECRET",
+          "cs2-analytics-dev-secret-change-in-prod",
+        ),
         signOptions: {
           expiresIn: configService.get<number>("JWT_EXPIRES_IN_SECONDS", 3600), // 1h in seconds
         },

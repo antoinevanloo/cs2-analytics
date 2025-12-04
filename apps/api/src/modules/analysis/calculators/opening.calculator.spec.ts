@@ -5,7 +5,11 @@
  * Opening duels are the first kills of each round.
  */
 
-import { calculateOpeningDuels, getOpeningLabel, calculateTeamOpenings } from "./opening.calculator";
+import {
+  calculateOpeningDuels,
+  getOpeningLabel,
+  calculateTeamOpenings,
+} from "./opening.calculator";
 import type { KillInput } from "../types/inputs.types";
 
 describe("Opening Calculator", () => {
@@ -152,9 +156,24 @@ describe("Opening Calculator", () => {
       ]);
 
       const allKills: KillInput[] = [
-        createKill({ tick: 5000, roundNumber: 1, attackerSteamId: steamId, victimSteamId: "enemy1" }),
-        createKill({ tick: 10000, roundNumber: 2, attackerSteamId: "enemy1", victimSteamId: steamId }),
-        createKill({ tick: 15000, roundNumber: 3, attackerSteamId: steamId, victimSteamId: "enemy2" }),
+        createKill({
+          tick: 5000,
+          roundNumber: 1,
+          attackerSteamId: steamId,
+          victimSteamId: "enemy1",
+        }),
+        createKill({
+          tick: 10000,
+          roundNumber: 2,
+          attackerSteamId: "enemy1",
+          victimSteamId: steamId,
+        }),
+        createKill({
+          tick: 15000,
+          roundNumber: 3,
+          attackerSteamId: steamId,
+          victimSteamId: "enemy2",
+        }),
       ];
 
       const result = calculateOpeningDuels({
@@ -192,10 +211,30 @@ describe("Opening Calculator", () => {
       ]);
 
       const allKills: KillInput[] = [
-        createKill({ tick: 5000, roundNumber: 1, attackerSteamId: steamId, victimSteamId: "enemy1" }),
-        createKill({ tick: 10000, roundNumber: 2, attackerSteamId: steamId, victimSteamId: "enemy1" }),
-        createKill({ tick: 15000, roundNumber: 3, attackerSteamId: "enemy1", victimSteamId: steamId }),
-        createKill({ tick: 20000, roundNumber: 4, attackerSteamId: "enemy1", victimSteamId: steamId }),
+        createKill({
+          tick: 5000,
+          roundNumber: 1,
+          attackerSteamId: steamId,
+          victimSteamId: "enemy1",
+        }),
+        createKill({
+          tick: 10000,
+          roundNumber: 2,
+          attackerSteamId: steamId,
+          victimSteamId: "enemy1",
+        }),
+        createKill({
+          tick: 15000,
+          roundNumber: 3,
+          attackerSteamId: "enemy1",
+          victimSteamId: steamId,
+        }),
+        createKill({
+          tick: 20000,
+          roundNumber: 4,
+          attackerSteamId: "enemy1",
+          victimSteamId: steamId,
+        }),
       ];
 
       const result = calculateOpeningDuels({
@@ -231,9 +270,24 @@ describe("Opening Calculator", () => {
 
     it("should calculate rating impact", () => {
       const allKills: KillInput[] = [
-        createKill({ tick: 5000, roundNumber: 1, attackerSteamId: steamId, victimSteamId: "enemy1" }),
-        createKill({ tick: 10000, roundNumber: 2, attackerSteamId: steamId, victimSteamId: "enemy1" }),
-        createKill({ tick: 15000, roundNumber: 3, attackerSteamId: "enemy1", victimSteamId: steamId }),
+        createKill({
+          tick: 5000,
+          roundNumber: 1,
+          attackerSteamId: steamId,
+          victimSteamId: "enemy1",
+        }),
+        createKill({
+          tick: 10000,
+          roundNumber: 2,
+          attackerSteamId: steamId,
+          victimSteamId: "enemy1",
+        }),
+        createKill({
+          tick: 15000,
+          roundNumber: 3,
+          attackerSteamId: "enemy1",
+          victimSteamId: steamId,
+        }),
       ];
 
       const result = calculateOpeningDuels({
@@ -317,12 +371,22 @@ describe("Opening Calculator", () => {
         {
           steamId: "p1",
           name: "Player1",
-          openings: createOpeningMetrics({ wins: 3, losses: 1, total: 4, winRate: 75 }),
+          openings: createOpeningMetrics({
+            wins: 3,
+            losses: 1,
+            total: 4,
+            winRate: 75,
+          }),
         },
         {
           steamId: "p2",
           name: "Player2",
-          openings: createOpeningMetrics({ wins: 5, losses: 3, total: 8, winRate: 62.5 }),
+          openings: createOpeningMetrics({
+            wins: 5,
+            losses: 3,
+            total: 8,
+            winRate: 62.5,
+          }),
         },
       ];
 
@@ -371,12 +435,14 @@ function createKill(overrides: Partial<KillInput> = {}): KillInput {
   };
 }
 
-function createOpeningMetrics(overrides: {
-  wins?: number;
-  losses?: number;
-  total?: number;
-  winRate?: number;
-} = {}) {
+function createOpeningMetrics(
+  overrides: {
+    wins?: number;
+    losses?: number;
+    total?: number;
+    winRate?: number;
+  } = {},
+) {
   return {
     total: overrides.total ?? 0,
     wins: overrides.wins ?? 0,

@@ -89,13 +89,13 @@ const IMPACT_WEIGHTS = {
   /** Penalty for opening deaths */
   OPENING_DEATH: -0.08,
   /** Weight for double kills */
-  DOUBLE_KILL: 0.10,
+  DOUBLE_KILL: 0.1,
   /** Weight for triple kills */
-  TRIPLE_KILL: 0.20,
+  TRIPLE_KILL: 0.2,
   /** Weight for quad kills */
   QUAD_KILL: 0.35,
   /** Weight for aces */
-  ACE: 0.50,
+  ACE: 0.5,
   /** Weight for clutch wins */
   CLUTCH_WIN: 0.25,
   /** Weight for trade kills */
@@ -208,7 +208,9 @@ export function calculateImpact(input: ImpactInput): ImpactResult {
  * @param inputs - Array of match data
  * @returns Weighted average impact
  */
-export function calculateAggregateImpact(inputs: readonly ImpactInput[]): ImpactResult {
+export function calculateAggregateImpact(
+  inputs: readonly ImpactInput[],
+): ImpactResult {
   if (inputs.length === 0) {
     return {
       impact: 0,
@@ -249,7 +251,9 @@ export function calculateAggregateImpact(inputs: readonly ImpactInput[]): Impact
 /**
  * Determine impact tier from rating
  */
-export function getImpactTier(impact: number): "elite" | "high" | "average" | "low" {
+export function getImpactTier(
+  impact: number,
+): "elite" | "high" | "average" | "low" {
   if (impact >= IMPACT_TIERS.ELITE) return "elite";
   if (impact >= IMPACT_TIERS.HIGH) return "high";
   if (impact >= IMPACT_TIERS.AVERAGE) return "average";
@@ -261,8 +265,12 @@ export function getImpactTier(impact: number): "elite" | "high" | "average" | "l
  */
 export function compareImpact(
   playerImpact: number,
-  peerImpact: number
-): { difference: number; percentDiff: number; assessment: "above" | "average" | "below" } {
+  peerImpact: number,
+): {
+  difference: number;
+  percentDiff: number;
+  assessment: "above" | "average" | "below";
+} {
   const difference = playerImpact - peerImpact;
   const percentDiff = peerImpact > 0 ? (difference / peerImpact) * 100 : 0;
 

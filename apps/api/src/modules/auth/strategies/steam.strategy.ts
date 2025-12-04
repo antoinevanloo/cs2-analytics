@@ -50,7 +50,10 @@ export interface SteamProfile {
 }
 
 @Injectable()
-export class SteamOAuthStrategy extends PassportStrategy(SteamStrategy, "steam") {
+export class SteamOAuthStrategy extends PassportStrategy(
+  SteamStrategy,
+  "steam",
+) {
   private readonly logger = new Logger(SteamOAuthStrategy.name);
 
   constructor(
@@ -60,9 +63,12 @@ export class SteamOAuthStrategy extends PassportStrategy(SteamStrategy, "steam")
     const apiKey = configService.get<string>("STEAM_API_KEY");
     const returnUrl = configService.get<string>(
       "STEAM_RETURN_URL",
-      "http://localhost:3001/v1/auth/steam/callback"
+      "http://localhost:3001/v1/auth/steam/callback",
     );
-    const realm = configService.get<string>("STEAM_REALM", "http://localhost:3001/");
+    const realm = configService.get<string>(
+      "STEAM_REALM",
+      "http://localhost:3001/",
+    );
 
     if (!apiKey) {
       throw new Error("STEAM_API_KEY environment variable is required");
@@ -82,10 +88,12 @@ export class SteamOAuthStrategy extends PassportStrategy(SteamStrategy, "steam")
   async validate(
     _identifier: string,
     profile: SteamPassportProfile,
-    done: (error: Error | null, user?: SteamProfile) => void
+    done: (error: Error | null, user?: SteamProfile) => void,
   ): Promise<void> {
     try {
-      this.logger.log(`Steam authentication for: ${profile.displayName} (${profile.id})`);
+      this.logger.log(
+        `Steam authentication for: ${profile.displayName} (${profile.id})`,
+      );
 
       // Extract Steam profile data
       const steamProfile: SteamProfile = {

@@ -20,10 +20,7 @@
  * @module analysis/calculators/impact
  */
 
-import type {
-  KillInput,
-  RoundPlayerStatsInput,
-} from "../types/inputs.types";
+import type { KillInput, RoundPlayerStatsInput } from "../types/inputs.types";
 import type {
   ImpactMetrics,
   MultiKillStats,
@@ -97,7 +94,8 @@ export function calculateImpact(input: ImpactCalculationInput): ImpactMetrics {
   const clutchImpact = calculateClutchImpact(roundStats, totalRounds);
 
   // Total impact is sum of all components
-  const totalImpact = baseImpact + multiKillImpact + openingImpact + clutchImpact;
+  const totalImpact =
+    baseImpact + multiKillImpact + openingImpact + clutchImpact;
 
   return {
     impact: round3(totalImpact),
@@ -116,7 +114,7 @@ export function calculateImpact(input: ImpactCalculationInput): ImpactMetrics {
  * @returns Multi-kill counts
  */
 export function calculateMultiKills(
-  roundStats: readonly RoundPlayerStatsInput[]
+  roundStats: readonly RoundPlayerStatsInput[],
 ): MultiKillStats {
   let twoK = 0;
   let threeK = 0;
@@ -165,7 +163,7 @@ export function calculateMultiKills(
  */
 function calculateMultiKillImpact(
   multiKills: MultiKillStats,
-  totalRounds: number
+  totalRounds: number,
 ): number {
   if (totalRounds === 0) return 0;
 
@@ -192,7 +190,7 @@ function calculateMultiKillImpact(
  */
 export function calculateOpenings(
   steamId: string,
-  allKills: readonly KillInput[]
+  allKills: readonly KillInput[],
 ): OpeningSummary {
   // Group kills by round
   const killsByRound = new Map<number, KillInput[]>();
@@ -242,7 +240,7 @@ export function calculateOpenings(
  */
 function calculateOpeningImpact(
   openings: OpeningSummary,
-  totalRounds: number
+  totalRounds: number,
 ): number {
   if (totalRounds === 0) return 0;
 
@@ -264,7 +262,7 @@ function calculateOpeningImpact(
  */
 function calculateClutchImpact(
   roundStats: readonly RoundPlayerStatsInput[],
-  totalRounds: number
+  totalRounds: number,
 ): number {
   if (totalRounds === 0) return 0;
 
@@ -304,9 +302,7 @@ export function getImpactLabel(impact: number): string {
  * @param impact - Impact metrics
  * @returns Analysis of impact sources
  */
-export function analyzeImpactSources(
-  impact: ImpactMetrics
-): {
+export function analyzeImpactSources(impact: ImpactMetrics): {
   primarySource: string;
   breakdown: { source: string; contribution: number }[];
 } {

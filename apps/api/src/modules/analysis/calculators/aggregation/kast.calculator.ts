@@ -117,7 +117,7 @@ export function calculateKast(rounds: readonly RoundKastData[]): KastResult {
  * @returns Map of match ID to KAST result
  */
 export function calculateKastByMatch(
-  matchRounds: ReadonlyMap<string, readonly RoundKastData[]>
+  matchRounds: ReadonlyMap<string, readonly RoundKastData[]>,
 ): Map<string, KastResult> {
   const results = new Map<string, KastResult>();
 
@@ -135,7 +135,7 @@ export function calculateKastByMatch(
  * @returns Single KAST result for all rounds combined
  */
 export function calculateAggregateKast(
-  allRounds: readonly RoundKastData[]
+  allRounds: readonly RoundKastData[],
 ): KastResult {
   return calculateKast(allRounds);
 }
@@ -147,7 +147,9 @@ export function calculateAggregateKast(
 /**
  * Determine KAST tier based on percentage
  */
-export function getKastTier(kast: number): "elite" | "good" | "average" | "poor" {
+export function getKastTier(
+  kast: number,
+): "elite" | "good" | "average" | "poor" {
   if (kast >= 75) return "elite";
   if (kast >= 70) return "good";
   if (kast >= 65) return "average";
@@ -159,7 +161,7 @@ export function getKastTier(kast: number): "elite" | "good" | "average" | "poor"
  */
 export function compareKast(
   playerKast: number,
-  peerKast: number
+  peerKast: number,
 ): "above" | "average" | "below" {
   const diff = playerKast - peerKast;
   if (diff > 3) return "above";

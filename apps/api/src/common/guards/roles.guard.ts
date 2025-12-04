@@ -23,10 +23,10 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // Get required roles from decorator
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredRoles = this.reflector.getAllAndOverride<string[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     // If no roles required, allow access
     if (!requiredRoles || requiredRoles.length === 0) {
@@ -46,7 +46,7 @@ export class RolesGuard implements CanActivate {
 
     if (!hasRole) {
       throw new ForbiddenException(
-        `Access denied. Required roles: ${requiredRoles.join(", ")}`
+        `Access denied. Required roles: ${requiredRoles.join(", ")}`,
       );
     }
 

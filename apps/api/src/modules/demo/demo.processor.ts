@@ -45,7 +45,7 @@ export class DemoProcessor extends WorkerHost {
   constructor(
     private demoService: DemoService,
     private parserService: ParserService,
-    @InjectQueue("demo-analysis") private analysisQueue: Queue<AnalysisJobData>
+    @InjectQueue("demo-analysis") private analysisQueue: Queue<AnalysisJobData>,
   ) {
     super();
   }
@@ -68,10 +68,14 @@ export class DemoProcessor extends WorkerHost {
         extractGrenades?: boolean;
         extractChat?: boolean;
       } = {};
-      if (options.extractTicks !== undefined) parseOptions.extractTicks = options.extractTicks;
-      if (options.tickInterval !== undefined) parseOptions.tickInterval = options.tickInterval;
-      if (options.extractGrenades !== undefined) parseOptions.extractGrenades = options.extractGrenades;
-      if (options.extractChat !== undefined) parseOptions.extractChat = options.extractChat;
+      if (options.extractTicks !== undefined)
+        parseOptions.extractTicks = options.extractTicks;
+      if (options.tickInterval !== undefined)
+        parseOptions.tickInterval = options.tickInterval;
+      if (options.extractGrenades !== undefined)
+        parseOptions.extractGrenades = options.extractGrenades;
+      if (options.extractChat !== undefined)
+        parseOptions.extractChat = options.extractChat;
 
       const result = await this.parserService.parseDemo(filePath, parseOptions);
 
@@ -79,7 +83,9 @@ export class DemoProcessor extends WorkerHost {
         throw new Error(result.error || "Parsing failed");
       }
 
-      this.logger.log(`Parser returned: events=${result.events?.length || 0}, rounds=${result.rounds?.length || 0}, players=${result.players?.length || 0}, grenades=${result.grenades?.length || 0}, chat=${result.chat_messages?.length || 0}`);
+      this.logger.log(
+        `Parser returned: events=${result.events?.length || 0}, rounds=${result.rounds?.length || 0}, players=${result.players?.length || 0}, grenades=${result.grenades?.length || 0}, chat=${result.chat_messages?.length || 0}`,
+      );
 
       // Store results and mark as completed
       await this.demoService.markAsCompleted(demoId, {
@@ -88,7 +94,8 @@ export class DemoProcessor extends WorkerHost {
         rounds: result.rounds as import("./demo.service").DemoRound[],
         events: result.events as import("./demo.service").DemoEvent[],
         grenades: result.grenades as import("./demo.service").DemoGrenade[],
-        chat_messages: result.chat_messages as import("./demo.service").DemoChatMessage[],
+        chat_messages:
+          result.chat_messages as import("./demo.service").DemoChatMessage[],
       });
 
       this.logger.log(`Demo ${demoId} parsed successfully`);
@@ -126,7 +133,7 @@ export class DemoProcessor extends WorkerHost {
           delay: 1000,
           // Job ID to prevent duplicate analysis
           jobId: `analysis-${demoId}`,
-        }
+        },
       );
 
       this.logger.log(`Queued analysis job ${job.id} for demo ${demoId}`);
@@ -134,7 +141,7 @@ export class DemoProcessor extends WorkerHost {
       // Don't fail the parsing job if analysis queueing fails
       // Analysis can be triggered manually or retried later
       this.logger.warn(
-        `Failed to queue analysis for demo ${demoId}: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to queue analysis for demo ${demoId}: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }

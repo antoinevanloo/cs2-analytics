@@ -31,8 +31,20 @@ describe("Combat Calculator", () => {
     it("should calculate basic combat metrics correctly", () => {
       const roundStats: RoundPlayerStatsInput[] = [
         createRoundStats({ kills: 2, deaths: 1, assists: 1, damage: 120 }),
-        createRoundStats({ kills: 1, deaths: 0, assists: 0, damage: 80, roundNumber: 2 }),
-        createRoundStats({ kills: 0, deaths: 1, assists: 1, damage: 50, roundNumber: 3 }),
+        createRoundStats({
+          kills: 1,
+          deaths: 0,
+          assists: 0,
+          damage: 80,
+          roundNumber: 2,
+        }),
+        createRoundStats({
+          kills: 0,
+          deaths: 1,
+          assists: 1,
+          damage: 50,
+          roundNumber: 3,
+        }),
       ];
 
       const result = calculateCombatMetrics(roundStats);
@@ -82,9 +94,27 @@ describe("Combat Calculator", () => {
   describe("calculateCombatBySide", () => {
     it("should separate stats by CT and T side", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ kills: 2, deaths: 1, damage: 100, teamNum: 3, roundNumber: 1 }), // CT
-        createRoundStats({ kills: 1, deaths: 0, damage: 80, teamNum: 3, roundNumber: 2 }), // CT
-        createRoundStats({ kills: 3, deaths: 2, damage: 150, teamNum: 2, roundNumber: 3 }), // T
+        createRoundStats({
+          kills: 2,
+          deaths: 1,
+          damage: 100,
+          teamNum: 3,
+          roundNumber: 1,
+        }), // CT
+        createRoundStats({
+          kills: 1,
+          deaths: 0,
+          damage: 80,
+          teamNum: 3,
+          roundNumber: 2,
+        }), // CT
+        createRoundStats({
+          kills: 3,
+          deaths: 2,
+          damage: 150,
+          teamNum: 2,
+          roundNumber: 3,
+        }), // T
       ];
 
       const sideByRound = new Map<number, number>([
@@ -108,7 +138,13 @@ describe("Combat Calculator", () => {
 
     it("should return empty for side with no rounds", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ kills: 2, deaths: 1, damage: 100, teamNum: 3, roundNumber: 1 }), // CT only
+        createRoundStats({
+          kills: 2,
+          deaths: 1,
+          damage: 100,
+          teamNum: 3,
+          roundNumber: 1,
+        }), // CT only
       ];
 
       const sideByRound = new Map<number, number>([
@@ -430,7 +466,9 @@ describe("Combat Calculator", () => {
 // Test Helpers
 // ==============================================================================
 
-function createRoundStats(overrides: Partial<RoundPlayerStatsInput> = {}): RoundPlayerStatsInput {
+function createRoundStats(
+  overrides: Partial<RoundPlayerStatsInput> = {},
+): RoundPlayerStatsInput {
   return {
     steamId: "76561198000000001",
     roundNumber: 1,

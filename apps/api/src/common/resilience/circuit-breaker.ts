@@ -61,7 +61,7 @@ export class CircuitBreaker {
     if (!this.canExecute()) {
       throw new CircuitBreakerOpenError(
         `Circuit breaker is open for ${this.options.name}`,
-        this.nextAttemptTime - Date.now()
+        this.nextAttemptTime - Date.now(),
       );
     }
 
@@ -83,9 +83,14 @@ export class CircuitBreaker {
       fn(),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error(`Request timeout after ${this.options.requestTimeout}ms`)),
-          this.options.requestTimeout
-        )
+          () =>
+            reject(
+              new Error(
+                `Request timeout after ${this.options.requestTimeout}ms`,
+              ),
+            ),
+          this.options.requestTimeout,
+        ),
       ),
     ]);
   }
@@ -122,7 +127,9 @@ export class CircuitBreaker {
     switch (this.state) {
       case CircuitState.HALF_OPEN:
         this.successCount++;
-        this.logger.debug(`Half-open success ${this.successCount}/${this.options.successThreshold}`);
+        this.logger.debug(
+          `Half-open success ${this.successCount}/${this.options.successThreshold}`,
+        );
 
         if (this.successCount >= this.options.successThreshold) {
           this.transitionTo(CircuitState.CLOSED);
@@ -143,7 +150,9 @@ export class CircuitBreaker {
     const now = Date.now();
     this.failures.push(now);
 
-    this.logger.warn(`Failure recorded: ${error instanceof Error ? error.message : "Unknown error"}`);
+    this.logger.warn(
+      `Failure recorded: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
 
     switch (this.state) {
       case CircuitState.HALF_OPEN:
@@ -180,7 +189,7 @@ export class CircuitBreaker {
         this.successCount = 0;
         this.logger.warn(
           `Circuit OPENED after ${this.failures.length} failures. ` +
-            `Will retry in ${this.options.resetTimeout}ms`
+            `Will retry in ${this.options.resetTimeout}ms`,
         );
         break;
 
@@ -211,7 +220,8 @@ export class CircuitBreaker {
       state: this.state,
       failures: this.failures.length,
       successCount: this.successCount,
-      nextAttemptTime: this.state === CircuitState.OPEN ? this.nextAttemptTime : null,
+      nextAttemptTime:
+        this.state === CircuitState.OPEN ? this.nextAttemptTime : null,
     };
   }
 
@@ -230,7 +240,7 @@ export class CircuitBreaker {
 export class CircuitBreakerOpenError extends Error {
   constructor(
     message: string,
-    public readonly retryAfterMs: number
+    public readonly retryAfterMs: number,
   ) {
     super(message);
     this.name = "CircuitBreakerOpenError";

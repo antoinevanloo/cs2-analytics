@@ -20,7 +20,10 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { AnalysisType } from "@prisma/client";
 import { MatchAnalysisService } from "./services/match-analysis.service";
-import { PlayerMetricsService, type PlayerMatchMetricsResult } from "./services/player-metrics.service";
+import {
+  PlayerMetricsService,
+  type PlayerMatchMetricsResult,
+} from "./services/player-metrics.service";
 import {
   AnalysisStorageService,
   type StoredAnalysisResults,
@@ -35,7 +38,8 @@ export class AnalysisService {
     private readonly matchAnalysis: MatchAnalysisService,
     private readonly playerMetrics: PlayerMetricsService,
     private readonly storage: AnalysisStorageService,
-    @InjectQueue("demo-analysis") private readonly analysisQueue: Queue<AnalysisJobData>
+    @InjectQueue("demo-analysis")
+    private readonly analysisQueue: Queue<AnalysisJobData>,
   ) {}
 
   // ===========================================================================
@@ -46,9 +50,14 @@ export class AnalysisService {
    * Get stored analysis or compute and store if not available
    * This is the core of the storage-first strategy
    */
-  private async getOrComputeAnalysis(demoId: string): Promise<StoredAnalysisResults> {
+  private async getOrComputeAnalysis(
+    demoId: string,
+  ): Promise<StoredAnalysisResults> {
     // Try to get from storage first
-    const stored = await this.storage.getLatestAnalysis(demoId, AnalysisType.ADVANCED);
+    const stored = await this.storage.getLatestAnalysis(
+      demoId,
+      AnalysisType.ADVANCED,
+    );
 
     if (stored?.results) {
       this.logger.debug(`Cache hit for demo ${demoId}`);
@@ -63,18 +72,25 @@ export class AnalysisService {
   /**
    * Compute full analysis and store results
    */
-  private async computeAndStore(demoId: string): Promise<StoredAnalysisResults> {
+  private async computeAndStore(
+    demoId: string,
+  ): Promise<StoredAnalysisResults> {
     const startTime = Date.now();
 
     // Compute all metrics
-    const [playerMetrics, matchOverview, roundAnalysis, economyFlow, tradeAnalysis] =
-      await Promise.all([
-        this.playerMetrics.calculateAllPlayersMetrics(demoId),
-        this.matchAnalysis.getMatchOverview(demoId),
-        this.matchAnalysis.getRoundAnalysis(demoId),
-        this.matchAnalysis.getEconomyFlow(demoId),
-        this.matchAnalysis.getTradeAnalysis(demoId),
-      ]);
+    const [
+      playerMetrics,
+      matchOverview,
+      roundAnalysis,
+      economyFlow,
+      tradeAnalysis,
+    ] = await Promise.all([
+      this.playerMetrics.calculateAllPlayersMetrics(demoId),
+      this.matchAnalysis.getMatchOverview(demoId),
+      this.matchAnalysis.getRoundAnalysis(demoId),
+      this.matchAnalysis.getEconomyFlow(demoId),
+      this.matchAnalysis.getTradeAnalysis(demoId),
+    ]);
 
     // Store results
     const record = await this.storage.storeFullMatchAnalysis(demoId, {
@@ -86,7 +102,9 @@ export class AnalysisService {
     });
 
     const duration = Date.now() - startTime;
-    this.logger.log(`Computed and stored analysis for demo ${demoId} in ${duration}ms`);
+    this.logger.log(
+      `Computed and stored analysis for demo ${demoId} in ${duration}ms`,
+    );
 
     return record.results!;
   }
@@ -95,9 +113,12 @@ export class AnalysisService {
    * Get player metrics from storage or compute
    */
   private async getPlayerMetricsFromStorage(
-    demoId: string
+    demoId: string,
   ): Promise<readonly PlayerMatchMetricsResult[]> {
-    const stored = await this.storage.getLatestAnalysis(demoId, AnalysisType.ADVANCED);
+    const stored = await this.storage.getLatestAnalysis(
+      demoId,
+      AnalysisType.ADVANCED,
+    );
 
     if (stored?.results?.playerMetrics) {
       return stored.results.playerMetrics;
@@ -159,7 +180,10 @@ export class AnalysisService {
     this.logger.debug(`Getting clutches for ${demoId}`);
     const playerMetrics = await this.getPlayerMetricsFromStorage(demoId);
 
-    const totalClutches = playerMetrics.reduce((sum, p) => sum + p.clutches.total, 0);
+    const totalClutches = playerMetrics.reduce(
+      (sum, p) => sum + p.clutches.total,
+      0,
+    );
     const totalWon = playerMetrics.reduce((sum, p) => sum + p.clutches.won, 0);
 
     return {
@@ -168,11 +192,26 @@ export class AnalysisService {
       stats: {
         total: totalClutches,
         won: totalWon,
-        by1v1: playerMetrics.reduce((sum, p) => sum + p.clutches.breakdown["1v1"].wins, 0),
-        by1v2: playerMetrics.reduce((sum, p) => sum + p.clutches.breakdown["1v2"].wins, 0),
-        by1v3: playerMetrics.reduce((sum, p) => sum + p.clutches.breakdown["1v3"].wins, 0),
-        by1v4: playerMetrics.reduce((sum, p) => sum + p.clutches.breakdown["1v4"].wins, 0),
-        by1v5: playerMetrics.reduce((sum, p) => sum + p.clutches.breakdown["1v5"].wins, 0),
+        by1v1: playerMetrics.reduce(
+          (sum, p) => sum + p.clutches.breakdown["1v1"].wins,
+          0,
+        ),
+        by1v2: playerMetrics.reduce(
+          (sum, p) => sum + p.clutches.breakdown["1v2"].wins,
+          0,
+        ),
+        by1v3: playerMetrics.reduce(
+          (sum, p) => sum + p.clutches.breakdown["1v3"].wins,
+          0,
+        ),
+        by1v4: playerMetrics.reduce(
+          (sum, p) => sum + p.clutches.breakdown["1v4"].wins,
+          0,
+        ),
+        by1v5: playerMetrics.reduce(
+          (sum, p) => sum + p.clutches.breakdown["1v5"].wins,
+          0,
+        ),
         topClutchers: playerMetrics
           .filter((p) => p.clutches.won > 0)
           .map((p) => ({
@@ -220,44 +259,81 @@ export class AnalysisService {
       demoId,
       utility: {
         smoke: {
-          total: playerMetrics.reduce((sum, p) => sum + p.utility.smoke.thrown, 0),
+          total: playerMetrics.reduce(
+            (sum, p) => sum + p.utility.smoke.thrown,
+            0,
+          ),
           perRound:
-            playerMetrics.reduce((sum, p) => sum + p.utility.smoke.perRound, 0) /
-            playerMetrics.length,
+            playerMetrics.reduce(
+              (sum, p) => sum + p.utility.smoke.perRound,
+              0,
+            ) / playerMetrics.length,
         },
         flash: {
-          total: playerMetrics.reduce((sum, p) => sum + p.utility.flash.thrown, 0),
-          enemiesBlinded: playerMetrics.reduce((sum, p) => sum + p.utility.flash.enemiesBlinded, 0),
+          total: playerMetrics.reduce(
+            (sum, p) => sum + p.utility.flash.thrown,
+            0,
+          ),
+          enemiesBlinded: playerMetrics.reduce(
+            (sum, p) => sum + p.utility.flash.enemiesBlinded,
+            0,
+          ),
           teammatesBlinded: playerMetrics.reduce(
             (sum, p) => sum + p.utility.flash.teammatesBlinded,
-            0
+            0,
           ),
           avgEffectiveness:
-            playerMetrics.reduce((sum, p) => sum + p.utility.flash.effectivenessRate, 0) /
-            playerMetrics.length,
+            playerMetrics.reduce(
+              (sum, p) => sum + p.utility.flash.effectivenessRate,
+              0,
+            ) / playerMetrics.length,
         },
         he: {
-          total: playerMetrics.reduce((sum, p) => sum + p.utility.heGrenade.thrown, 0),
-          damage: playerMetrics.reduce((sum, p) => sum + p.utility.heGrenade.damage, 0),
+          total: playerMetrics.reduce(
+            (sum, p) => sum + p.utility.heGrenade.thrown,
+            0,
+          ),
+          damage: playerMetrics.reduce(
+            (sum, p) => sum + p.utility.heGrenade.damage,
+            0,
+          ),
         },
         molotov: {
-          total: playerMetrics.reduce((sum, p) => sum + p.utility.molotov.thrown, 0),
-          damage: playerMetrics.reduce((sum, p) => sum + p.utility.molotov.damage, 0),
+          total: playerMetrics.reduce(
+            (sum, p) => sum + p.utility.molotov.thrown,
+            0,
+          ),
+          damage: playerMetrics.reduce(
+            (sum, p) => sum + p.utility.molotov.damage,
+            0,
+          ),
         },
       },
       byTeam: {
         team1: {
-          utilityDamage: team1.reduce((sum, p) => sum + p.utility.totalUtilityDamage, 0),
+          utilityDamage: team1.reduce(
+            (sum, p) => sum + p.utility.totalUtilityDamage,
+            0,
+          ),
           utilityDPR:
             team1.length > 0
-              ? team1.reduce((sum, p) => sum + p.utility.utilityDamagePerRound, 0) / team1.length
+              ? team1.reduce(
+                  (sum, p) => sum + p.utility.utilityDamagePerRound,
+                  0,
+                ) / team1.length
               : 0,
         },
         team2: {
-          utilityDamage: team2.reduce((sum, p) => sum + p.utility.totalUtilityDamage, 0),
+          utilityDamage: team2.reduce(
+            (sum, p) => sum + p.utility.totalUtilityDamage,
+            0,
+          ),
           utilityDPR:
             team2.length > 0
-              ? team2.reduce((sum, p) => sum + p.utility.utilityDamagePerRound, 0) / team2.length
+              ? team2.reduce(
+                  (sum, p) => sum + p.utility.utilityDamagePerRound,
+                  0,
+                ) / team2.length
               : 0,
         },
       },
@@ -285,7 +361,8 @@ export class AnalysisService {
         tExecutes: [],
         rotations: [],
       },
-      message: "Position analysis requires tick-by-tick position data (future enhancement)",
+      message:
+        "Position analysis requires tick-by-tick position data (future enhancement)",
     };
   }
 
@@ -293,7 +370,10 @@ export class AnalysisService {
    * Get heatmaps
    * Note: Requires position data from parser (not yet implemented)
    */
-  async getHeatmaps(demoId: string, options: { type: string; team?: "T" | "CT" }) {
+  async getHeatmaps(
+    demoId: string,
+    options: { type: string; team?: "T" | "CT" },
+  ) {
     this.logger.debug(`Getting heatmaps for ${demoId}`);
 
     return {
@@ -302,7 +382,8 @@ export class AnalysisService {
       team: options.team || "all",
       data: [],
       bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0 },
-      message: "Heatmap generation requires tick-by-tick position data (future enhancement)",
+      message:
+        "Heatmap generation requires tick-by-tick position data (future enhancement)",
     };
   }
 
@@ -338,11 +419,11 @@ export class AnalysisService {
     // Rating comparison
     if (team1.avgRating > team2.avgRating + 0.2) {
       insights.push(
-        `Team 1 significantly outperformed Team 2 in overall rating (${team1.avgRating.toFixed(2)} vs ${team2.avgRating.toFixed(2)})`
+        `Team 1 significantly outperformed Team 2 in overall rating (${team1.avgRating.toFixed(2)} vs ${team2.avgRating.toFixed(2)})`,
       );
     } else if (team2.avgRating > team1.avgRating + 0.2) {
       insights.push(
-        `Team 2 significantly outperformed Team 1 in overall rating (${team2.avgRating.toFixed(2)} vs ${team1.avgRating.toFixed(2)})`
+        `Team 2 significantly outperformed Team 1 in overall rating (${team2.avgRating.toFixed(2)} vs ${team1.avgRating.toFixed(2)})`,
       );
     }
 
@@ -350,14 +431,20 @@ export class AnalysisService {
     if (team1.openingWinRate > 55) {
       strengths.push("Strong opening duel performance");
     } else if (team1.openingWinRate < 45) {
-      weaknesses.push("Poor opening duel performance - consider adjusting entry positions");
-      recommendations.push("Review entry positions and consider trading more effectively");
+      weaknesses.push(
+        "Poor opening duel performance - consider adjusting entry positions",
+      );
+      recommendations.push(
+        "Review entry positions and consider trading more effectively",
+      );
     }
 
     // Utility usage
     if (team1.utilityDamagePerRound < 10) {
       weaknesses.push("Low utility damage output");
-      recommendations.push("Focus on coordinating utility usage and practicing grenade lineups");
+      recommendations.push(
+        "Focus on coordinating utility usage and practicing grenade lineups",
+      );
     } else if (team1.utilityDamagePerRound > 20) {
       strengths.push("Excellent utility damage output");
     }
@@ -373,7 +460,9 @@ export class AnalysisService {
     // Key rounds analysis
     const ecoWins = roundAnalysis.keyRounds.filter((r) => r.type === "eco_win");
     if (ecoWins.length > 2) {
-      insights.push(`Multiple eco round wins (${ecoWins.length}) showing good discipline`);
+      insights.push(
+        `Multiple eco round wins (${ecoWins.length}) showing good discipline`,
+      );
     }
 
     return {
@@ -407,14 +496,15 @@ export class AnalysisService {
           } catch (error) {
             return { demoId, overview: null, error: String(error) };
           }
-        })
+        }),
       );
       results.demos = demoComparisons;
     }
 
     if (data.playerIds && data.playerIds.length > 0) {
       results.players = {
-        message: "Player comparison across demos requires aggregate stats (future enhancement)",
+        message:
+          "Player comparison across demos requires aggregate stats (future enhancement)",
         playerIds: data.playerIds,
       };
     }
@@ -488,7 +578,10 @@ export class AnalysisService {
         byADR: this.createRanking(players, (p) => p.combat.adr),
         byKAST: this.createRanking(players, (p) => p.kast.kast),
         byImpact: this.createRanking(players, (p) => p.impact.impact),
-        byUtility: this.createRanking(players, (p) => p.utility.utilityDamagePerRound),
+        byUtility: this.createRanking(
+          players,
+          (p) => p.utility.utilityDamagePerRound,
+        ),
       },
     };
   }
@@ -511,12 +604,18 @@ export class AnalysisService {
    */
   async queueAnalysis(
     demoId: string,
-    options: { type?: "full" | "players" | "match"; priority?: "high" | "normal" | "low" } = {}
+    options: {
+      type?: "full" | "players" | "match";
+      priority?: "high" | "normal" | "low";
+    } = {},
   ): Promise<{ jobId: string; message: string }> {
     const { type = "full", priority = "normal" } = options;
 
     // Check if already analyzed
-    const existing = await this.storage.getLatestAnalysis(demoId, AnalysisType.ADVANCED);
+    const existing = await this.storage.getLatestAnalysis(
+      demoId,
+      AnalysisType.ADVANCED,
+    );
     if (existing?.results) {
       return {
         jobId: existing.id,
@@ -531,7 +630,7 @@ export class AnalysisService {
       {
         priority: priority === "high" ? 1 : priority === "low" ? 20 : 10,
         jobId: `analysis-${demoId}-${Date.now()}`,
-      }
+      },
     );
 
     return {
@@ -549,7 +648,10 @@ export class AnalysisService {
     analyzedAt: string | null;
     summary: StoredAnalysisResults["summary"] | null;
   }> {
-    const analysis = await this.storage.getLatestAnalysis(demoId, AnalysisType.ADVANCED);
+    const analysis = await this.storage.getLatestAnalysis(
+      demoId,
+      AnalysisType.ADVANCED,
+    );
 
     if (!analysis) {
       return {
@@ -574,7 +676,7 @@ export class AnalysisService {
 
   private createRanking(
     players: readonly PlayerMatchMetricsResult[],
-    getValue: (p: PlayerMatchMetricsResult) => number
+    getValue: (p: PlayerMatchMetricsResult) => number,
   ): { steamId: string; name: string; value: number }[] {
     return [...players]
       .sort((a, b) => getValue(b) - getValue(a))

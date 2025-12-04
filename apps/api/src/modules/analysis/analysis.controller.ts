@@ -3,7 +3,13 @@
  */
 
 import { Controller, Get, Post, Param, Query, Body } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+} from "@nestjs/swagger";
 import { AnalysisService } from "./analysis.service";
 import { Public, Roles } from "../../common/decorators";
 
@@ -73,12 +79,15 @@ export class AnalysisController {
   @Public()
   @ApiOperation({ summary: "Generate heatmaps for the match" })
   @ApiParam({ name: "demoId", description: "Demo UUID" })
-  @ApiQuery({ name: "type", description: "Heatmap type (positions, kills, deaths)" })
+  @ApiQuery({
+    name: "type",
+    description: "Heatmap type (positions, kills, deaths)",
+  })
   @ApiQuery({ name: "team", required: false, description: "Filter by team" })
   async getHeatmaps(
     @Param("demoId") demoId: string,
     @Query("type") type: string,
-    @Query("team") team?: "T" | "CT"
+    @Query("team") team?: "T" | "CT",
   ) {
     const options: { type: string; team?: "T" | "CT" } = { type };
     if (team !== undefined) options.team = team;
@@ -96,7 +105,9 @@ export class AnalysisController {
   @Post("compare")
   @Roles("user")
   @ApiOperation({ summary: "Compare multiple demos/players" })
-  async compareData(@Body() body: { demoIds?: string[]; playerIds?: string[] }) {
+  async compareData(
+    @Body() body: { demoIds?: string[]; playerIds?: string[] },
+  ) {
     return this.analysisService.compare(body);
   }
 }

@@ -19,7 +19,11 @@ import { FastifyRequest, FastifyReply } from "fastify";
 export class CorrelationIdMiddleware implements NestMiddleware {
   private readonly logger = new Logger(CorrelationIdMiddleware.name);
 
-  use(req: FastifyRequest["raw"], res: FastifyReply["raw"], next: () => void): void {
+  use(
+    req: FastifyRequest["raw"],
+    res: FastifyReply["raw"],
+    next: () => void,
+  ): void {
     // Get existing correlation ID or generate new one
     const existingId =
       (req.headers["x-correlation-id"] as string) ||
@@ -34,9 +38,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
     res.setHeader("x-correlation-id", correlationId);
 
     // Log request with correlation ID
-    this.logger.debug(
-      `[${correlationId}] ${req.method} ${req.url}`
-    );
+    this.logger.debug(`[${correlationId}] ${req.method} ${req.url}`);
 
     next();
   }

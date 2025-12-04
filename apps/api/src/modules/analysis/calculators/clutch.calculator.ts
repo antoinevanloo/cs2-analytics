@@ -43,7 +43,9 @@ export interface ClutchCalculationInput {
  * @param input - Player data with clutch info
  * @returns Clutch metrics
  */
-export function calculateClutches(input: ClutchCalculationInput): ClutchMetrics {
+export function calculateClutches(
+  input: ClutchCalculationInput,
+): ClutchMetrics {
   const { roundStats, sideByRound } = input;
 
   if (roundStats.length === 0) {
@@ -52,7 +54,7 @@ export function calculateClutches(input: ClutchCalculationInput): ClutchMetrics 
 
   // Filter rounds with clutch situations
   const clutchRounds = roundStats.filter(
-    (r) => r.clutchVs !== null && r.clutchVs !== undefined && r.clutchVs > 0
+    (r) => r.clutchVs !== null && r.clutchVs !== undefined && r.clutchVs > 0,
   );
 
   if (clutchRounds.length === 0) {
@@ -110,11 +112,15 @@ export function calculateClutches(input: ClutchCalculationInput): ClutchMetrics 
   }
 
   // Build final breakdown with calculated rates
-  const buildSituation = (key: keyof typeof breakdownData, opponents: number): ClutchSituation => {
+  const buildSituation = (
+    key: keyof typeof breakdownData,
+    opponents: number,
+  ): ClutchSituation => {
     const data = breakdownData[key];
     const expectedKey = `1v${opponents}` as keyof typeof EXPECTED_CLUTCH_RATES;
     const expectedRate = EXPECTED_CLUTCH_RATES[expectedKey] ?? 0;
-    const successRate = data.attempts > 0 ? round2((data.wins / data.attempts) * 100) : 0;
+    const successRate =
+      data.attempts > 0 ? round2((data.wins / data.attempts) * 100) : 0;
     return {
       attempts: data.attempts,
       wins: data.wins,
@@ -153,9 +159,7 @@ export function calculateClutches(input: ClutchCalculationInput): ClutchMetrics 
  * @param clutches - Clutch metrics
  * @returns Performance rating
  */
-export function getClutchPerformanceRating(
-  clutches: ClutchMetrics
-): {
+export function getClutchPerformanceRating(clutches: ClutchMetrics): {
   rating: "elite" | "excellent" | "good" | "average" | "below_average" | "poor";
   score: number;
   description: string;
@@ -181,7 +185,13 @@ export function getClutchPerformanceRating(
   // Convert to score (100 = expected, >100 = better than expected)
   const score = round2(performanceRatio * 100);
 
-  let rating: "elite" | "excellent" | "good" | "average" | "below_average" | "poor";
+  let rating:
+    | "elite"
+    | "excellent"
+    | "good"
+    | "average"
+    | "below_average"
+    | "poor";
   let description: string;
 
   if (score >= 150) {
@@ -215,16 +225,26 @@ export function calculateTeamClutches(
     steamId: string;
     name: string;
     clutches: ClutchMetrics;
-  }[]
+  }[],
 ): {
   totalSituations: number;
   won: number;
   successRate: number;
-  topClutcher: { steamId: string; name: string; won: number; successRate: number } | null;
+  topClutcher: {
+    steamId: string;
+    name: string;
+    won: number;
+    successRate: number;
+  } | null;
 } {
   let totalSituations = 0;
   let totalWon = 0;
-  let topClutcher: { steamId: string; name: string; won: number; successRate: number } | null = null;
+  let topClutcher: {
+    steamId: string;
+    name: string;
+    won: number;
+    successRate: number;
+  } | null = null;
 
   for (const player of playerStats) {
     totalSituations += player.clutches.total;
@@ -248,7 +268,9 @@ export function calculateTeamClutches(
   return {
     totalSituations,
     won: totalWon,
-    successRate: round2(totalSituations > 0 ? (totalWon / totalSituations) * 100 : 0),
+    successRate: round2(
+      totalSituations > 0 ? (totalWon / totalSituations) * 100 : 0,
+    ),
     topClutcher,
   };
 }
@@ -258,7 +280,7 @@ export function calculateTeamClutches(
  */
 export function identifyClutchHighlights(
   clutches: ClutchMetrics,
-  minOpponents: number = 2
+  minOpponents: number = 2,
 ): {
   type: string;
   count: number;
@@ -272,7 +294,13 @@ export function identifyClutchHighlights(
     impressiveness: "legendary" | "amazing" | "impressive" | "notable";
   }[] = [];
 
-  const breakdownKeys: (keyof ClutchBreakdown)[] = ["1v1", "1v2", "1v3", "1v4", "1v5"];
+  const breakdownKeys: (keyof ClutchBreakdown)[] = [
+    "1v1",
+    "1v2",
+    "1v3",
+    "1v4",
+    "1v5",
+  ];
 
   for (const key of breakdownKeys) {
     const situation = clutches.breakdown[key];

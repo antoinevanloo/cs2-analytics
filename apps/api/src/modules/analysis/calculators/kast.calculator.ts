@@ -18,10 +18,7 @@
  * @module analysis/calculators/kast
  */
 
-import type {
-  KillInput,
-  RoundPlayerStatsInput,
-} from "../types/inputs.types";
+import type { KillInput, RoundPlayerStatsInput } from "../types/inputs.types";
 import type { KASTMetrics } from "../types/rating.types";
 import { TRADE_THRESHOLD_TICKS } from "../types/constants";
 
@@ -149,15 +146,13 @@ export function calculateKAST(input: KASTCalculationInput): KASTMetrics {
 export function detectTradedRounds(
   steamId: string,
   allKills: readonly KillInput[],
-  tickRate: number = 64
+  tickRate: number = 64,
 ): Set<number> {
   const tradedRounds = new Set<number>();
 
   // Scale threshold based on tick rate
   // Base threshold is for 64 tick (5 seconds = 320 ticks)
-  const tradeThreshold = Math.round(
-    (TRADE_THRESHOLD_TICKS / 64) * tickRate
-  );
+  const tradeThreshold = Math.round((TRADE_THRESHOLD_TICKS / 64) * tickRate);
 
   // Find all deaths of this player
   const playerDeaths = allKills.filter((k) => k.victimSteamId === steamId);
@@ -208,7 +203,7 @@ export function detectTradedRounds(
  */
 export function calculateRoundKAST(
   roundStats: RoundPlayerStatsInput,
-  wasTraded: boolean
+  wasTraded: boolean,
 ): {
   hasKill: boolean;
   hasAssist: boolean;
@@ -235,9 +230,7 @@ export function calculateRoundKAST(
  * @param playerKASTs - KAST metrics for each team member
  * @returns Team average KAST percentage
  */
-export function calculateTeamKAST(
-  playerKASTs: readonly KASTMetrics[]
-): number {
+export function calculateTeamKAST(playerKASTs: readonly KASTMetrics[]): number {
   if (playerKASTs.length === 0) return 0;
 
   const totalKAST = playerKASTs.reduce((sum, p) => sum + p.kast, 0);
@@ -268,7 +261,7 @@ export function getKASTLabel(kast: number): string {
  */
 export function compareKAST(
   kast: number,
-  expectedKAST: number
+  expectedKAST: number,
 ): {
   difference: number;
   percentDifference: number;

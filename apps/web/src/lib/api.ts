@@ -168,7 +168,7 @@ export interface PlayerSearchResponse {
 
 async function fetchApi<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
 
@@ -190,7 +190,11 @@ async function fetchApi<T>(
 
 // Demo endpoints
 export const demosApi = {
-  list: (params?: { page?: number; limit?: number; map?: string }): Promise<DemoListResponse> => {
+  list: (params?: {
+    page?: number;
+    limit?: number;
+    map?: string;
+  }): Promise<DemoListResponse> => {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set("page", params.page.toString());
     if (params?.limit) searchParams.set("limit", params.limit.toString());
@@ -199,7 +203,8 @@ export const demosApi = {
     return fetchApi<DemoListResponse>(`/v1/demos?${searchParams}`);
   },
 
-  get: (id: string): Promise<DemoDetail> => fetchApi<DemoDetail>(`/v1/demos/${id}`),
+  get: (id: string): Promise<DemoDetail> =>
+    fetchApi<DemoDetail>(`/v1/demos/${id}`),
 
   getStatus: (id: string): Promise<DemoStatusResponse> =>
     fetchApi<DemoStatusResponse>(`/v1/demos/${id}/status`),
@@ -234,7 +239,10 @@ export const demosApi = {
     return response.json();
   },
 
-  parse: (id: string, options?: { extractTicks?: boolean; tickInterval?: number }) =>
+  parse: (
+    id: string,
+    options?: { extractTicks?: boolean; tickInterval?: number },
+  ) =>
     fetchApi(`/v1/demos/${id}/parse`, {
       method: "POST",
       body: JSON.stringify(options || {}),
@@ -268,7 +276,10 @@ export const playersApi = {
     return fetchApi(`/v1/players/${steamId}/heatmap?${searchParams}`);
   },
 
-  search: (params: { name?: string; team?: string }): Promise<PlayerSearchResponse> => {
+  search: (params: {
+    name?: string;
+    team?: string;
+  }): Promise<PlayerSearchResponse> => {
     const searchParams = new URLSearchParams();
     if (params.name) searchParams.set("name", params.name);
     if (params.team) searchParams.set("team", params.team);
@@ -292,7 +303,9 @@ export const roundsApi = {
     const searchParams = new URLSearchParams();
     if (interval) searchParams.set("interval", interval.toString());
 
-    return fetchApi(`/v1/rounds/${demoId}/${roundNumber}/replay?${searchParams}`);
+    return fetchApi(
+      `/v1/rounds/${demoId}/${roundNumber}/replay?${searchParams}`,
+    );
   },
 
   getKillfeed: (demoId: string, roundNumber: number) =>
@@ -310,8 +323,7 @@ export const analysisApi = {
   getClutches: (demoId: string) =>
     fetchApi(`/v1/analysis/demo/${demoId}/clutches`),
 
-  getTrades: (demoId: string) =>
-    fetchApi(`/v1/analysis/demo/${demoId}/trades`),
+  getTrades: (demoId: string) => fetchApi(`/v1/analysis/demo/${demoId}/trades`),
 
   getEconomy: (demoId: string) =>
     fetchApi(`/v1/analysis/demo/${demoId}/economy`),

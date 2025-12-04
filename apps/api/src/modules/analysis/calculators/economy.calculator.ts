@@ -53,7 +53,9 @@ export interface EconomyCalculationInput {
  * @param input - Player data and round information
  * @returns Economy metrics
  */
-export function calculateEconomy(input: EconomyCalculationInput): EconomyMetrics {
+export function calculateEconomy(
+  input: EconomyCalculationInput,
+): EconomyMetrics {
   const {
     roundStats,
     totalRounds,
@@ -99,7 +101,10 @@ export function calculateEconomy(input: EconomyCalculationInput): EconomyMetrics
     // Check if this was an anti-eco round
     if (opponentEquipByRound) {
       const opponentEquip = opponentEquipByRound.get(round.roundNumber) || 0;
-      if (opponentEquip < ECONOMY_THRESHOLDS.ECO && round.equipValue >= ECONOMY_THRESHOLDS.FULL_BUY) {
+      if (
+        opponentEquip < ECONOMY_THRESHOLDS.ECO &&
+        round.equipValue >= ECONOMY_THRESHOLDS.FULL_BUY
+      ) {
         antiEcoRounds.push(round);
       }
     }
@@ -108,8 +113,16 @@ export function calculateEconomy(input: EconomyCalculationInput): EconomyMetrics
   // Calculate stats for each category
   const eco = calculateRoundTypeStats(ecoRounds, roundWinners, teamNumber);
   const forceBuy = calculateForceStats(forceRounds, roundWinners, teamNumber);
-  const fullBuy = calculateFullBuyStats(fullBuyRounds, roundWinners, teamNumber);
-  const antiEco = calculateAntiEcoStats(antiEcoRounds, roundWinners, teamNumber);
+  const fullBuy = calculateFullBuyStats(
+    fullBuyRounds,
+    roundWinners,
+    teamNumber,
+  );
+  const antiEco = calculateAntiEcoStats(
+    antiEcoRounds,
+    roundWinners,
+    teamNumber,
+  );
 
   // Calculate overall metrics
   const avgEquipValue = totalEquipValue / roundStats.length;
@@ -117,7 +130,8 @@ export function calculateEconomy(input: EconomyCalculationInput): EconomyMetrics
 
   // Value efficiency: damage per $1000 spent
   const totalDamage = roundStats.reduce((sum, r) => sum + r.damage, 0);
-  const valueEfficiency = totalSpent > 0 ? (totalDamage / totalSpent) * 1000 : 0;
+  const valueEfficiency =
+    totalSpent > 0 ? (totalDamage / totalSpent) * 1000 : 0;
 
   // Kill efficiency: kills per $1000 spent
   const totalKills = roundStats.reduce((sum, r) => sum + r.kills, 0);
@@ -141,7 +155,7 @@ export function calculateEconomy(input: EconomyCalculationInput): EconomyMetrics
  */
 export function classifyRoundType(
   roundNumber: number,
-  equipValue: number
+  equipValue: number,
 ): RoundEconomyType {
   // Pistol rounds
   if (roundNumber === 1 || roundNumber === 13) {
@@ -165,7 +179,7 @@ export function classifyRoundType(
 function calculateRoundTypeStats(
   rounds: readonly RoundPlayerStatsInput[],
   roundWinners?: ReadonlyMap<number, number>,
-  teamNumber?: number
+  teamNumber?: number,
 ): EcoRoundStats {
   if (rounds.length === 0) {
     return createEmptyRoundStats();
@@ -212,7 +226,7 @@ function calculateRoundTypeStats(
 function calculateForceStats(
   rounds: readonly RoundPlayerStatsInput[],
   roundWinners?: ReadonlyMap<number, number>,
-  teamNumber?: number
+  teamNumber?: number,
 ): ForceRoundStats {
   return calculateRoundTypeStats(rounds, roundWinners, teamNumber);
 }
@@ -223,7 +237,7 @@ function calculateForceStats(
 function calculateFullBuyStats(
   rounds: readonly RoundPlayerStatsInput[],
   roundWinners?: ReadonlyMap<number, number>,
-  teamNumber?: number
+  teamNumber?: number,
 ): FullBuyStats {
   return calculateRoundTypeStats(rounds, roundWinners, teamNumber);
 }
@@ -234,7 +248,7 @@ function calculateFullBuyStats(
 function calculateAntiEcoStats(
   rounds: readonly RoundPlayerStatsInput[],
   roundWinners?: ReadonlyMap<number, number>,
-  teamNumber?: number
+  teamNumber?: number,
 ): AntiEcoStats {
   return calculateRoundTypeStats(rounds, roundWinners, teamNumber);
 }
@@ -245,10 +259,11 @@ function calculateAntiEcoStats(
 export function buildEconomyTimeline(
   roundStats: readonly RoundPlayerStatsInput[],
   teamEquipByRound?: ReadonlyMap<number, number>,
-  opponentEquipByRound?: ReadonlyMap<number, number>
+  opponentEquipByRound?: ReadonlyMap<number, number>,
 ): RoundEconomySnapshot[] {
   return roundStats.map((round) => {
-    const teamEquip = teamEquipByRound?.get(round.roundNumber) ?? round.equipValue * 5;
+    const teamEquip =
+      teamEquipByRound?.get(round.roundNumber) ?? round.equipValue * 5;
     const opponentEquip = opponentEquipByRound?.get(round.roundNumber) ?? 0;
 
     return {
@@ -272,7 +287,7 @@ export function calculateTeamEconomy(
   playerEconomies: readonly {
     steamId: string;
     economy: EconomyMetrics;
-  }[]
+  }[],
 ): {
   avgTeamEquipValue: number;
   totalTeamSpent: number;
@@ -296,10 +311,14 @@ export function calculateTeamEconomy(
 
   let totalEquip = 0;
   let totalSpent = 0;
-  let ecoWins = 0, ecoTotal = 0;
-  let forceWins = 0, forceTotal = 0;
-  let fullBuyWins = 0, fullBuyTotal = 0;
-  let antiEcoWins = 0, antiEcoTotal = 0;
+  let ecoWins = 0,
+    ecoTotal = 0;
+  let forceWins = 0,
+    forceTotal = 0;
+  let fullBuyWins = 0,
+    fullBuyTotal = 0;
+  let antiEcoWins = 0,
+    antiEcoTotal = 0;
 
   for (const player of playerEconomies) {
     const { economy } = player;
@@ -322,9 +341,12 @@ export function calculateTeamEconomy(
 
   const numPlayers = playerEconomies.length;
   const ecoWinRate = ecoTotal > 0 ? (ecoWins / ecoTotal / numPlayers) * 100 : 0;
-  const forceWinRate = forceTotal > 0 ? (forceWins / forceTotal / numPlayers) * 100 : 0;
-  const fullBuyWinRate = fullBuyTotal > 0 ? (fullBuyWins / fullBuyTotal / numPlayers) * 100 : 0;
-  const antiEcoWinRate = antiEcoTotal > 0 ? (antiEcoWins / antiEcoTotal / numPlayers) * 100 : 0;
+  const forceWinRate =
+    forceTotal > 0 ? (forceWins / forceTotal / numPlayers) * 100 : 0;
+  const fullBuyWinRate =
+    fullBuyTotal > 0 ? (fullBuyWins / fullBuyTotal / numPlayers) * 100 : 0;
+  const antiEcoWinRate =
+    antiEcoTotal > 0 ? (antiEcoWins / antiEcoTotal / numPlayers) * 100 : 0;
 
   // Economy score: weighted combination
   // - Anti-eco win rate should be high (weight: 0.3)
@@ -356,7 +378,7 @@ export function identifyEconomicMismatches(
   opponentEquipByRound: ReadonlyMap<number, number>,
   roundWinners: ReadonlyMap<number, number>,
   teamNumber: number,
-  thresholdDiff: number = 5000
+  thresholdDiff: number = 5000,
 ): {
   roundNumber: number;
   advantageTeam: number;
@@ -377,7 +399,8 @@ export function identifyEconomicMismatches(
     const diff = Math.abs(teamEquip - opponentEquip);
 
     if (diff >= thresholdDiff) {
-      const advantageTeam = teamEquip > opponentEquip ? teamNumber : (teamNumber === 2 ? 3 : 2);
+      const advantageTeam =
+        teamEquip > opponentEquip ? teamNumber : teamNumber === 2 ? 3 : 2;
       const winner = roundWinners.get(roundNumber);
       const advantageTeamWon = winner === advantageTeam;
       const upset = !advantageTeamWon;

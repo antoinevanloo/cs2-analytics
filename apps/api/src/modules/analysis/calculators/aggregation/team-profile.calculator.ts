@@ -118,17 +118,31 @@ export interface TeamMatchPlayer {
  */
 export function analyzeRoster(
   matches: readonly TeamMatchData[],
-  currentRoster: readonly { steamId: string; name: string; role: PlayerRole; joinedAt: Date }[]
+  currentRoster: readonly {
+    steamId: string;
+    name: string;
+    role: PlayerRole;
+    joinedAt: Date;
+  }[],
 ): TeamRoster {
   // Get all unique players across matches
-  const playerAppearances = new Map<string, { name: string; firstSeen: Date; lastSeen: Date; matches: number }>();
+  const playerAppearances = new Map<
+    string,
+    { name: string; firstSeen: Date; lastSeen: Date; matches: number }
+  >();
 
   for (const match of matches) {
     for (const player of match.players) {
       const existing = playerAppearances.get(player.steamId);
       if (existing) {
-        existing.lastSeen = match.playedAt > existing.lastSeen ? match.playedAt : existing.lastSeen;
-        existing.firstSeen = match.playedAt < existing.firstSeen ? match.playedAt : existing.firstSeen;
+        existing.lastSeen =
+          match.playedAt > existing.lastSeen
+            ? match.playedAt
+            : existing.lastSeen;
+        existing.firstSeen =
+          match.playedAt < existing.firstSeen
+            ? match.playedAt
+            : existing.firstSeen;
         existing.matches++;
       } else {
         playerAppearances.set(player.steamId, {
@@ -159,7 +173,9 @@ export function analyzeRoster(
   const avgTenure = mean(tenures);
 
   // Calculate stability (inverse of roster changes)
-  const matchesSorted = [...matches].sort((a, b) => a.playedAt.getTime() - b.playedAt.getTime());
+  const matchesSorted = [...matches].sort(
+    (a, b) => a.playedAt.getTime() - b.playedAt.getTime(),
+  );
   let rosterChanges = 0;
   let previousPlayers = new Set<string>();
 
@@ -201,7 +217,7 @@ export function analyzeRoster(
  * Calculate team performance metrics
  */
 export function calculateTeamPerformance(
-  matches: readonly TeamMatchData[]
+  matches: readonly TeamMatchData[],
 ): TeamPerformance {
   const wins = countWhere(matches, (m) => m.won);
   const losses = countWhere(matches, (m) => !m.won && !m.draw);
@@ -220,7 +236,10 @@ export function calculateTeamPerformance(
   const combinedAdr = safeRate(totalDamage, totalRounds);
 
   // Find best player
-  const playerStats = new Map<string, { name: string; ratings: number[]; matches: number }>();
+  const playerStats = new Map<
+    string,
+    { name: string; ratings: number[]; matches: number }
+  >();
 
   for (const match of matches) {
     for (const player of match.players) {
@@ -246,12 +265,20 @@ export function calculateTeamPerformance(
 
     const avgRating = mean(stats.ratings);
     if (avgRating > bestPlayer.avgRating) {
-      bestPlayer = { steamId, name: stats.name, avgRating: Number(avgRating.toFixed(2)) };
+      bestPlayer = {
+        steamId,
+        name: stats.name,
+        avgRating: Number(avgRating.toFixed(2)),
+      };
     }
 
     const consistency = 100 - standardDeviation(stats.ratings) * 100;
     if (consistency > mostConsistent.consistency) {
-      mostConsistent = { steamId, name: stats.name, consistency: Number(consistency.toFixed(1)) };
+      mostConsistent = {
+        steamId,
+        name: stats.name,
+        consistency: Number(consistency.toFixed(1)),
+      };
     }
   }
 
@@ -290,7 +317,9 @@ export function analyzeMapPool(matches: readonly TeamMatchData[]): TeamMapPool {
     const wins = countWhere(mapMatches, (m) => m.won);
     const winRate = safePercentage(wins, mapMatches.length);
 
-    const roundDiffs = mapMatches.map((m) => m.roundsWon - (m.totalRounds - m.roundsWon));
+    const roundDiffs = mapMatches.map(
+      (m) => m.roundsWon - (m.totalRounds - m.roundsWon),
+    );
     const avgRoundDiff = mean(roundDiffs);
 
     const ctRoundsWon = sumBy(mapMatches, (m) => m.ctRoundsWon);
@@ -339,7 +368,9 @@ export function analyzeMapPool(matches: readonly TeamMatchData[]): TeamMapPool {
 
   // Map pool depth
   const viableMaps = maps.filter(
-    (m) => m.matchesPlayed >= 3 && (m.preference === "strong" || m.preference === "comfortable")
+    (m) =>
+      m.matchesPlayed >= 3 &&
+      (m.preference === "strong" || m.preference === "comfortable"),
   ).length;
 
   return {
@@ -357,29 +388,38 @@ export function analyzeMapPool(matches: readonly TeamMatchData[]): TeamMapPool {
 /**
  * Calculate team synergy metrics
  */
-export function calculateTeamSynergy(matches: readonly TeamMatchData[]): TeamSynergy {
+export function calculateTeamSynergy(
+  matches: readonly TeamMatchData[],
+): TeamSynergy {
   const _totalRounds = sumBy(matches, (m) => m.totalRounds);
   void _totalRounds; // Available for future metrics
 
   // Calculate trade efficiency
-  const totalTradeKills = sumBy(matches, (m) => sumBy(m.players, (p) => p.tradeKills));
+  const totalTradeKills = sumBy(matches, (m) =>
+    sumBy(m.players, (p) => p.tradeKills),
+  );
   const totalDeaths = sumBy(matches, (m) => m.totalDeaths);
   const tradeEfficiency = safePercentage(totalTradeKills, totalDeaths * 0.6); // ~60% of deaths are tradeable
 
   // Calculate flash assist rate
-  const totalFlashAssists = sumBy(matches, (m) => sumBy(m.players, (p) => p.flashAssists));
+  const totalFlashAssists = sumBy(matches, (m) =>
+    sumBy(m.players, (p) => p.flashAssists),
+  );
   const totalKills = sumBy(matches, (m) => m.totalKills);
   const flashAssistRate = safePercentage(totalFlashAssists, totalKills);
 
   // Calculate player pair synergies
-  const pairStats = new Map<string, {
-    player1: { steamId: string; name: string };
-    player2: { steamId: string; name: string };
-    trades: number;
-    flashAssists: number;
-    combinedKills: number;
-    matches: number;
-  }>();
+  const pairStats = new Map<
+    string,
+    {
+      player1: { steamId: string; name: string };
+      player2: { steamId: string; name: string };
+      trades: number;
+      flashAssists: number;
+      combinedKills: number;
+      matches: number;
+    }
+  >();
 
   for (const match of matches) {
     const players = match.players;
@@ -427,7 +467,10 @@ export function calculateTeamSynergy(matches: readonly TeamMatchData[]): TeamSyn
     const flashAssistRatePerMatch = safeRate(stats.flashAssists, stats.matches);
 
     // Synergy score combines trading and flash assists
-    const synergyScore = Math.min(100, tradingFrequency * 20 + flashAssistRatePerMatch * 30);
+    const synergyScore = Math.min(
+      100,
+      tradingFrequency * 20 + flashAssistRatePerMatch * 30,
+    );
 
     playerPairs.push({
       player1: stats.player1,
@@ -443,7 +486,8 @@ export function calculateTeamSynergy(matches: readonly TeamMatchData[]): TeamSyn
   playerPairs.sort((a, b) => b.synergyScore - a.synergyScore);
 
   // Calculate overall synergy
-  const avgSynergy = playerPairs.length > 0 ? mean(playerPairs.map((p) => p.synergyScore)) : 50;
+  const avgSynergy =
+    playerPairs.length > 0 ? mean(playerPairs.map((p) => p.synergyScore)) : 50;
 
   return {
     overallScore: Number(avgSynergy.toFixed(1)),
@@ -466,7 +510,7 @@ export function calculateTeamSynergy(matches: readonly TeamMatchData[]): TeamSyn
  * Calculate situational performance
  */
 export function calculateSituationalStats(
-  matches: readonly TeamMatchData[]
+  matches: readonly TeamMatchData[],
 ): TeamSituationalStats {
   // Pistol rounds
   const pistolPlayed = sumBy(matches, (m) => m.pistolRoundsPlayed);
@@ -494,7 +538,10 @@ export function calculateSituationalStats(
   void _overtimeGames;
 
   // Mental fortitude = performance in close games vs overall
-  const overallWinRate = safePercentage(countWhere(matches, (m) => m.won), matches.length);
+  const overallWinRate = safePercentage(
+    countWhere(matches, (m) => m.won),
+    matches.length,
+  );
   const closeWinRate = safePercentage(closeGamesWon, closeGames.length);
   const mentalFortitude = 50 + (closeWinRate - overallWinRate); // 50 is neutral
 
@@ -524,7 +571,9 @@ export function calculateSituationalStats(
       played: closeGames.length,
       won: closeGamesWon,
       winRate: safePercentage(closeGamesWon, closeGames.length),
-      mentalFortitude: Number(Math.max(0, Math.min(100, mentalFortitude)).toFixed(1)),
+      mentalFortitude: Number(
+        Math.max(0, Math.min(100, mentalFortitude)).toFixed(1),
+      ),
     },
     comebacks: {
       from5RoundsDown: {
@@ -546,7 +595,9 @@ export function calculateSituationalStats(
 /**
  * Calculate team economy stats
  */
-export function calculateTeamEconomy(matches: readonly TeamMatchData[]): TeamEconomyStats {
+export function calculateTeamEconomy(
+  matches: readonly TeamMatchData[],
+): TeamEconomyStats {
   const avgEquipValue = avgBy(matches, (m) => m.avgEquipValue);
 
   // Buy coordination - how often the team buys together
@@ -573,7 +624,7 @@ export function calculateTeamEconomy(matches: readonly TeamMatchData[]): TeamEco
  * Calculate team coordination metrics
  */
 export function calculateTeamCoordination(
-  _matches: readonly TeamMatchData[]
+  _matches: readonly TeamMatchData[],
 ): TeamCoordination {
   // These metrics require detailed tick-level and position data
   // Returning reasonable defaults
@@ -597,8 +648,19 @@ export function calculateTeamCoordination(
 export function aggregateTeamProfile(
   identity: TeamIdentity,
   matches: readonly TeamMatchData[],
-  currentRoster: readonly { steamId: string; name: string; role: PlayerRole; joinedAt: Date }[],
-  windowId: "all_time" | "last_90d" | "last_30d" | "last_7d" | "last_10_matches" | "last_20_matches" = "all_time"
+  currentRoster: readonly {
+    steamId: string;
+    name: string;
+    role: PlayerRole;
+    joinedAt: Date;
+  }[],
+  windowId:
+    | "all_time"
+    | "last_90d"
+    | "last_30d"
+    | "last_7d"
+    | "last_10_matches"
+    | "last_20_matches" = "all_time",
 ): AggregatedTeamProfile {
   const startTime = Date.now();
 
@@ -607,7 +669,7 @@ export function aggregateTeamProfile(
   }
 
   const sortedMatches = [...matches].sort(
-    (a, b) => a.playedAt.getTime() - b.playedAt.getTime()
+    (a, b) => a.playedAt.getTime() - b.playedAt.getTime(),
   );
 
   const firstMatch = sortedMatches[0]!;
@@ -621,7 +683,7 @@ export function aggregateTeamProfile(
     roundCount: sumBy(matches, (m) => m.totalRounds),
     daysSpan: Math.ceil(
       (lastMatch.playedAt.getTime() - firstMatch.playedAt.getTime()) /
-        (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24),
     ),
   };
 

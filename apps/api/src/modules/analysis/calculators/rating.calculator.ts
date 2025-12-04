@@ -63,7 +63,12 @@ export interface RatingCalculationInput {
   readonly tickRate?: number;
 
   /** Optional: Reference skill level for benchmarking */
-  readonly skillLevel?: "faceit_10" | "faceit_8_9" | "faceit_5_7" | "faceit_1_4" | "pro";
+  readonly skillLevel?:
+    | "faceit_10"
+    | "faceit_8_9"
+    | "faceit_5_7"
+    | "faceit_1_4"
+    | "pro";
 }
 
 /**
@@ -163,24 +168,18 @@ export function calculateRating(input: RatingCalculationInput): HLTVRating2 {
  * @returns Weighted contributions
  */
 export function calculateContributions(
-  components: RatingComponents
+  components: RatingComponents,
 ): RatingContributions {
   return {
-    kastContribution: round4(
-      HLTV_RATING_COEFFICIENTS.KAST * components.kast
-    ),
-    kprContribution: round4(
-      HLTV_RATING_COEFFICIENTS.KPR * components.kpr
-    ),
+    kastContribution: round4(HLTV_RATING_COEFFICIENTS.KAST * components.kast),
+    kprContribution: round4(HLTV_RATING_COEFFICIENTS.KPR * components.kpr),
     dprContribution: round4(
-      HLTV_RATING_COEFFICIENTS.DPR * components.dpr // Note: coefficient is negative
+      HLTV_RATING_COEFFICIENTS.DPR * components.dpr, // Note: coefficient is negative
     ),
     impactContribution: round4(
-      HLTV_RATING_COEFFICIENTS.IMPACT * components.impact
+      HLTV_RATING_COEFFICIENTS.IMPACT * components.impact,
     ),
-    adrContribution: round4(
-      HLTV_RATING_COEFFICIENTS.ADR * components.adr
-    ),
+    adrContribution: round4(HLTV_RATING_COEFFICIENTS.ADR * components.adr),
     constant: HLTV_RATING_COEFFICIENTS.CONSTANT,
   };
 }
@@ -194,7 +193,7 @@ export function calculateContributions(
  */
 function calculateBenchmarks(
   rating: number,
-  skillLevel?: string
+  skillLevel?: string,
 ): RatingBenchmarks {
   // Get expected rating for skill level
   let averageForRank: number | null = null;
@@ -238,14 +237,14 @@ function calculateBenchmarks(
  * @returns Descriptive label
  */
 export function getRatingLabel(rating: number): string {
-  if (rating >= 1.30) return "GOAT Level";
+  if (rating >= 1.3) return "GOAT Level";
   if (rating >= 1.25) return "Elite";
-  if (rating >= 1.20) return "Excellent";
+  if (rating >= 1.2) return "Excellent";
   if (rating >= 1.15) return "Very Good";
-  if (rating >= 1.10) return "Good";
+  if (rating >= 1.1) return "Good";
   if (rating >= 1.05) return "Above Average";
   if (rating >= 0.95) return "Average";
-  if (rating >= 0.90) return "Below Average";
+  if (rating >= 0.9) return "Below Average";
   if (rating >= 0.85) return "Poor";
   return "Very Poor";
 }
@@ -262,18 +261,18 @@ export function getRatingLabel(rating: number): string {
 function estimatePercentile(rating: number): number {
   // Approximate distribution based on typical CS2 population
   // Rating distribution is roughly normal centered at 1.0
-  if (rating >= 1.40) return 99;
-  if (rating >= 1.30) return 98;
+  if (rating >= 1.4) return 99;
+  if (rating >= 1.3) return 98;
   if (rating >= 1.25) return 95;
-  if (rating >= 1.20) return 90;
+  if (rating >= 1.2) return 90;
   if (rating >= 1.15) return 85;
-  if (rating >= 1.10) return 75;
+  if (rating >= 1.1) return 75;
   if (rating >= 1.05) return 65;
-  if (rating >= 1.00) return 50;
+  if (rating >= 1.0) return 50;
   if (rating >= 0.95) return 40;
-  if (rating >= 0.90) return 30;
+  if (rating >= 0.9) return 30;
   if (rating >= 0.85) return 20;
-  if (rating >= 0.80) return 10;
+  if (rating >= 0.8) return 10;
   return 5;
 }
 
@@ -289,7 +288,7 @@ function estimatePercentile(rating: number): number {
  */
 export function calculateRatingFromComponents(
   components: RatingComponents,
-  skillLevel?: string
+  skillLevel?: string,
 ): HLTVRating2 {
   const contributions = calculateContributions(components);
 
@@ -323,7 +322,7 @@ export function calculateRatingFromComponents(
  */
 export function simulateRating(
   baseComponents: RatingComponents,
-  modifications: Partial<RatingComponents>
+  modifications: Partial<RatingComponents>,
 ): { newRating: number; change: number; originalRating: number } {
   const originalRating = calculateRatingFromComponents(baseComponents).rating;
 
@@ -350,7 +349,7 @@ export function simulateRating(
  */
 export function analyzeImprovementPotential(
   components: RatingComponents,
-  targetRating: number = 1.1
+  targetRating: number = 1.1,
 ): {
   component: string;
   currentValue: number;
@@ -398,8 +397,7 @@ export function analyzeImprovementPotential(
     const targetChange = ratingGap / imp.coefficient;
     const targetValue = Math.min(imp.currentValue + targetChange, imp.max);
     const improvementNeeded = targetValue - imp.currentValue;
-    const improvementPercent =
-      (improvementNeeded / imp.currentValue) * 100;
+    const improvementPercent = (improvementNeeded / imp.currentValue) * 100;
 
     // Assess feasibility
     let feasibility: "easy" | "moderate" | "hard";
@@ -427,7 +425,9 @@ export function analyzeImprovementPotential(
  * @param playerRatings - Array of player ratings
  * @returns Team average rating
  */
-export function calculateTeamRating(playerRatings: readonly HLTVRating2[]): number {
+export function calculateTeamRating(
+  playerRatings: readonly HLTVRating2[],
+): number {
   if (playerRatings.length === 0) return 0;
 
   const totalRating = playerRatings.reduce((sum, p) => sum + p.rating, 0);

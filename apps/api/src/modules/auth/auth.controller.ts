@@ -28,7 +28,13 @@ import {
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { ConfigService } from "@nestjs/config";
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiBody,
+} from "@nestjs/swagger";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
 import { AuthService } from "./auth.service";
@@ -44,8 +50,15 @@ type FastifyRequestWithCookies = FastifyRequest & {
 
 // Extend FastifyReply to include cookie methods
 type FastifyReplyWithCookies = FastifyReply & {
-  setCookie: (name: string, value: string, options?: Record<string, unknown>) => FastifyReply;
-  clearCookie: (name: string, options?: Record<string, unknown>) => FastifyReply;
+  setCookie: (
+    name: string,
+    value: string,
+    options?: Record<string, unknown>,
+  ) => FastifyReply;
+  clearCookie: (
+    name: string,
+    options?: Record<string, unknown>,
+  ) => FastifyReply;
 };
 
 /**
@@ -65,7 +78,10 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {
-    this.frontendUrl = this.configService.get<string>("FRONTEND_URL", "http://localhost:3000");
+    this.frontendUrl = this.configService.get<string>(
+      "FRONTEND_URL",
+      "http://localhost:3000",
+    );
   }
 
   /**
@@ -101,7 +117,8 @@ export class AuthController {
 
     try {
       // Generate tokens
-      const tokens = await this.authService.generateTokensForSteamUser(steamProfile);
+      const tokens =
+        await this.authService.generateTokensForSteamUser(steamProfile);
 
       // Set HttpOnly cookie for refresh token (more secure)
       reply.setCookie("refresh_token", tokens.refreshToken, {
@@ -116,11 +133,15 @@ export class AuthController {
       // The access token is passed as a URL fragment (not query param) for security
       const redirectUrl = `${this.frontendUrl}/auth/callback#access_token=${tokens.accessToken}&expires_in=${tokens.expiresIn}`;
 
-      this.logger.log(`Steam login successful for: ${steamProfile.personaName}`);
+      this.logger.log(
+        `Steam login successful for: ${steamProfile.personaName}`,
+      );
       return reply.redirect(redirectUrl);
     } catch (error) {
       this.logger.error(`Steam callback error: ${error}`);
-      return reply.redirect(`${this.frontendUrl}/auth/error?reason=token_generation_failed`);
+      return reply.redirect(
+        `${this.frontendUrl}/auth/error?reason=token_generation_failed`,
+      );
     }
   }
 
@@ -222,7 +243,10 @@ export class AuthController {
   @ApiOperation({ summary: "Verify token validity" })
   @ApiResponse({ status: 200, description: "Token is valid" })
   @ApiResponse({ status: 401, description: "Invalid token" })
-  verify(@CurrentUser() user: AuthenticatedUser): { valid: boolean; userId: string } {
+  verify(@CurrentUser() user: AuthenticatedUser): {
+    valid: boolean;
+    userId: string;
+  } {
     return {
       valid: true,
       userId: user.id,

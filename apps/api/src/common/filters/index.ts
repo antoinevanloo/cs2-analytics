@@ -4,4 +4,7 @@
  * @module common/filters
  */
 
-export { GlobalExceptionFilter, type ApiErrorResponse } from "./http-exception.filter";
+export {
+  GlobalExceptionFilter,
+  type ApiErrorResponse,
+} from "./http-exception.filter";

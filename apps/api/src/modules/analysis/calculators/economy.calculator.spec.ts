@@ -30,11 +30,15 @@ describe("Economy Calculator", () => {
 
     it("should classify force buy rounds correctly", () => {
       expect(classifyRoundType(3, ECONOMY_THRESHOLDS.ECO)).toBe("force");
-      expect(classifyRoundType(5, ECONOMY_THRESHOLDS.FULL_BUY - 1)).toBe("force");
+      expect(classifyRoundType(5, ECONOMY_THRESHOLDS.FULL_BUY - 1)).toBe(
+        "force",
+      );
     });
 
     it("should classify full buy rounds correctly", () => {
-      expect(classifyRoundType(4, ECONOMY_THRESHOLDS.FULL_BUY)).toBe("full_buy");
+      expect(classifyRoundType(4, ECONOMY_THRESHOLDS.FULL_BUY)).toBe(
+        "full_buy",
+      );
       expect(classifyRoundType(10, 6000)).toBe("full_buy");
     });
   });
@@ -53,9 +57,21 @@ describe("Economy Calculator", () => {
 
     it("should calculate average equipment value correctly", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ equipValue: 4000, moneySpent: 4000, roundNumber: 3 }),
-        createRoundStats({ equipValue: 5000, moneySpent: 5000, roundNumber: 4 }),
-        createRoundStats({ equipValue: 5500, moneySpent: 5500, roundNumber: 5 }),
+        createRoundStats({
+          equipValue: 4000,
+          moneySpent: 4000,
+          roundNumber: 3,
+        }),
+        createRoundStats({
+          equipValue: 5000,
+          moneySpent: 5000,
+          roundNumber: 4,
+        }),
+        createRoundStats({
+          equipValue: 5500,
+          moneySpent: 5500,
+          roundNumber: 5,
+        }),
       ];
 
       const result = calculateEconomy({
@@ -107,11 +123,35 @@ describe("Economy Calculator", () => {
     it("should calculate stats per round type", () => {
       const roundStats: RoundPlayerStatsInput[] = [
         // Eco rounds
-        createRoundStats({ equipValue: 1000, kills: 2, deaths: 1, damage: 100, roundNumber: 2 }),
-        createRoundStats({ equipValue: 1500, kills: 1, deaths: 0, damage: 80, roundNumber: 3 }),
+        createRoundStats({
+          equipValue: 1000,
+          kills: 2,
+          deaths: 1,
+          damage: 100,
+          roundNumber: 2,
+        }),
+        createRoundStats({
+          equipValue: 1500,
+          kills: 1,
+          deaths: 0,
+          damage: 80,
+          roundNumber: 3,
+        }),
         // Full buy rounds
-        createRoundStats({ equipValue: 5000, kills: 1, deaths: 1, damage: 120, roundNumber: 4 }),
-        createRoundStats({ equipValue: 5500, kills: 2, deaths: 1, damage: 150, roundNumber: 5 }),
+        createRoundStats({
+          equipValue: 5000,
+          kills: 1,
+          deaths: 1,
+          damage: 120,
+          roundNumber: 4,
+        }),
+        createRoundStats({
+          equipValue: 5500,
+          kills: 2,
+          deaths: 1,
+          damage: 150,
+          roundNumber: 5,
+        }),
       ];
 
       const result = calculateEconomy({
@@ -162,8 +202,18 @@ describe("Economy Calculator", () => {
   describe("buildEconomyTimeline", () => {
     it("should build round-by-round economy timeline", () => {
       const roundStats: RoundPlayerStatsInput[] = [
-        createRoundStats({ equipValue: 800, moneySpent: 650, startBalance: 800, roundNumber: 1 }),
-        createRoundStats({ equipValue: 1500, moneySpent: 1200, startBalance: 1500, roundNumber: 2 }),
+        createRoundStats({
+          equipValue: 800,
+          moneySpent: 650,
+          startBalance: 800,
+          roundNumber: 1,
+        }),
+        createRoundStats({
+          equipValue: 1500,
+          moneySpent: 1200,
+          startBalance: 1500,
+          roundNumber: 2,
+        }),
       ];
 
       const result = buildEconomyTimeline(roundStats);
@@ -183,7 +233,11 @@ describe("Economy Calculator", () => {
       const teamEquipByRound = new Map([[3, 25000]]);
       const opponentEquipByRound = new Map([[3, 15000]]);
 
-      const result = buildEconomyTimeline(roundStats, teamEquipByRound, opponentEquipByRound);
+      const result = buildEconomyTimeline(
+        roundStats,
+        teamEquipByRound,
+        opponentEquipByRound,
+      );
 
       expect(result[0]!.teamEquipValue).toBe(25000);
       expect(result[0]!.opponentEquipValue).toBe(15000);
@@ -194,8 +248,20 @@ describe("Economy Calculator", () => {
   describe("calculateTeamEconomy", () => {
     it("should aggregate team economy stats", () => {
       const playerEconomies = [
-        { steamId: "p1", economy: createEconomyMetrics({ avgEquipValue: 4000, totalSpent: 50000 }) },
-        { steamId: "p2", economy: createEconomyMetrics({ avgEquipValue: 4500, totalSpent: 55000 }) },
+        {
+          steamId: "p1",
+          economy: createEconomyMetrics({
+            avgEquipValue: 4000,
+            totalSpent: 50000,
+          }),
+        },
+        {
+          steamId: "p2",
+          economy: createEconomyMetrics({
+            avgEquipValue: 4500,
+            totalSpent: 55000,
+          }),
+        },
       ];
 
       const result = calculateTeamEconomy(playerEconomies);
@@ -217,7 +283,9 @@ describe("Economy Calculator", () => {
 // Test Helpers
 // ==============================================================================
 
-function createRoundStats(overrides: Partial<RoundPlayerStatsInput> = {}): RoundPlayerStatsInput {
+function createRoundStats(
+  overrides: Partial<RoundPlayerStatsInput> = {},
+): RoundPlayerStatsInput {
   return {
     steamId: "76561198000000001",
     roundNumber: 1,
@@ -238,10 +306,12 @@ function createRoundStats(overrides: Partial<RoundPlayerStatsInput> = {}): Round
   };
 }
 
-function createEconomyMetrics(overrides: {
-  avgEquipValue?: number;
-  totalSpent?: number;
-} = {}) {
+function createEconomyMetrics(
+  overrides: {
+    avgEquipValue?: number;
+    totalSpent?: number;
+  } = {},
+) {
   const emptyRoundStats = {
     roundsPlayed: 0,
     kills: 0,

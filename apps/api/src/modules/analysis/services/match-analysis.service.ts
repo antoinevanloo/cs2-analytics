@@ -12,7 +12,10 @@
 
 import { Injectable, Logger } from "@nestjs/common";
 import { MetricsDataService, type DemoMatchData } from "./metrics-data.service";
-import { PlayerMetricsService, type PlayerMatchMetricsResult } from "./player-metrics.service";
+import {
+  PlayerMetricsService,
+  type PlayerMatchMetricsResult,
+} from "./player-metrics.service";
 
 // Import calculators
 import {
@@ -47,7 +50,11 @@ export interface MatchOverviewResult {
   };
   readonly topPerformers: {
     readonly mvp: { steamId: string; name: string; rating: number } | null;
-    readonly topFragger: { steamId: string; name: string; kills: number } | null;
+    readonly topFragger: {
+      steamId: string;
+      name: string;
+      kills: number;
+    } | null;
     readonly topADR: { steamId: string; name: string; adr: number } | null;
     readonly topClutcher: { steamId: string; name: string; won: number } | null;
   };
@@ -184,7 +191,7 @@ export class MatchAnalysisService {
 
   constructor(
     private readonly metricsDataService: MetricsDataService,
-    private readonly playerMetricsService: PlayerMetricsService
+    private readonly playerMetricsService: PlayerMetricsService,
   ) {}
 
   /**
@@ -194,13 +201,20 @@ export class MatchAnalysisService {
     this.logger.debug(`Generating match overview for demo ${demoId}`);
 
     const matchData = await this.metricsDataService.getFullMatchData(demoId);
-    const playerMetrics = await this.playerMetricsService.calculateAllPlayersMetrics(demoId);
+    const playerMetrics =
+      await this.playerMetricsService.calculateAllPlayersMetrics(demoId);
 
     const team1Players = playerMetrics.filter((p) => p.teamNum === 2);
     const team2Players = playerMetrics.filter((p) => p.teamNum === 3);
 
-    const team1Stats = this.calculateTeamStats(matchData.metadata.team1Name, team1Players);
-    const team2Stats = this.calculateTeamStats(matchData.metadata.team2Name, team2Players);
+    const team1Stats = this.calculateTeamStats(
+      matchData.metadata.team1Name,
+      team1Players,
+    );
+    const team2Stats = this.calculateTeamStats(
+      matchData.metadata.team2Name,
+      team2Players,
+    );
 
     const topPerformers = this.findTopPerformers(playerMetrics);
     const roundStats = this.calculateRoundStats(matchData);
@@ -303,13 +317,19 @@ export class MatchAnalysisService {
     this.logger.debug(`Generating economy flow for demo ${demoId}`);
 
     const matchData = await this.metricsDataService.getFullMatchData(demoId);
-    const playerMetrics = await this.playerMetricsService.calculateAllPlayersMetrics(demoId);
+    const playerMetrics =
+      await this.playerMetricsService.calculateAllPlayersMetrics(demoId);
 
     const timeline = matchData.rounds.map((round) => {
       const equipDiff = Math.abs(round.ctEquipValue - round.tEquipValue);
       const econAdvantageTeam =
-        equipDiff > 5000 ? (round.ctEquipValue > round.tEquipValue ? 3 : 2) : null;
-      const upset = econAdvantageTeam !== null && round.winnerTeam !== econAdvantageTeam;
+        equipDiff > 5000
+          ? round.ctEquipValue > round.tEquipValue
+            ? 3
+            : 2
+          : null;
+      const upset =
+        econAdvantageTeam !== null && round.winnerTeam !== econAdvantageTeam;
 
       return {
         roundNumber: round.roundNumber,
@@ -324,11 +344,11 @@ export class MatchAnalysisService {
     const team2Players = playerMetrics.filter((p) => p.teamNum === 3);
 
     const team1Economy = calculateTeamEconomy(
-      team1Players.map((p) => ({ steamId: p.steamId, economy: p.economy }))
+      team1Players.map((p) => ({ steamId: p.steamId, economy: p.economy })),
     );
 
     const team2Economy = calculateTeamEconomy(
-      team2Players.map((p) => ({ steamId: p.steamId, economy: p.economy }))
+      team2Players.map((p) => ({ steamId: p.steamId, economy: p.economy })),
     );
 
     return {
@@ -359,22 +379,35 @@ export class MatchAnalysisService {
   async getTradeAnalysis(demoId: string): Promise<TradeAnalysisResult> {
     this.logger.debug(`Generating trade analysis for demo ${demoId}`);
 
-    const playerMetrics = await this.playerMetricsService.calculateAllPlayersMetrics(demoId);
+    const playerMetrics =
+      await this.playerMetricsService.calculateAllPlayersMetrics(demoId);
 
     const team1Players = playerMetrics.filter((p) => p.teamNum === 2);
     const team2Players = playerMetrics.filter((p) => p.teamNum === 3);
 
     const team1Stats = {
-      tradesGiven: team1Players.reduce((sum, p) => sum + p.trades.tradesGiven, 0),
-      tradesReceived: team1Players.reduce((sum, p) => sum + p.trades.tradesReceived, 0),
+      tradesGiven: team1Players.reduce(
+        (sum, p) => sum + p.trades.tradesGiven,
+        0,
+      ),
+      tradesReceived: team1Players.reduce(
+        (sum, p) => sum + p.trades.tradesReceived,
+        0,
+      ),
       avgTradeTime:
         team1Players.reduce((sum, p) => sum + p.trades.avgTradeTimeSeconds, 0) /
         Math.max(team1Players.length, 1),
     };
 
     const team2Stats = {
-      tradesGiven: team2Players.reduce((sum, p) => sum + p.trades.tradesGiven, 0),
-      tradesReceived: team2Players.reduce((sum, p) => sum + p.trades.tradesReceived, 0),
+      tradesGiven: team2Players.reduce(
+        (sum, p) => sum + p.trades.tradesGiven,
+        0,
+      ),
+      tradesReceived: team2Players.reduce(
+        (sum, p) => sum + p.trades.tradesReceived,
+        0,
+      ),
       avgTradeTime:
         team2Players.reduce((sum, p) => sum + p.trades.avgTradeTimeSeconds, 0) /
         Math.max(team2Players.length, 1),
@@ -403,7 +436,7 @@ export class MatchAnalysisService {
 
   private calculateTeamStats(
     teamName: string,
-    players: readonly PlayerMatchMetricsResult[]
+    players: readonly PlayerMatchMetricsResult[],
   ): TeamStats {
     if (players.length === 0) {
       return {
@@ -433,7 +466,10 @@ export class MatchAnalysisService {
 
     const totalKills = players.reduce((sum, p) => sum + p.combat.kills, 0);
     const totalDeaths = players.reduce((sum, p) => sum + p.combat.deaths, 0);
-    const totalHsKills = players.reduce((sum, p) => sum + p.combat.headshotKills, 0);
+    const totalHsKills = players.reduce(
+      (sum, p) => sum + p.combat.headshotKills,
+      0,
+    );
 
     const avgRating =
       players.reduce((sum, p) => sum + p.rating.rating, 0) / players.length;
@@ -441,19 +477,31 @@ export class MatchAnalysisService {
     const teamKAST = calculateTeamKAST(players.map((p) => p.kast));
 
     const teamClutches = calculateTeamClutches(
-      players.map((p) => ({ steamId: p.steamId, name: p.name, clutches: p.clutches }))
+      players.map((p) => ({
+        steamId: p.steamId,
+        name: p.name,
+        clutches: p.clutches,
+      })),
     );
 
     const teamOpenings = calculateTeamOpenings(
-      players.map((p) => ({ steamId: p.steamId, name: p.name, openings: p.openings }))
+      players.map((p) => ({
+        steamId: p.steamId,
+        name: p.name,
+        openings: p.openings,
+      })),
     );
 
     const teamUtility = calculateTeamUtility(
-      players.map((p) => ({ steamId: p.steamId, name: p.name, utility: p.utility }))
+      players.map((p) => ({
+        steamId: p.steamId,
+        name: p.name,
+        utility: p.utility,
+      })),
     );
 
     const teamEconomy = calculateTeamEconomy(
-      players.map((p) => ({ steamId: p.steamId, economy: p.economy }))
+      players.map((p) => ({ steamId: p.steamId, economy: p.economy })),
     );
 
     return {
@@ -463,8 +511,12 @@ export class MatchAnalysisService {
       avgKAST: teamKAST,
       totalKills,
       totalDeaths,
-      avgADR: round2(players.reduce((sum, p) => sum + p.combat.adr, 0) / players.length),
-      headshotPercentage: round2(totalKills > 0 ? (totalHsKills / totalKills) * 100 : 0),
+      avgADR: round2(
+        players.reduce((sum, p) => sum + p.combat.adr, 0) / players.length,
+      ),
+      headshotPercentage: round2(
+        totalKills > 0 ? (totalHsKills / totalKills) * 100 : 0,
+      ),
       clutchWinRate: teamClutches.successRate,
       openingWinRate: teamOpenings.winRate,
       utilityDamagePerRound: teamUtility.utilityDPR,
@@ -473,14 +525,18 @@ export class MatchAnalysisService {
   }
 
   private findTopPerformers(
-    players: readonly PlayerMatchMetricsResult[]
+    players: readonly PlayerMatchMetricsResult[],
   ): MatchOverviewResult["topPerformers"] {
     if (players.length === 0) {
       return { mvp: null, topFragger: null, topADR: null, topClutcher: null };
     }
 
-    const byRating = [...players].sort((a, b) => b.rating.rating - a.rating.rating);
-    const byKills = [...players].sort((a, b) => b.combat.kills - a.combat.kills);
+    const byRating = [...players].sort(
+      (a, b) => b.rating.rating - a.rating.rating,
+    );
+    const byKills = [...players].sort(
+      (a, b) => b.combat.kills - a.combat.kills,
+    );
     const byADR = [...players].sort((a, b) => b.combat.adr - a.combat.adr);
     const byClutches = [...players]
       .filter((p) => p.clutches.won > 0)
@@ -488,21 +544,39 @@ export class MatchAnalysisService {
 
     return {
       mvp: byRating[0]
-        ? { steamId: byRating[0].steamId, name: byRating[0].name, rating: byRating[0].rating.rating }
+        ? {
+            steamId: byRating[0].steamId,
+            name: byRating[0].name,
+            rating: byRating[0].rating.rating,
+          }
         : null,
       topFragger: byKills[0]
-        ? { steamId: byKills[0].steamId, name: byKills[0].name, kills: byKills[0].combat.kills }
+        ? {
+            steamId: byKills[0].steamId,
+            name: byKills[0].name,
+            kills: byKills[0].combat.kills,
+          }
         : null,
       topADR: byADR[0]
-        ? { steamId: byADR[0].steamId, name: byADR[0].name, adr: byADR[0].combat.adr }
+        ? {
+            steamId: byADR[0].steamId,
+            name: byADR[0].name,
+            adr: byADR[0].combat.adr,
+          }
         : null,
       topClutcher: byClutches[0]
-        ? { steamId: byClutches[0].steamId, name: byClutches[0].name, won: byClutches[0].clutches.won }
+        ? {
+            steamId: byClutches[0].steamId,
+            name: byClutches[0].name,
+            won: byClutches[0].clutches.won,
+          }
         : null,
     };
   }
 
-  private calculateRoundStats(matchData: DemoMatchData): MatchOverviewResult["roundStats"] {
+  private calculateRoundStats(
+    matchData: DemoMatchData,
+  ): MatchOverviewResult["roundStats"] {
     let ctRoundWins = 0;
     let tRoundWins = 0;
     const pistolRoundsWon = { team1: 0, team2: 0 };
@@ -529,14 +603,25 @@ export class MatchAnalysisService {
       }
     }
 
-    return { ctRoundWins, tRoundWins, pistolRoundsWon, ecoRoundsWon, forceRoundsWon };
+    return {
+      ctRoundWins,
+      tRoundWins,
+      pistolRoundsWon,
+      ecoRoundsWon,
+      forceRoundsWon,
+    };
   }
 
   private identifyKeyRounds(
     rounds: readonly RoundBreakdown[],
-    _matchData: DemoMatchData
+    _matchData: DemoMatchData,
   ): RoundAnalysisResult["keyRounds"] {
-    const keyRounds: { roundNumber: number; type: string; description: string; team: string }[] = [];
+    const keyRounds: {
+      roundNumber: number;
+      type: string;
+      description: string;
+      team: string;
+    }[] = [];
 
     // Find eco wins
     for (const round of rounds) {

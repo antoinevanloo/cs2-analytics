@@ -50,14 +50,22 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
   ) {
-    this.accessTokenTtl = this.configService.get<number>("JWT_EXPIRES_IN_SECONDS", 3600); // 1 hour
-    this.refreshTokenTtl = this.configService.get<number>("JWT_REFRESH_EXPIRES_IN_SECONDS", 604800); // 7 days
+    this.accessTokenTtl = this.configService.get<number>(
+      "JWT_EXPIRES_IN_SECONDS",
+      3600,
+    ); // 1 hour
+    this.refreshTokenTtl = this.configService.get<number>(
+      "JWT_REFRESH_EXPIRES_IN_SECONDS",
+      604800,
+    ); // 7 days
   }
 
   /**
    * Generate tokens for a Steam user
    */
-  async generateTokensForSteamUser(steamProfile: SteamProfile): Promise<TokenPair> {
+  async generateTokensForSteamUser(
+    steamProfile: SteamProfile,
+  ): Promise<TokenPair> {
     // Find user by Steam ID
     const user = await this.prisma.user.findFirst({
       where: { steamId: steamProfile.steamId },
@@ -70,7 +78,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException("User not found. Please try logging in again.");
+      throw new UnauthorizedException(
+        "User not found. Please try logging in again.",
+      );
     }
 
     return this.generateTokenPair(user);
@@ -297,7 +307,10 @@ export class AuthService {
   /**
    * Store refresh token data in Redis
    */
-  private async storeRefreshToken(token: string, data: RefreshTokenData): Promise<void> {
+  private async storeRefreshToken(
+    token: string,
+    data: RefreshTokenData,
+  ): Promise<void> {
     const ttlMs = this.refreshTokenTtl * 1000;
     await this.redis.set(`${this.REFRESH_TOKEN_PREFIX}${token}`, data, ttlMs);
   }
@@ -305,8 +318,12 @@ export class AuthService {
   /**
    * Get refresh token data from Redis
    */
-  private async getRefreshTokenData(token: string): Promise<RefreshTokenData | null> {
-    return this.redis.get<RefreshTokenData>(`${this.REFRESH_TOKEN_PREFIX}${token}`);
+  private async getRefreshTokenData(
+    token: string,
+  ): Promise<RefreshTokenData | null> {
+    return this.redis.get<RefreshTokenData>(
+      `${this.REFRESH_TOKEN_PREFIX}${token}`,
+    );
   }
 
   /**
@@ -319,14 +336,20 @@ export class AuthService {
     // Keep only recent tokens (max 10 devices)
     const recentTokens = tokens.slice(-10);
     const ttlMs = this.refreshTokenTtl * 1000;
-    await this.redis.set(`${this.USER_TOKENS_PREFIX}${userId}`, recentTokens, ttlMs);
+    await this.redis.set(
+      `${this.USER_TOKENS_PREFIX}${userId}`,
+      recentTokens,
+      ttlMs,
+    );
   }
 
   /**
    * Get all refresh tokens for a user
    */
   private async getUserTokens(userId: string): Promise<string[]> {
-    const tokens = await this.redis.get<string[]>(`${this.USER_TOKENS_PREFIX}${userId}`);
+    const tokens = await this.redis.get<string[]>(
+      `${this.USER_TOKENS_PREFIX}${userId}`,
+    );
     return tokens ?? [];
   }
 
@@ -339,7 +362,11 @@ export class AuthService {
 
     if (filteredTokens.length > 0) {
       const ttlMs = this.refreshTokenTtl * 1000;
-      await this.redis.set(`${this.USER_TOKENS_PREFIX}${userId}`, filteredTokens, ttlMs);
+      await this.redis.set(
+        `${this.USER_TOKENS_PREFIX}${userId}`,
+        filteredTokens,
+        ttlMs,
+      );
     } else {
       await this.redis.delete(`${this.USER_TOKENS_PREFIX}${userId}`);
     }
