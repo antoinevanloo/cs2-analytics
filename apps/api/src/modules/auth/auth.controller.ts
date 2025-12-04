@@ -34,6 +34,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiProperty,
 } from "@nestjs/swagger";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
@@ -65,6 +66,10 @@ type FastifyReplyWithCookies = FastifyReply & {
  * DTO for refresh token request
  */
 class RefreshTokenDto {
+  @ApiProperty({
+    description: "Refresh token obtained from Steam OAuth callback",
+    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  })
   refreshToken!: string;
 }
 

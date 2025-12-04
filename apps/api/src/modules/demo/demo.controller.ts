@@ -37,8 +37,8 @@ import { Public, Roles } from "../../common/decorators";
 // Maximum demo file size (500MB - typical competitive demo ~150MB)
 const MAX_DEMO_SIZE = 500 * 1024 * 1024;
 
-@ApiTags("demos")
-@ApiBearerAuth()
+@ApiTags("Demos")
+@ApiBearerAuth("JWT-auth")
 @Controller({ path: "demos", version: "1" })
 export class DemoController {
   constructor(private readonly demoService: DemoService) {}

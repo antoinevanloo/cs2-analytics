@@ -43,7 +43,7 @@ interface HealthStatus {
   };
 }
 
-@ApiTags("health")
+@ApiTags("Health")
 @Controller()
 @Public() // All health endpoints are public
 export class HealthController {

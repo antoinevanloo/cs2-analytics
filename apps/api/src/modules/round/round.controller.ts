@@ -13,8 +13,8 @@ import {
 import { RoundService } from "./round.service";
 import { Public } from "../../common/decorators";
 
-@ApiTags("rounds")
-@ApiBearerAuth()
+@ApiTags("Rounds")
+@ApiBearerAuth("JWT-auth")
 @Public() // All round endpoints are read-only and public
 @Controller({ path: "rounds", version: "1" })
 export class RoundController {

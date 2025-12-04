@@ -28,7 +28,16 @@ import {
 } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+  ApiBody,
+  ApiPropertyOptional,
+} from "@nestjs/swagger";
+import { IsArray, IsOptional, IsString } from "class-validator";
 
 import { Public, Roles } from "../../common/decorators";
 import { PlayerAggregationService } from "./services/player-aggregation.service";
@@ -44,24 +53,59 @@ import type {
 // DTOs
 // =============================================================================
 
+/**
+ * Time window options for aggregation queries
+ */
+const TIME_WINDOWS = [
+  "all_time",
+  "last_90d",
+  "last_30d",
+  "last_7d",
+  "last_10_matches",
+  "last_20_matches",
+] as const;
+type TimeWindow = (typeof TIME_WINDOWS)[number];
+
 interface TimeWindowQuery {
-  window?:
-    | "all_time"
-    | "last_90d"
-    | "last_30d"
-    | "last_7d"
-    | "last_10_matches"
-    | "last_20_matches";
+  window?: TimeWindow;
 }
 
 interface RosterQuery extends TimeWindowQuery {
   steamIds: string; // Comma-separated
 }
 
-interface BatchRecomputeBody {
+/**
+ * DTO for batch recompute request
+ */
+class BatchRecomputeDto {
+  @ApiPropertyOptional({
+    description: "List of player Steam IDs to recompute",
+    type: [String],
+    example: ["76561198000000001", "76561198000000002"],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
   steamIds?: string[];
+
+  @ApiPropertyOptional({
+    description: "List of team IDs to recompute",
+    type: [String],
+    example: ["team-uuid-1", "team-uuid-2"],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
   teamIds?: string[];
-  window?: TimeWindowQuery["window"];
+
+  @ApiPropertyOptional({
+    description: "Time window for aggregation",
+    enum: TIME_WINDOWS,
+    default: "all_time",
+  })
+  @IsString()
+  @IsOptional()
+  window?: TimeWindow;
 }
 
 interface PlayerComparisonResult {
@@ -90,8 +134,8 @@ interface PlayerComparisonResult {
 // CONTROLLER
 // =============================================================================
 
-@ApiTags("aggregation")
-@ApiBearerAuth()
+@ApiTags("Aggregation")
+@ApiBearerAuth("JWT-auth")
 @Controller("aggregation")
 export class AggregationController {
   private readonly logger = new Logger(AggregationController.name);
@@ -113,6 +157,13 @@ export class AggregationController {
   @Get("players/:steamId")
   @Public()
   @ApiOperation({ summary: "Get aggregated player profile" })
+  @ApiParam({ name: "steamId", description: "Player Steam ID (64-bit)" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getPlayerProfile(
     @Param("steamId") steamId: string,
     @Query() query: TimeWindowQuery,
@@ -141,6 +192,17 @@ export class AggregationController {
   @Get("players/:steamId/compare/:otherSteamId")
   @Public()
   @ApiOperation({ summary: "Compare two players" })
+  @ApiParam({ name: "steamId", description: "First player Steam ID (64-bit)" })
+  @ApiParam({
+    name: "otherSteamId",
+    description: "Second player Steam ID (64-bit)",
+  })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async comparePlayers(
     @Param("steamId") steamId: string,
     @Param("otherSteamId") otherSteamId: string,
@@ -170,6 +232,17 @@ export class AggregationController {
   @Get("players")
   @Public()
   @ApiOperation({ summary: "Get multiple player profiles (batch)" })
+  @ApiQuery({
+    name: "steamIds",
+    description: "Comma-separated list of Steam IDs (max 20)",
+    example: "76561198000000001,76561198000000002",
+  })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getPlayerProfiles(
     @Query("steamIds") steamIdsParam: string,
     @Query() query: TimeWindowQuery,
@@ -214,6 +287,13 @@ export class AggregationController {
   @Post("recompute/player/:steamId")
   @Roles("user")
   @ApiOperation({ summary: "Force recompute player profile" })
+  @ApiParam({ name: "steamId", description: "Player Steam ID (64-bit)" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   @HttpCode(HttpStatus.ACCEPTED)
   async recomputePlayerProfile(
     @Param("steamId") steamId: string,
@@ -249,6 +329,13 @@ export class AggregationController {
   @Get("teams/:teamId")
   @Public()
   @ApiOperation({ summary: "Get aggregated team profile" })
+  @ApiParam({ name: "teamId", description: "Team UUID" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getTeamProfile(
     @Param("teamId") teamId: string,
     @Query() query: TimeWindowQuery,
@@ -277,6 +364,17 @@ export class AggregationController {
   @Get("teams/roster")
   @Public()
   @ApiOperation({ summary: "Get team profile by roster" })
+  @ApiQuery({
+    name: "steamIds",
+    description: "Comma-separated list of Steam IDs (2-5 players)",
+    example: "76561198000000001,76561198000000002,76561198000000003",
+  })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   async getTeamProfileByRoster(
     @Query() query: RosterQuery,
   ): Promise<AggregatedTeamProfile> {
@@ -306,6 +404,13 @@ export class AggregationController {
   @Post("recompute/team/:teamId")
   @Roles("user")
   @ApiOperation({ summary: "Force recompute team profile" })
+  @ApiParam({ name: "teamId", description: "Team UUID" })
+  @ApiQuery({
+    name: "window",
+    required: false,
+    enum: TIME_WINDOWS,
+    description: "Time window for aggregation",
+  })
   @HttpCode(HttpStatus.ACCEPTED)
   async recomputeTeamProfile(
     @Param("teamId") teamId: string,
@@ -341,8 +446,9 @@ export class AggregationController {
   @Post("recompute/batch")
   @Roles("admin")
   @ApiOperation({ summary: "Batch recompute multiple profiles (admin only)" })
+  @ApiBody({ type: BatchRecomputeDto })
   @HttpCode(HttpStatus.ACCEPTED)
-  async batchRecompute(@Body() body: BatchRecomputeBody): Promise<{
+  async batchRecompute(@Body() body: BatchRecomputeDto): Promise<{
     jobId: string;
     message: string;
     playersQueued: number;

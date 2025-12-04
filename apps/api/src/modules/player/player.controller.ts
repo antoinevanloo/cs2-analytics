@@ -13,8 +13,8 @@ import {
 import { PlayerService } from "./player.service";
 import { Public } from "../../common/decorators";
 
-@ApiTags("players")
-@ApiBearerAuth()
+@ApiTags("Players")
+@ApiBearerAuth("JWT-auth")
 @Public() // All player endpoints are read-only and public
 @Controller({ path: "players", version: "1" })
 export class PlayerController {
