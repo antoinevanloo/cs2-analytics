@@ -5,6 +5,7 @@
  *
  * Features:
  * - Steam OpenID authentication
+ * - FACEIT OAuth2 authentication
  * - JWT-based session management
  * - Refresh token rotation (stored in Redis)
  * - Role-based access control (RBAC)
@@ -19,8 +20,10 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { SteamOAuthStrategy } from "./strategies/steam.strategy";
+import { FaceitOAuthStrategy } from "./strategies/faceit.strategy";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
+import { IntegrationsModule } from "../integrations/integrations.module";
 
 @Global()
 @Module({
@@ -39,9 +42,10 @@ import { AuthController } from "./auth.controller";
       }),
       inject: [ConfigService],
     }),
+    IntegrationsModule,
   ],
   controllers: [AuthController],
-  providers: [JwtStrategy, SteamOAuthStrategy, AuthService],
+  providers: [JwtStrategy, SteamOAuthStrategy, FaceitOAuthStrategy, AuthService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
