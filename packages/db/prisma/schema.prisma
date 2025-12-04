@@ -31,6 +31,7 @@ model User {
   teams         TeamMember[]
   demos         Demo[]
   analyses      Analysis[]
+  preferences   UserPreferences?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -44,6 +45,61 @@ enum Plan {
   PRO
   TEAM
   ENTERPRISE
+}
+
+// User preferences for dashboard personalization
+model UserPreferences {
+  id                    String        @id @default(cuid())
+  userId                String        @unique
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Dashboard persona (#41 Role-Based Dashboard)
+  preferredRole         PreferredRole @default(PLAYER)
+
+  // Dashboard customization
+  dashboardLayout       Json?         // Widget positions and visibility
+  favoriteMetrics       String[]      @default([])
+  defaultTimeRange      String        @default("30d") // 7d, 30d, 90d, all
+
+  // Notification preferences
+  emailNotifications    Boolean       @default(true)
+  weeklyDigest          Boolean       @default(true)
+
+  // Onboarding state (#42)
+  onboardingStep        Int           @default(0)
+  onboardingCompletedAt DateTime?
+  hasSeenWelcome        Boolean       @default(false)
+  hasCompletedTour      Boolean       @default(false)
+
+  // Integration settings
+  faceitAutoImport      Boolean       @default(false)
+  faceitImportInterval  Int           @default(24) // Hours between auto-imports
+
+  // Display preferences
+  theme                 String        @default("system") // light, dark, system
+  compactMode           Boolean       @default(false)
+  showAdvancedStats     Boolean       @default(false)
+
+  // Privacy settings
+  profileVisibility     ProfileVisibility @default(FRIENDS)
+  shareStats            Boolean           @default(true)
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+enum PreferredRole {
+  PLAYER    // Personal improvement focus
+  COACH     // Team management focus
+  SCOUT     // Opponent analysis focus
+  ANALYST   // Deep data analysis focus
+  CREATOR   // Content creation focus
+}
+
+enum ProfileVisibility {
+  PUBLIC    // Anyone can see
+  FRIENDS   // Only friends/teammates
+  PRIVATE   // Only self
 }
 
 // ============================================================================
