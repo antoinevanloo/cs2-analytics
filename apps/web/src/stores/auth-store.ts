@@ -10,6 +10,11 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+// Singleton promise for refresh to prevent concurrent refresh requests
+let refreshPromise: Promise<string | null> | null = null;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -54,6 +59,10 @@ interface AuthState {
   // Computed
   isTokenExpired: () => boolean;
   getAccessToken: () => string | null;
+
+  // Async operations
+  refreshTokens: () => Promise<string | null>;
+  getValidAccessToken: () => Promise<string | null>;
 }
 
 // ============================================================================
@@ -119,13 +128,85 @@ export const useAuthStore = create<AuthState>()(
         return Date.now() >= tokens.expiresAt - 60000;
       },
 
-      // Get access token (returns null if expired)
+      // Get access token (returns null if expired) - use getValidAccessToken for auto-refresh
       getAccessToken: () => {
         const state = get();
         if (!state.tokens || state.isTokenExpired()) {
           return null;
         }
         return state.tokens.accessToken;
+      },
+
+      // Refresh tokens using the refresh endpoint
+      refreshTokens: async () => {
+        const state = get();
+        if (!state.tokens?.refreshToken) {
+          return null;
+        }
+
+        // If a refresh is already in progress, wait for it
+        if (refreshPromise) {
+          return refreshPromise;
+        }
+
+        // Create new refresh promise
+        refreshPromise = (async () => {
+          try {
+            const response = await fetch(`${API_URL}/v1/auth/refresh`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                refreshToken: state.tokens?.refreshToken,
+              }),
+              credentials: "include",
+            });
+
+            if (!response.ok) {
+              // Refresh failed - logout user
+              get().logout();
+              return null;
+            }
+
+            const data = await response.json();
+            const newTokens: AuthTokens = {
+              accessToken: data.accessToken,
+              refreshToken: state.tokens?.refreshToken || "", // Keep existing refresh token
+              expiresAt: Date.now() + data.expiresIn * 1000,
+            };
+
+            // Update tokens in store
+            set({ tokens: newTokens });
+            return newTokens.accessToken;
+          } catch (error) {
+            console.error("Token refresh failed:", error);
+            get().logout();
+            return null;
+          } finally {
+            refreshPromise = null;
+          }
+        })();
+
+        return refreshPromise;
+      },
+
+      // Get valid access token - refreshes automatically if expired
+      getValidAccessToken: async () => {
+        const state = get();
+
+        // No tokens at all
+        if (!state.tokens) {
+          return null;
+        }
+
+        // Token still valid
+        if (!state.isTokenExpired()) {
+          return state.tokens.accessToken;
+        }
+
+        // Token expired - try to refresh
+        return state.refreshTokens();
       },
     }),
     {
