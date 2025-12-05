@@ -20,6 +20,7 @@ import { AnalysisModule } from "./modules/analysis/analysis.module";
 import { AggregationModule } from "./modules/aggregation/aggregation.module";
 import { ReplayModule } from "./modules/replay/replay.module";
 import { UserModule } from "./modules/user/user.module";
+import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -93,6 +94,7 @@ import { HealthController } from "./health.controller";
     AggregationModule,
     ReplayModule,
     UserModule,
+    OnboardingModule,
   ],
   controllers: [HealthController],
   providers: [

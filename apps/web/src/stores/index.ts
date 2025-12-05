@@ -32,3 +32,21 @@ export {
   type DashboardLayout,
   type DashboardWidget,
 } from "./preferences-store";
+export {
+  useOnboardingStore,
+  selectStatus,
+  selectCurrentStep,
+  selectIsCompleted,
+  selectConnectedAccounts,
+  selectImportProgress,
+  selectFirstInsight,
+  selectIsLoading as selectOnboardingIsLoading,
+  OnboardingStep,
+  ImportSource,
+  ImportStatus,
+  STEP_METADATA,
+  type OnboardingStatus,
+  type ImportProgress,
+  type FirstInsight,
+  type ConnectedAccounts,
+} from "./onboarding-store";
