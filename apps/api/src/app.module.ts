@@ -12,11 +12,15 @@ import { PrismaModule } from "./common/prisma";
 import { RedisModule } from "./common/redis";
 import { CorrelationIdMiddleware } from "./common/middleware";
 import { AuthModule } from "./modules/auth/auth.module";
+import { IntegrationsModule } from "./modules/integrations/integrations.module";
 import { DemoModule } from "./modules/demo/demo.module";
 import { PlayerModule } from "./modules/player/player.module";
 import { RoundModule } from "./modules/round/round.module";
 import { AnalysisModule } from "./modules/analysis/analysis.module";
 import { AggregationModule } from "./modules/aggregation/aggregation.module";
+import { ReplayModule } from "./modules/replay/replay.module";
+import { UserModule } from "./modules/user/user.module";
+import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -79,12 +83,18 @@ import { HealthController } from "./health.controller";
     // Authentication
     AuthModule,
 
+    // Third-party integrations
+    IntegrationsModule,
+
     // Feature modules
     DemoModule,
     PlayerModule,
     RoundModule,
     AnalysisModule,
     AggregationModule,
+    ReplayModule,
+    UserModule,
+    OnboardingModule,
   ],
   controllers: [HealthController],
   providers: [

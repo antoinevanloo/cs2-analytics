@@ -31,6 +31,7 @@ model User {
   teams         TeamMember[]
   demos         Demo[]
   analyses      Analysis[]
+  preferences   UserPreferences?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -44,6 +45,61 @@ enum Plan {
   PRO
   TEAM
   ENTERPRISE
+}
+
+// User preferences for dashboard personalization
+model UserPreferences {
+  id                    String        @id @default(cuid())
+  userId                String        @unique
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Dashboard persona (#41 Role-Based Dashboard)
+  preferredRole         PreferredRole @default(PLAYER)
+
+  // Dashboard customization
+  dashboardLayout       Json?         // Widget positions and visibility
+  favoriteMetrics       String[]      @default([])
+  defaultTimeRange      String        @default("30d") // 7d, 30d, 90d, all
+
+  // Notification preferences
+  emailNotifications    Boolean       @default(true)
+  weeklyDigest          Boolean       @default(true)
+
+  // Onboarding state (#42)
+  onboardingStep        Int           @default(0)
+  onboardingCompletedAt DateTime?
+  hasSeenWelcome        Boolean       @default(false)
+  hasCompletedTour      Boolean       @default(false)
+
+  // Integration settings
+  faceitAutoImport      Boolean       @default(false)
+  faceitImportInterval  Int           @default(24) // Hours between auto-imports
+
+  // Display preferences
+  theme                 String        @default("system") // light, dark, system
+  compactMode           Boolean       @default(false)
+  showAdvancedStats     Boolean       @default(false)
+
+  // Privacy settings
+  profileVisibility     ProfileVisibility @default(FRIENDS)
+  shareStats            Boolean           @default(true)
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+enum PreferredRole {
+  PLAYER    // Personal improvement focus
+  COACH     // Team management focus
+  SCOUT     // Opponent analysis focus
+  ANALYST   // Deep data analysis focus
+  CREATOR   // Content creation focus
+}
+
+enum ProfileVisibility {
+  PUBLIC    // Anyone can see
+  FRIENDS   // Only friends/teammates
+  PRIVATE   // Only self
 }
 
 // ============================================================================
@@ -179,6 +235,10 @@ model Demo {
   chatMessages    ChatMessage[]
   analyses        Analysis[]
 
+  // 2D Replay data
+  playerTicks     PlayerTick[]
+  replayEvents    ReplayEvent[]
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -262,6 +322,10 @@ model Round {
   playerStats     RoundPlayerStats[]
   kills           Kill[]
   grenades        Grenade[]
+
+  // 2D Replay data
+  playerTicks     PlayerTick[]
+  replayEvents    ReplayEvent[]
 
   @@unique([demoId, roundNumber])
   @@index([demoId])
@@ -668,4 +732,152 @@ model EseaProfile {
   lastFetched     DateTime @default(now())
 
   @@index([eseaId])
+}
+
+// ============================================================================
+// 2D REPLAY - Player Position Ticks
+// ============================================================================
+
+/// Stores player positions at sampled tick intervals for 2D replay visualization.
+/// Note: For performance, we sample every N ticks (typically 8 at 64 tick = 8fps).
+/// At 64 tick rate with 8 tick sampling, a 45-minute match generates ~27K rows per player.
+model PlayerTick {
+  id              String   @id @default(cuid())
+
+  tick            Int
+  steamId         String
+
+  // Position (in-game coordinates)
+  x               Float
+  y               Float
+  z               Float
+
+  // View angles
+  yaw             Float    // Horizontal angle (0-360)
+  pitch           Float    // Vertical angle
+
+  // Player state
+  health          Int      @default(100)
+  armor           Int      @default(0)
+  isAlive         Boolean  @default(true)
+  isDucking       Boolean  @default(false)
+  isScoped        Boolean  @default(false)
+  isDefusing      Boolean  @default(false)
+  isPlanting      Boolean  @default(false)
+
+  // Team & equipment
+  team            Int      // 2=T, 3=CT
+  activeWeapon    String?
+  hasDefuseKit    Boolean  @default(false)
+  hasBomb         Boolean  @default(false)
+  money           Int      @default(0)
+
+  // Flash state
+  flashDuration   Float    @default(0)
+
+  // Relations
+  demoId          String
+  demo            Demo     @relation(fields: [demoId], references: [id], onDelete: Cascade)
+  roundId         String?
+  round           Round?   @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  // Optimized indexes for replay streaming
+  @@index([demoId, tick])                              // Primary replay query
+  @@index([demoId, roundId, tick])                     // Round-specific replay
+  @@index([roundId, tick])                             // Round timeline
+  @@index([demoId, steamId])                           // Player-specific replay
+  @@index([demoId, tick, steamId])                     // Individual player frame
+}
+
+// ============================================================================
+// 2D REPLAY - Map Metadata (Radar coordinates)
+// ============================================================================
+
+/// Stores radar coordinate system for each map.
+/// Used to convert in-game coordinates to 2D radar positions.
+/// Formula: radarX = (gameX - posX) / scale
+///          radarY = (posY - gameY) / scale  (Y is inverted)
+model MapMetadata {
+  id              String   @id @default(cuid())
+  mapName         String   @unique
+
+  // Radar origin (top-left corner in game coordinates)
+  posX            Float
+  posY            Float
+
+  // Scale factor (game units per radar pixel)
+  scale           Float
+
+  // Radar image dimensions
+  radarWidth      Int      @default(1024)
+  radarHeight     Int      @default(1024)
+
+  // Optional: lower level radar for maps with split levels
+  hasLowerLevel   Boolean  @default(false)
+  lowerPosX       Float?
+  lowerPosY       Float?
+  lowerScale      Float?
+  splitAltitude   Float?   // Z threshold for level switching
+
+  // Metadata
+  displayName     String?
+  gameMode        String?  // competitive, wingman, etc.
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([mapName])
+}
+
+// ============================================================================
+// 2D REPLAY - Replay Events (for overlay display)
+// ============================================================================
+
+/// Stores replay-specific events optimized for 2D visualization.
+/// Includes positional data for rendering overlays.
+model ReplayEvent {
+  id              String         @id @default(cuid())
+  type            ReplayEventType
+  tick            Int
+
+  // Position where event occurred
+  x               Float
+  y               Float
+  z               Float
+
+  // Event-specific data
+  data            Json           // Flexible data storage per event type
+
+  // For projectiles (grenades, bullets)
+  endX            Float?
+  endY            Float?
+  endZ            Float?
+
+  // Relations
+  demoId          String
+  demo            Demo           @relation(fields: [demoId], references: [id], onDelete: Cascade)
+  roundId         String
+  round           Round          @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([demoId, tick])
+  @@index([roundId, tick])
+  @@index([demoId, roundId, type])
+  @@index([type, tick])
+}
+
+enum ReplayEventType {
+  KILL
+  DAMAGE
+  BOMB_PLANT
+  BOMB_DEFUSE
+  BOMB_EXPLODE
+  FLASH_EFFECT
+  SMOKE_START
+  SMOKE_END
+  MOLOTOV_START
+  MOLOTOV_END
+  HE_EXPLODE
+  FOOTSTEP
+  SHOT_FIRED
+  GRENADE_THROW
 }
