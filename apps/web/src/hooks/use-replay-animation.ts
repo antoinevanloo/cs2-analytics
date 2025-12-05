@@ -76,7 +76,7 @@ export function useReplayAnimation() {
       // Schedule next frame if still playing
       state.animationFrameId = requestAnimationFrame(animate);
     },
-    [msPerFrame, nextFrame]
+    [msPerFrame, nextFrame],
   );
 
   // Start/stop animation based on playback state
@@ -111,7 +111,7 @@ export function useReplayAnimation() {
   return {
     isAnimating: animationStateRef.current.animationFrameId !== null,
     targetFps: TARGET_FPS,
-    effectiveFps: tickRate / sampleInterval * playbackSpeed,
+    effectiveFps: (tickRate / sampleInterval) * playbackSpeed,
   };
 }
 
@@ -121,18 +121,29 @@ export function useReplayAnimation() {
  */
 export function useFrameInterpolation() {
   const interpolationRef = useRef({
-    previousFrame: null as ReturnType<typeof useReplayStore.getState>["frames"][0] | null,
-    currentFrame: null as ReturnType<typeof useReplayStore.getState>["frames"][0] | null,
+    previousFrame: null as
+      | ReturnType<typeof useReplayStore.getState>["frames"][0]
+      | null,
+    currentFrame: null as
+      | ReturnType<typeof useReplayStore.getState>["frames"][0]
+      | null,
     interpolationFactor: 0,
   });
 
-  const { frames, currentFrameIndex, playbackState, playbackSpeed, tickRate, sampleInterval } =
-    useReplayStore();
+  const {
+    frames,
+    currentFrameIndex,
+    playbackState,
+    playbackSpeed,
+    tickRate,
+    sampleInterval,
+  } = useReplayStore();
 
   // Update interpolation state
   useEffect(() => {
     const currentFrame = frames[currentFrameIndex];
-    const previousFrame = currentFrameIndex > 0 ? frames[currentFrameIndex - 1] : null;
+    const previousFrame =
+      currentFrameIndex > 0 ? frames[currentFrameIndex - 1] : null;
 
     interpolationRef.current.previousFrame = previousFrame ?? null;
     interpolationRef.current.currentFrame = currentFrame ?? null;
@@ -153,10 +164,10 @@ export function useFrameInterpolation() {
       lastTimestamp = timestamp;
 
       // Calculate interpolation factor
-      const msPerFrame = (1000 / (tickRate / sampleInterval)) / playbackSpeed;
+      const msPerFrame = 1000 / (tickRate / sampleInterval) / playbackSpeed;
       interpolationRef.current.interpolationFactor = Math.min(
         1,
-        interpolationRef.current.interpolationFactor + deltaTime / msPerFrame
+        interpolationRef.current.interpolationFactor + deltaTime / msPerFrame,
       );
 
       if (playbackState === "playing") {
@@ -177,14 +188,17 @@ export function useFrameInterpolation() {
 
   // Interpolate player positions
   const getInterpolatedPositions = useCallback(() => {
-    const { previousFrame, currentFrame, interpolationFactor } = interpolationRef.current;
+    const { previousFrame, currentFrame, interpolationFactor } =
+      interpolationRef.current;
 
     if (!currentFrame) return null;
     if (!previousFrame) return currentFrame.players;
 
     // Linear interpolation between frames
     return currentFrame.players.map((player) => {
-      const prevPlayer = previousFrame.players.find((p) => p.steamId === player.steamId);
+      const prevPlayer = previousFrame.players.find(
+        (p) => p.steamId === player.steamId,
+      );
 
       if (!prevPlayer) return player;
 

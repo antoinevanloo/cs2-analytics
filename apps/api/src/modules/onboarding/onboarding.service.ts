@@ -50,7 +50,8 @@ const METRIC_TIPS: Record<string, string> = {
   kast: "Focus on staying alive and providing value each round, even without kills",
   adr: "Take more duels and aim for higher damage output in engagements",
   hsPercent: "Practice aim training and crosshair placement at head level",
-  clutchWinRate: "Work on post-plant positioning and time management in clutches",
+  clutchWinRate:
+    "Work on post-plant positioning and time management in clutches",
   openingKillRate: "Consider playing entry roles or practice aggressive peeks",
   utilityDamage: "Learn common molotov and HE grenade lineups for your maps",
   impact: "Focus on creating space for your team and getting impactful kills",
@@ -272,7 +273,9 @@ export class OnboardingService {
     return progress;
   }
 
-  async getImportProgress(userId: string): Promise<ImportProgressResponse | null> {
+  async getImportProgress(
+    userId: string,
+  ): Promise<ImportProgressResponse | null> {
     return this.redis.get<ImportProgressResponse>(
       `${CACHE_PREFIX}import:${userId}`,
     );
@@ -469,7 +472,9 @@ export class OnboardingService {
   // Completion
   // ===========================================================================
 
-  async completeOnboarding(userId: string): Promise<CompleteOnboardingResponse> {
+  async completeOnboarding(
+    userId: string,
+  ): Promise<CompleteOnboardingResponse> {
     const preferences = await this.prisma.userPreferences.update({
       where: { userId },
       data: {
@@ -606,12 +611,14 @@ export class OnboardingService {
         label: "KAST",
         value: 70,
         insight: "Import matches to identify areas for improvement",
-        improvementTip: "Connect your accounts and import matches to get personalized insights",
+        improvementTip:
+          "Connect your accounts and import matches to get personalized insights",
       },
       matchesAnalyzed: 0,
       nextStep: {
         title: "Import Your Matches",
-        description: "Get personalized insights by importing your match history",
+        description:
+          "Get personalized insights by importing your match history",
         actionUrl: "/onboarding?step=import",
       },
     };

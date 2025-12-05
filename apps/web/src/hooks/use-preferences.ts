@@ -66,7 +66,8 @@ export function usePreferences(): UsePreferencesReturn {
       const prefs = await userApi.getPreferences();
       store.setPreferences({
         preferredRole: prefs.preferredRole,
-        dashboardLayout: prefs.dashboardLayout as UserPreferences["dashboardLayout"],
+        dashboardLayout:
+          prefs.dashboardLayout as UserPreferences["dashboardLayout"],
         favoriteMetrics: prefs.favoriteMetrics,
         defaultTimeRange: prefs.defaultTimeRange,
         emailNotifications: prefs.emailNotifications,
@@ -149,7 +150,9 @@ export function usePreferences(): UsePreferencesReturn {
         await userApi.updateOnboarding(step, false);
       } catch (error) {
         store.setError(
-          error instanceof Error ? error.message : "Failed to update onboarding",
+          error instanceof Error
+            ? error.message
+            : "Failed to update onboarding",
         );
       }
     },
@@ -176,7 +179,9 @@ export function usePreferences(): UsePreferencesReturn {
       await userApi.markTourCompleted();
     } catch (error) {
       store.setError(
-        error instanceof Error ? error.message : "Failed to mark tour completed",
+        error instanceof Error
+          ? error.message
+          : "Failed to mark tour completed",
       );
     }
   }, [store]);

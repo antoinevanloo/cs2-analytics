@@ -12,7 +12,13 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../common/prisma";
-import { DemoStatus, GameMode, GrenadeType, Prisma, ReplayEventType } from "@prisma/client";
+import {
+  DemoStatus,
+  GameMode,
+  GrenadeType,
+  Prisma,
+  ReplayEventType,
+} from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -884,7 +890,12 @@ export class DemoService {
         // Get rounds for event-to-round mapping (reuse if already fetched)
         const roundsForEvents = await this.prisma.round.findMany({
           where: { demoId: id },
-          select: { id: true, startTick: true, endTick: true, roundNumber: true },
+          select: {
+            id: true,
+            startTick: true,
+            endTick: true,
+            roundNumber: true,
+          },
           orderBy: { roundNumber: "asc" },
         });
 
@@ -943,9 +954,11 @@ export class DemoService {
                 attackerblind: Boolean(event.attackerblind),
               },
             });
-          } else if (eventType === ReplayEventType.BOMB_PLANT ||
-                     eventType === ReplayEventType.BOMB_DEFUSE ||
-                     eventType === ReplayEventType.BOMB_EXPLODE) {
+          } else if (
+            eventType === ReplayEventType.BOMB_PLANT ||
+            eventType === ReplayEventType.BOMB_DEFUSE ||
+            eventType === ReplayEventType.BOMB_EXPLODE
+          ) {
             // Bomb events
             replayEvents.push({
               ...baseEvent,
@@ -953,8 +966,12 @@ export class DemoService {
               y: (event.y as number) || 0,
               z: (event.z as number) || 0,
               data: {
-                playerSteamId: String(event.player_steamid || event.userid_steamid || ""),
-                playerName: String(event.player_name || event.userid_name || ""),
+                playerSteamId: String(
+                  event.player_steamid || event.userid_steamid || "",
+                ),
+                playerName: String(
+                  event.player_name || event.userid_name || "",
+                ),
                 site: String(event.site || ""),
               },
             });

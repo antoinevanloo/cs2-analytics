@@ -45,7 +45,12 @@ import { IntegrationsModule } from "../integrations/integrations.module";
     IntegrationsModule,
   ],
   controllers: [AuthController],
-  providers: [JwtStrategy, SteamOAuthStrategy, FaceitOAuthStrategy, AuthService],
+  providers: [
+    JwtStrategy,
+    SteamOAuthStrategy,
+    FaceitOAuthStrategy,
+    AuthService,
+  ],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

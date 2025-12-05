@@ -637,7 +637,12 @@ export class ReplayService {
 
     // Convert grenades
     for (const nade of grenades) {
-      const coords = this.convertToRadarCoords(nade.x, nade.y, nade.z, mapConfig);
+      const coords = this.convertToRadarCoords(
+        nade.x,
+        nade.y,
+        nade.z,
+        mapConfig,
+      );
 
       const eventType = this.mapGrenadeType(nade.type);
       if (eventType) {
@@ -656,7 +661,12 @@ export class ReplayService {
 
     // Add replay events
     for (const event of replayEvents) {
-      const coords = this.convertToRadarCoords(event.x, event.y, event.z, mapConfig);
+      const coords = this.convertToRadarCoords(
+        event.x,
+        event.y,
+        event.z,
+        mapConfig,
+      );
 
       events.push({
         type: event.type as ReplayEvent["type"],

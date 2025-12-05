@@ -618,8 +618,7 @@ export interface ScoutDashboardData {
 // User endpoints
 export const userApi = {
   // Get current user profile
-  getProfile: (): Promise<UserProfile> =>
-    fetchApi<UserProfile>("/v1/user/me"),
+  getProfile: (): Promise<UserProfile> => fetchApi<UserProfile>("/v1/user/me"),
 
   // Get user preferences
   getPreferences: (): Promise<UserPreferences> =>

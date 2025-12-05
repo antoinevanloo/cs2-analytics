@@ -145,15 +145,22 @@ export class FaceitOAuthStrategy extends PassportStrategy(
   /**
    * Fetch user profile from FACEIT API
    */
-  private async fetchFaceitProfile(accessToken: string): Promise<FaceitProfile> {
-    const response = await fetch("https://api.faceit.com/auth/v1/resources/userinfo", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+  private async fetchFaceitProfile(
+    accessToken: string,
+  ): Promise<FaceitProfile> {
+    const response = await fetch(
+      "https://api.faceit.com/auth/v1/resources/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    });
+    );
 
     if (!response.ok) {
-      throw new Error(`FACEIT API error: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `FACEIT API error: ${response.status} ${response.statusText}`,
+      );
     }
 
     const data = (await response.json()) as FaceitApiProfile;
@@ -195,7 +202,8 @@ export class FaceitOAuthStrategy extends PassportStrategy(
 
     // Add optional properties only if present
     if (data.steam_id_64) profile.steamId64 = data.steam_id_64;
-    const gamePlayerId = data.games?.cs2?.game_player_id || data.games?.csgo?.game_player_id;
+    const gamePlayerId =
+      data.games?.cs2?.game_player_id || data.games?.csgo?.game_player_id;
     if (gamePlayerId) profile.gamePlayerId = gamePlayerId;
 
     return profile;
@@ -240,7 +248,9 @@ export class FaceitOAuthStrategy extends PassportStrategy(
         where: { id: existingUser.id },
         data: updateData,
       });
-      this.logger.debug(`Updated existing user with FACEIT: ${existingUser.id}`);
+      this.logger.debug(
+        `Updated existing user with FACEIT: ${existingUser.id}`,
+      );
     } else {
       // Create new user from FACEIT
       // Build create data, only including steamId if we have a value

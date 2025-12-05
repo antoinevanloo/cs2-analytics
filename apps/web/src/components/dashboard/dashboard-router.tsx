@@ -96,7 +96,9 @@ export function DashboardRouter({
   const [activeRole, setActiveRole] = useState<PreferredRole>(
     initialRole ?? preferredRole,
   );
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

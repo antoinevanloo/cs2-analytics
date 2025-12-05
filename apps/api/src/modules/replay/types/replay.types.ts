@@ -224,7 +224,12 @@ export interface MapRadarConfig {
 /**
  * NDJSON stream message types
  */
-export type StreamMessageType = "metadata" | "frame" | "event" | "end" | "error";
+export type StreamMessageType =
+  | "metadata"
+  | "frame"
+  | "event"
+  | "end"
+  | "error";
 
 export interface StreamMessage {
   type: StreamMessageType;

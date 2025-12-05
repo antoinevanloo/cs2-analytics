@@ -47,7 +47,12 @@ export interface PlayerDashboardData {
     deaths: number;
     date: Date;
   }>;
-  nextSteps: Array<{ id: string; title: string; description: string; priority: number }>;
+  nextSteps: Array<{
+    id: string;
+    title: string;
+    description: string;
+    priority: number;
+  }>;
   widgets: DashboardWidget[];
 }
 
@@ -73,7 +78,11 @@ export interface CoachDashboardData {
   }>;
   teamStrengths: Array<{ name: string; score: number }>;
   teamWeaknesses: Array<{ name: string; score: number; suggestion: string }>;
-  practiceRecommendations: Array<{ id: string; title: string; description: string }>;
+  practiceRecommendations: Array<{
+    id: string;
+    title: string;
+    description: string;
+  }>;
   widgets: DashboardWidget[];
 }
 
@@ -211,7 +220,10 @@ export class UserService {
 
     return {
       preferredRole: preferences.preferredRole,
-      dashboardLayout: preferences.dashboardLayout as Record<string, unknown> | null,
+      dashboardLayout: preferences.dashboardLayout as Record<
+        string,
+        unknown
+      > | null,
       favoriteMetrics: preferences.favoriteMetrics,
       defaultTimeRange: preferences.defaultTimeRange,
       emailNotifications: preferences.emailNotifications,
@@ -246,20 +258,31 @@ export class UserService {
     // Build update data, excluding undefined values
     const updateData: Prisma.UserPreferencesUpdateInput = {};
 
-    if (data.preferredRole !== undefined) updateData.preferredRole = data.preferredRole;
+    if (data.preferredRole !== undefined)
+      updateData.preferredRole = data.preferredRole;
     if (data.dashboardLayout !== undefined) {
-      updateData.dashboardLayout = data.dashboardLayout as Prisma.InputJsonValue;
+      updateData.dashboardLayout =
+        data.dashboardLayout as Prisma.InputJsonValue;
     }
-    if (data.favoriteMetrics !== undefined) updateData.favoriteMetrics = data.favoriteMetrics;
-    if (data.defaultTimeRange !== undefined) updateData.defaultTimeRange = data.defaultTimeRange;
-    if (data.emailNotifications !== undefined) updateData.emailNotifications = data.emailNotifications;
-    if (data.weeklyDigest !== undefined) updateData.weeklyDigest = data.weeklyDigest;
-    if (data.faceitAutoImport !== undefined) updateData.faceitAutoImport = data.faceitAutoImport;
-    if (data.faceitImportInterval !== undefined) updateData.faceitImportInterval = data.faceitImportInterval;
+    if (data.favoriteMetrics !== undefined)
+      updateData.favoriteMetrics = data.favoriteMetrics;
+    if (data.defaultTimeRange !== undefined)
+      updateData.defaultTimeRange = data.defaultTimeRange;
+    if (data.emailNotifications !== undefined)
+      updateData.emailNotifications = data.emailNotifications;
+    if (data.weeklyDigest !== undefined)
+      updateData.weeklyDigest = data.weeklyDigest;
+    if (data.faceitAutoImport !== undefined)
+      updateData.faceitAutoImport = data.faceitAutoImport;
+    if (data.faceitImportInterval !== undefined)
+      updateData.faceitImportInterval = data.faceitImportInterval;
     if (data.theme !== undefined) updateData.theme = data.theme;
-    if (data.compactMode !== undefined) updateData.compactMode = data.compactMode;
-    if (data.showAdvancedStats !== undefined) updateData.showAdvancedStats = data.showAdvancedStats;
-    if (data.profileVisibility !== undefined) updateData.profileVisibility = data.profileVisibility;
+    if (data.compactMode !== undefined)
+      updateData.compactMode = data.compactMode;
+    if (data.showAdvancedStats !== undefined)
+      updateData.showAdvancedStats = data.showAdvancedStats;
+    if (data.profileVisibility !== undefined)
+      updateData.profileVisibility = data.profileVisibility;
     if (data.shareStats !== undefined) updateData.shareStats = data.shareStats;
 
     // Upsert preferences
@@ -268,17 +291,35 @@ export class UserService {
       create: {
         userId,
         ...(data.preferredRole && { preferredRole: data.preferredRole }),
-        ...(data.dashboardLayout && { dashboardLayout: data.dashboardLayout as Prisma.InputJsonValue }),
+        ...(data.dashboardLayout && {
+          dashboardLayout: data.dashboardLayout as Prisma.InputJsonValue,
+        }),
         ...(data.favoriteMetrics && { favoriteMetrics: data.favoriteMetrics }),
-        ...(data.defaultTimeRange && { defaultTimeRange: data.defaultTimeRange }),
-        ...(data.emailNotifications !== undefined && { emailNotifications: data.emailNotifications }),
-        ...(data.weeklyDigest !== undefined && { weeklyDigest: data.weeklyDigest }),
-        ...(data.faceitAutoImport !== undefined && { faceitAutoImport: data.faceitAutoImport }),
-        ...(data.faceitImportInterval && { faceitImportInterval: data.faceitImportInterval }),
+        ...(data.defaultTimeRange && {
+          defaultTimeRange: data.defaultTimeRange,
+        }),
+        ...(data.emailNotifications !== undefined && {
+          emailNotifications: data.emailNotifications,
+        }),
+        ...(data.weeklyDigest !== undefined && {
+          weeklyDigest: data.weeklyDigest,
+        }),
+        ...(data.faceitAutoImport !== undefined && {
+          faceitAutoImport: data.faceitAutoImport,
+        }),
+        ...(data.faceitImportInterval && {
+          faceitImportInterval: data.faceitImportInterval,
+        }),
         ...(data.theme && { theme: data.theme }),
-        ...(data.compactMode !== undefined && { compactMode: data.compactMode }),
-        ...(data.showAdvancedStats !== undefined && { showAdvancedStats: data.showAdvancedStats }),
-        ...(data.profileVisibility && { profileVisibility: data.profileVisibility }),
+        ...(data.compactMode !== undefined && {
+          compactMode: data.compactMode,
+        }),
+        ...(data.showAdvancedStats !== undefined && {
+          showAdvancedStats: data.showAdvancedStats,
+        }),
+        ...(data.profileVisibility && {
+          profileVisibility: data.profileVisibility,
+        }),
         ...(data.shareStats !== undefined && { shareStats: data.shareStats }),
       },
       update: updateData,
@@ -447,7 +488,7 @@ export class UserService {
     const recentMatches = stats.slice(0, 5).map((s) => ({
       id: s.demo.id,
       map: s.demo.mapName,
-      result: this.isWin(s) ? "win" as const : "loss" as const,
+      result: this.isWin(s) ? ("win" as const) : ("loss" as const),
       rating: currentRating,
       kills: s.kills,
       deaths: s.deaths,
@@ -463,17 +504,43 @@ export class UserService {
         ratingTrend,
       },
       strengths: [
-        { name: "Aim", score: 75, description: "Your headshot percentage is above average" },
-        { name: "Trade Fragging", score: 68, description: "You often get refrag opportunities" },
+        {
+          name: "Aim",
+          score: 75,
+          description: "Your headshot percentage is above average",
+        },
+        {
+          name: "Trade Fragging",
+          score: 68,
+          description: "You often get refrag opportunities",
+        },
       ],
       weaknesses: [
-        { name: "Utility Usage", score: 45, suggestion: "Use more flashes before pushing" },
-        { name: "Economy Management", score: 52, suggestion: "Avoid force-buying on 3rd round loss" },
+        {
+          name: "Utility Usage",
+          score: 45,
+          suggestion: "Use more flashes before pushing",
+        },
+        {
+          name: "Economy Management",
+          score: 52,
+          suggestion: "Avoid force-buying on 3rd round loss",
+        },
       ],
       recentMatches,
       nextSteps: [
-        { id: "1", title: "Watch your recent demos", description: "Review your last 3 matches for mistakes", priority: 1 },
-        { id: "2", title: "Practice utility", description: "Learn 3 new smokes for your favorite map", priority: 2 },
+        {
+          id: "1",
+          title: "Watch your recent demos",
+          description: "Review your last 3 matches for mistakes",
+          priority: 1,
+        },
+        {
+          id: "2",
+          title: "Practice utility",
+          description: "Learn 3 new smokes for your favorite map",
+          priority: 2,
+        },
       ],
       widgets: [],
     };
@@ -533,11 +600,23 @@ export class UserService {
       ],
       teamWeaknesses: [
         { name: "Anti-eco", score: 45, suggestion: "Review anti-eco setups" },
-        { name: "Late round situations", score: 48, suggestion: "Practice clutch scenarios" },
+        {
+          name: "Late round situations",
+          score: 48,
+          suggestion: "Practice clutch scenarios",
+        },
       ],
       practiceRecommendations: [
-        { id: "1", title: "CT Retakes on Mirage", description: "Win rate below average" },
-        { id: "2", title: "T Side Executes on Inferno", description: "Post-plant situations need work" },
+        {
+          id: "1",
+          title: "CT Retakes on Mirage",
+          description: "Win rate below average",
+        },
+        {
+          id: "2",
+          title: "T Side Executes on Inferno",
+          description: "Post-plant situations need work",
+        },
       ],
       widgets: [],
     };
@@ -641,9 +720,10 @@ export class UserService {
   /**
    * Check if a match was a win for the player
    */
-  private isWin(
-    stats: { teamNum: number; demo: { team1Score: number; team2Score: number } },
-  ): boolean {
+  private isWin(stats: {
+    teamNum: number;
+    demo: { team1Score: number; team2Score: number };
+  }): boolean {
     const { teamNum, demo } = stats;
     if (teamNum === 2) {
       return demo.team1Score > demo.team2Score;

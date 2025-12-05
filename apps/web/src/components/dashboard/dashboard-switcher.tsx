@@ -10,12 +10,16 @@
  */
 
 import { useCallback, useState } from "react";
-import { ChevronDown, User, Users, Search, BarChart3, Video } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  type PreferredRole,
-  ROLE_METADATA,
-} from "@/stores/preferences-store";
+  ChevronDown,
+  User,
+  Users,
+  Search,
+  BarChart3,
+  Video,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { type PreferredRole, ROLE_METADATA } from "@/stores/preferences-store";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -34,7 +38,10 @@ interface DashboardSwitcherProps {
 // Icon mapping
 // ============================================================================
 
-const ROLE_ICONS: Record<PreferredRole, React.ComponentType<{ className?: string }>> = {
+const ROLE_ICONS: Record<
+  PreferredRole,
+  React.ComponentType<{ className?: string }>
+> = {
   PLAYER: User,
   COACH: Users,
   SCOUT: Search,
@@ -68,7 +75,10 @@ export function DashboardSwitcher({
     [currentRole, onRoleChange],
   );
 
-  const roles = Object.entries(ROLE_METADATA) as [PreferredRole, typeof currentMeta][];
+  const roles = Object.entries(ROLE_METADATA) as [
+    PreferredRole,
+    typeof currentMeta,
+  ][];
 
   return (
     <div className={cn("relative", className)}>
@@ -176,7 +186,13 @@ export function CompactRoleSwitcher({
   onRoleChange,
   className,
 }: CompactSwitcherProps) {
-  const roles: PreferredRole[] = ["PLAYER", "COACH", "SCOUT", "ANALYST", "CREATOR"];
+  const roles: PreferredRole[] = [
+    "PLAYER",
+    "COACH",
+    "SCOUT",
+    "ANALYST",
+    "CREATOR",
+  ];
 
   return (
     <div className={cn("flex gap-1", className)}>

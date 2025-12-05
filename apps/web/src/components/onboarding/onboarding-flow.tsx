@@ -29,14 +29,8 @@ import { OnboardingStepper } from "./onboarding-stepper";
 
 export function OnboardingFlow() {
   const router = useRouter();
-  const {
-    status,
-    currentStep,
-    isCompleted,
-    isLoading,
-    error,
-    fetchStatus,
-  } = useOnboarding();
+  const { status, currentStep, isCompleted, isLoading, error, fetchStatus } =
+    useOnboarding();
 
   // Fetch status on mount
   useEffect(() => {

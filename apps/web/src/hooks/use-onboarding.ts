@@ -91,10 +91,7 @@ export function useOnboarding() {
   // ===========================================================================
 
   const apiRequest = useCallback(
-    async <T>(
-      endpoint: string,
-      options: RequestInit = {},
-    ): Promise<T> => {
+    async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
       const token = getAccessToken();
       if (!token) {
         throw new Error("Not authenticated");
@@ -140,7 +137,14 @@ export function useOnboarding() {
         error instanceof Error ? error.message : "Failed to fetch status",
       );
     }
-  }, [isAuthenticated, apiRequest, setStatus, setLoadingStatus, setStatusError, setPreferencesStep]);
+  }, [
+    isAuthenticated,
+    apiRequest,
+    setStatus,
+    setLoadingStatus,
+    setStatusError,
+    setPreferencesStep,
+  ]);
 
   // ===========================================================================
   // Update Step
@@ -200,11 +204,7 @@ export function useOnboarding() {
   // ===========================================================================
 
   const startImport = useCallback(
-    async (
-      source: ImportSource,
-      matchCount = 10,
-      enableAutoImport = false,
-    ) => {
+    async (source: ImportSource, matchCount = 10, enableAutoImport = false) => {
       setStartingImport(true);
       setImportError(null);
 
@@ -328,7 +328,9 @@ export function useOnboarding() {
   const fetchFirstInsight = useCallback(async () => {
     setLoadingInsight(true);
     try {
-      const data = await apiRequest<FirstInsight>("/v1/onboarding/first-insight");
+      const data = await apiRequest<FirstInsight>(
+        "/v1/onboarding/first-insight",
+      );
       setFirstInsight(data);
       return data;
     } catch (error) {
@@ -365,7 +367,9 @@ export function useOnboarding() {
       return response;
     } catch (error) {
       setStatusError(
-        error instanceof Error ? error.message : "Failed to complete onboarding",
+        error instanceof Error
+          ? error.message
+          : "Failed to complete onboarding",
       );
       throw error;
     }
@@ -433,7 +437,10 @@ export function useOnboarding() {
     firstInsight,
     currentStep: status?.currentStep ?? OnboardingStep.WELCOME,
     isCompleted: status?.isCompleted ?? false,
-    connectedAccounts: status?.connectedAccounts ?? { steam: false, faceit: false },
+    connectedAccounts: status?.connectedAccounts ?? {
+      steam: false,
+      faceit: false,
+    },
 
     // Loading states
     isLoading: isLoadingStatus,

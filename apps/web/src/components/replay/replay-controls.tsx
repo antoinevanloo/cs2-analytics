@@ -76,7 +76,7 @@ export function ReplayControls() {
     (value: string) => {
       setPlaybackSpeed(parseFloat(value) as PlaybackSpeed);
     },
-    [setPlaybackSpeed]
+    [setPlaybackSpeed],
   );
 
   // Keyboard shortcuts

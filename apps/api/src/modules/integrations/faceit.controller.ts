@@ -67,7 +67,11 @@ export class FaceitController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get FACEIT player statistics" })
   @ApiParam({ name: "playerId", description: "FACEIT player ID" })
-  @ApiQuery({ name: "game", required: false, description: "Game ID (default: cs2)" })
+  @ApiQuery({
+    name: "game",
+    required: false,
+    description: "Game ID (default: cs2)",
+  })
   @ApiResponse({ status: 200, description: "Player statistics" })
   @ApiResponse({ status: 404, description: "Player not found" })
   async getPlayerStats(
@@ -90,9 +94,21 @@ export class FaceitController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get FACEIT match history" })
   @ApiParam({ name: "playerId", description: "FACEIT player ID" })
-  @ApiQuery({ name: "game", required: false, description: "Game ID (default: cs2)" })
-  @ApiQuery({ name: "offset", required: false, description: "Offset for pagination" })
-  @ApiQuery({ name: "limit", required: false, description: "Limit for pagination (max 100)" })
+  @ApiQuery({
+    name: "game",
+    required: false,
+    description: "Game ID (default: cs2)",
+  })
+  @ApiQuery({
+    name: "offset",
+    required: false,
+    description: "Offset for pagination",
+  })
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    description: "Limit for pagination (max 100)",
+  })
   @ApiResponse({ status: 200, description: "Match history" })
   async getMatchHistory(
     @Param("playerId") playerId: string,
@@ -138,7 +154,11 @@ export class FaceitController {
   @Get("search")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Search FACEIT players" })
-  @ApiQuery({ name: "nickname", required: true, description: "Player nickname to search" })
+  @ApiQuery({
+    name: "nickname",
+    required: true,
+    description: "Player nickname to search",
+  })
   @ApiResponse({ status: 200, description: "Search results" })
   async searchPlayer(@Query("nickname") nickname: string) {
     if (!nickname || nickname.length < 2) {
@@ -155,7 +175,11 @@ export class FaceitController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get recent matches with demo URLs" })
   @ApiParam({ name: "playerId", description: "FACEIT player ID" })
-  @ApiQuery({ name: "limit", required: false, description: "Number of matches (max 20)" })
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    description: "Number of matches (max 20)",
+  })
   @ApiResponse({ status: 200, description: "Matches with demo URLs" })
   async getRecentDemos(
     @Param("playerId") playerId: string,
@@ -209,8 +233,14 @@ export class FaceitController {
    */
   @Get("me/demos")
   @ApiBearerAuth()
-  @ApiOperation({ summary: "Get current user's recent FACEIT matches with demos" })
-  @ApiQuery({ name: "limit", required: false, description: "Number of matches (max 20)" })
+  @ApiOperation({
+    summary: "Get current user's recent FACEIT matches with demos",
+  })
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    description: "Number of matches (max 20)",
+  })
   @ApiResponse({ status: 200, description: "Matches with demo URLs" })
   @ApiResponse({ status: 400, description: "FACEIT account not linked" })
   async getMyRecentDemos(
@@ -223,11 +253,16 @@ export class FaceitController {
     });
 
     if (!dbUser?.faceitId) {
-      throw new BadRequestException("FACEIT account not linked. Please connect your FACEIT account first.");
+      throw new BadRequestException(
+        "FACEIT account not linked. Please connect your FACEIT account first.",
+      );
     }
 
     const parsedLimit = Math.min(parseInt(limit || "10", 10), 20);
-    return this.faceitService.getRecentMatchesWithDemos(dbUser.faceitId, parsedLimit);
+    return this.faceitService.getRecentMatchesWithDemos(
+      dbUser.faceitId,
+      parsedLimit,
+    );
   }
 
   /**

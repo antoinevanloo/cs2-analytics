@@ -84,7 +84,7 @@ export function ReplayTimeline() {
       const remainingSeconds = Math.floor(seconds % 60);
       return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
     },
-    [startTick, tickRate]
+    [startTick, tickRate],
   );
 
   // Calculate frame index from position
@@ -97,7 +97,7 @@ export function ReplayTimeline() {
       const clampedPosition = Math.max(0, Math.min(1, position));
       return Math.floor(clampedPosition * (total - 1));
     },
-    [total]
+    [total],
   );
 
   // Handle click on timeline
@@ -106,7 +106,7 @@ export function ReplayTimeline() {
       const frameIndex = getFrameIndexFromPosition(e.clientX);
       seek(frameIndex);
     },
-    [getFrameIndexFromPosition, seek]
+    [getFrameIndexFromPosition, seek],
   );
 
   // Handle drag start
@@ -133,7 +133,7 @@ export function ReplayTimeline() {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [getFrameIndexFromPosition, seek, pause]
+    [getFrameIndexFromPosition, seek, pause],
   );
 
   // Handle hover
@@ -145,7 +145,7 @@ export function ReplayTimeline() {
       const position = (e.clientX - rect.left) / rect.width;
       setHoverPosition(Math.max(0, Math.min(1, position)));
     },
-    [isDragging]
+    [isDragging],
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -155,9 +155,10 @@ export function ReplayTimeline() {
   }, [isDragging]);
 
   // Calculate hover tick
-  const hoverTick = hoverPosition !== null
-    ? Math.floor(startTick + hoverPosition * totalTicks)
-    : null;
+  const hoverTick =
+    hoverPosition !== null
+      ? Math.floor(startTick + hoverPosition * totalTicks)
+      : null;
 
   // Current time display
   const currentTime = formatTime(currentTick);
@@ -180,7 +181,7 @@ export function ReplayTimeline() {
         className={cn(
           "relative h-3 bg-secondary rounded-full cursor-pointer",
           "transition-all hover:h-4",
-          isDragging && "h-4"
+          isDragging && "h-4",
         )}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
@@ -213,7 +214,7 @@ export function ReplayTimeline() {
             "absolute top-1/2 -translate-y-1/2 -translate-x-1/2",
             "w-4 h-4 bg-primary rounded-full border-2 border-background",
             "transition-transform",
-            isDragging && "scale-125"
+            isDragging && "scale-125",
           )}
           style={{ left: `${percentage}%` }}
         />
@@ -233,8 +234,8 @@ export function ReplayTimeline() {
       {roundMetadata && (
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>
-            Round {roundMetadata.roundNumber} |{" "}
-            {roundMetadata.ctTeam.name} vs {roundMetadata.tTeam.name}
+            Round {roundMetadata.roundNumber} | {roundMetadata.ctTeam.name} vs{" "}
+            {roundMetadata.tTeam.name}
           </span>
           <span>
             Winner: {roundMetadata.winnerTeam === 3 ? "CT" : "T"} (

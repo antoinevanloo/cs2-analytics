@@ -60,7 +60,10 @@ function TrendIndicator({ value }: { value: number }) {
       )}
     >
       <Icon className="h-4 w-4" />
-      <span>{isPositive ? "+" : ""}{(value * 100).toFixed(1)}%</span>
+      <span>
+        {isPositive ? "+" : ""}
+        {(value * 100).toFixed(1)}%
+      </span>
     </div>
   );
 }
@@ -125,7 +128,9 @@ function TeamHealthCard({
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Team Rating</span>
-            <span className={cn("font-medium", tier.textColor)}>{tier.label}</span>
+            <span className={cn("font-medium", tier.textColor)}>
+              {tier.label}
+            </span>
           </div>
           <Progress value={healthPercent} className="h-3" />
         </div>
@@ -177,7 +182,9 @@ function PlayerTile({
             <p className="font-medium truncate">{player.name}</p>
             <div className="flex items-center gap-2">
               <RatingBadge rating={player.rating} size="sm" />
-              <span className={cn("text-xs", tier.textColor)}>{tier.label}</span>
+              <span className={cn("text-xs", tier.textColor)}>
+                {tier.label}
+              </span>
             </div>
           </div>
 
@@ -209,9 +216,11 @@ function PlayerTilesCard({
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-2">
           {players.length > 0 ? (
-            players.slice(0, 6).map((player) => (
-              <PlayerTile key={player.steamId} player={player} />
-            ))
+            players
+              .slice(0, 6)
+              .map((player) => (
+                <PlayerTile key={player.steamId} player={player} />
+              ))
           ) : (
             <p className="text-sm text-muted-foreground col-span-full text-center py-8">
               No players tracked yet. Add team members to see their performance.

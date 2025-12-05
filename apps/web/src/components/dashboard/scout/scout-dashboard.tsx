@@ -61,7 +61,9 @@ const MAP_COLORS: Record<string, string> = {
 };
 
 function MapBadge({ map }: { map: string }) {
-  const mapName = map.replace("de_", "").charAt(0).toUpperCase() + map.replace("de_", "").slice(1);
+  const mapName =
+    map.replace("de_", "").charAt(0).toUpperCase() +
+    map.replace("de_", "").slice(1);
   const color = MAP_COLORS[map] || MAP_COLORS.default;
 
   return (
@@ -129,7 +131,9 @@ function RecentOpponentsCard({
                     <span
                       className={cn(
                         "font-medium",
-                        opponent.winRate >= 0.5 ? "text-green-500" : "text-red-500",
+                        opponent.winRate >= 0.5
+                          ? "text-green-500"
+                          : "text-red-500",
                       )}
                     >
                       {(opponent.winRate * 100).toFixed(0)}%
@@ -182,7 +186,9 @@ function MapMetaCard({ mapMeta }: { mapMeta: ScoutDashboardData["mapMeta"] }) {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <MapBadge map={map} />
-                    <span className="text-muted-foreground">{stats.avgScore}</span>
+                    <span className="text-muted-foreground">
+                      {stats.avgScore}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Percent className="h-3 w-3 text-muted-foreground" />
@@ -237,7 +243,9 @@ function WatchlistCard({
                   </div>
                   <div>
                     <p className="text-sm font-medium">{player.name}</p>
-                    <p className="text-xs text-muted-foreground">{player.team}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {player.team}
+                    </p>
                   </div>
                 </div>
                 <RatingBadge rating={player.rating} size="sm" />

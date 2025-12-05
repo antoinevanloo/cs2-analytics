@@ -159,7 +159,11 @@ export class FaceitService {
       nickname: string;
       avatar: string;
       games?: {
-        cs2?: { skill_level: number; faceit_elo: number; game_player_id: string };
+        cs2?: {
+          skill_level: number;
+          faceit_elo: number;
+          game_player_id: string;
+        };
       };
     }>(`/players/${playerId}`);
 
@@ -172,9 +176,12 @@ export class FaceitService {
     };
 
     if (data.avatar) player.avatar = data.avatar;
-    if (data.games?.cs2?.game_player_id) player.gamePlayerId = data.games.cs2.game_player_id;
-    if (data.games?.cs2?.skill_level !== undefined) player.skillLevel = data.games.cs2.skill_level;
-    if (data.games?.cs2?.faceit_elo !== undefined) player.elo = data.games.cs2.faceit_elo;
+    if (data.games?.cs2?.game_player_id)
+      player.gamePlayerId = data.games.cs2.game_player_id;
+    if (data.games?.cs2?.skill_level !== undefined)
+      player.skillLevel = data.games.cs2.skill_level;
+    if (data.games?.cs2?.faceit_elo !== undefined)
+      player.elo = data.games.cs2.faceit_elo;
 
     await this.redis.set(cacheKey, player, this.CACHE_TTL.PLAYER_STATS);
     return player;
@@ -222,8 +229,10 @@ export class FaceitService {
         winRate: parseFloat(data.lifetime["Win Rate %"]) || 0,
         averageKD: parseFloat(data.lifetime["Average K/D Ratio"]) || 0,
         averageHSPercent: parseFloat(data.lifetime["Average Headshots %"]) || 0,
-        currentWinStreak: parseInt(data.lifetime["Current Win Streak"], 10) || 0,
-        longestWinStreak: parseInt(data.lifetime["Longest Win Streak"], 10) || 0,
+        currentWinStreak:
+          parseInt(data.lifetime["Current Win Streak"], 10) || 0,
+        longestWinStreak:
+          parseInt(data.lifetime["Longest Win Streak"], 10) || 0,
       },
     };
 
@@ -301,7 +310,9 @@ export class FaceitService {
       }>;
       start: number;
       end: number;
-    }>(`/players/${playerId}/history?game=${game}&offset=${offset}&limit=${limit}`);
+    }>(
+      `/players/${playerId}/history?game=${game}&offset=${offset}&limit=${limit}`,
+    );
 
     if (!data) {
       return { matches: [], start: 0, end: 0, total: 0 };
@@ -424,9 +435,7 @@ export class FaceitService {
       );
 
       matchesWithDemos.push(
-        ...results.filter(
-          (r): r is NonNullable<typeof r> => r !== null,
-        ),
+        ...results.filter((r): r is NonNullable<typeof r> => r !== null),
       );
     }
 
@@ -514,7 +523,9 @@ export class FaceitService {
       try {
         return await this.circuitBreaker.execute(async () => {
           const url = `${this.baseUrl}${endpoint}`;
-          this.logger.debug(`FACEIT API request: ${endpoint} (attempt ${attempt})`);
+          this.logger.debug(
+            `FACEIT API request: ${endpoint} (attempt ${attempt})`,
+          );
 
           const response = await fetch(url, {
             headers: {
@@ -563,7 +574,10 @@ export class FaceitService {
       }
     }
 
-    this.logger.error(`FACEIT API request failed after ${maxRetries} attempts`, lastError);
+    this.logger.error(
+      `FACEIT API request failed after ${maxRetries} attempts`,
+      lastError,
+    );
     return null;
   }
 
@@ -646,7 +660,8 @@ export class FaceitService {
       };
       if (p.avatar) player.avatar = p.avatar;
       if (p.game_player_id) player.gamePlayerId = p.game_player_id;
-      if (p.game_skill_level !== undefined) player.skillLevel = p.game_skill_level;
+      if (p.game_skill_level !== undefined)
+        player.skillLevel = p.game_skill_level;
       return player;
     };
 
@@ -656,7 +671,8 @@ export class FaceitService {
       name: data.teams.faction1.nickname,
       roster: data.teams.faction1.roster.map(mapRosterPlayer),
     };
-    if (data.teams.faction1.avatar) faction1.avatar = data.teams.faction1.avatar;
+    if (data.teams.faction1.avatar)
+      faction1.avatar = data.teams.faction1.avatar;
 
     // Build faction2 team
     const faction2: FaceitTeam = {
@@ -664,7 +680,8 @@ export class FaceitService {
       name: data.teams.faction2.nickname,
       roster: data.teams.faction2.roster.map(mapRosterPlayer),
     };
-    if (data.teams.faction2.avatar) faction2.avatar = data.teams.faction2.avatar;
+    if (data.teams.faction2.avatar)
+      faction2.avatar = data.teams.faction2.avatar;
 
     const match: FaceitMatch = {
       matchId: data.match_id,

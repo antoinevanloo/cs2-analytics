@@ -155,7 +155,8 @@ export class ReplayController {
 
     try {
       const streamOptions: { sampleInterval?: number; batchSize?: number } = {};
-      if (sampleInterval) streamOptions.sampleInterval = parseInt(sampleInterval, 10);
+      if (sampleInterval)
+        streamOptions.sampleInterval = parseInt(sampleInterval, 10);
       if (batchSize) streamOptions.batchSize = parseInt(batchSize, 10);
 
       const stream = this.replayService.streamRoundReplay(

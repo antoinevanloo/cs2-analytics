@@ -92,7 +92,13 @@ export interface RoundMetadata {
 }
 
 // Playback state
-export type PlaybackState = "idle" | "loading" | "ready" | "playing" | "paused" | "ended";
+export type PlaybackState =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "playing"
+  | "paused"
+  | "ended";
 
 // Playback speed options
 export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 1.5, 2, 4] as const;
@@ -387,7 +393,7 @@ export const useReplayStore = create<ReplayState>()(
     setError: (error: string | null) => {
       set({ error, playbackState: error ? "idle" : get().playbackState });
     },
-  }))
+  })),
 );
 
 // Selector hooks for performance
@@ -398,9 +404,10 @@ export const usePlaybackProgress = () =>
   useReplayStore((state) => ({
     current: state.currentFrameIndex,
     total: state.frames.length,
-    percentage: state.frames.length > 0
-      ? (state.currentFrameIndex / (state.frames.length - 1)) * 100
-      : 0,
+    percentage:
+      state.frames.length > 0
+        ? (state.currentFrameIndex / (state.frames.length - 1)) * 100
+        : 0,
   }));
 
 export const useIsPlaying = () =>
@@ -409,5 +416,5 @@ export const useIsPlaying = () =>
 export const useReplayLoaded = () =>
   useReplayStore(
     (state) =>
-      state.playbackState !== "idle" && state.playbackState !== "loading"
+      state.playbackState !== "idle" && state.playbackState !== "loading",
   );

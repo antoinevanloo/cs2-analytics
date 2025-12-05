@@ -262,7 +262,8 @@ export const selectConnectedAccounts = (state: OnboardingState) =>
   state.status?.connectedAccounts ?? { steam: false, faceit: false };
 export const selectImportProgress = (state: OnboardingState) =>
   state.importProgress;
-export const selectFirstInsight = (state: OnboardingState) => state.firstInsight;
+export const selectFirstInsight = (state: OnboardingState) =>
+  state.firstInsight;
 export const selectIsLoading = (state: OnboardingState) =>
   state.isLoadingStatus || state.isLoadingInsight || state.isStartingImport;
 

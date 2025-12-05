@@ -132,7 +132,9 @@ export function StepFirstInsight() {
               Top Strength
             </span>
           </div>
-          <h3 className="mb-1 font-semibold">{firstInsight.topStrength.label}</h3>
+          <h3 className="mb-1 font-semibold">
+            {firstInsight.topStrength.label}
+          </h3>
           <p className="mb-2 text-2xl font-bold text-green-600 dark:text-green-400">
             {typeof firstInsight.topStrength.value === "number"
               ? firstInsight.topStrength.value.toFixed(1)

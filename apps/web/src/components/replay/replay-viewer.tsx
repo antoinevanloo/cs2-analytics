@@ -56,7 +56,8 @@ export function ReplayViewer({
   useReplayAnimation();
 
   // Fetch rounds metadata for round selector
-  const { data: rounds, isLoading: isLoadingRounds } = useRoundsMetadata(demoId);
+  const { data: rounds, isLoading: isLoadingRounds } =
+    useRoundsMetadata(demoId);
 
   // Fetch replay data
   const {
@@ -155,7 +156,7 @@ export function ReplayViewer({
       ref={containerRef}
       className={cn(
         "flex flex-col lg:flex-row gap-4 w-full h-full min-h-[600px]",
-        className
+        className,
       )}
     >
       {/* Main content area */}
@@ -163,7 +164,10 @@ export function ReplayViewer({
         {/* Round selector */}
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium">Round:</span>
-          <Select value={selectedRound.toString()} onValueChange={handleRoundChange}>
+          <Select
+            value={selectedRound.toString()}
+            onValueChange={handleRoundChange}
+          >
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>

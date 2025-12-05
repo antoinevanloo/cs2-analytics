@@ -43,7 +43,7 @@ const PlayerRow = React.memo(function PlayerRow({
         "flex items-center gap-2 p-2 rounded cursor-pointer transition-colors",
         isFocused && "bg-primary/20 ring-1 ring-primary",
         isHovered && !isFocused && "bg-muted",
-        !player.isAlive && "opacity-50"
+        !player.isAlive && "opacity-50",
       )}
       onClick={() => onFocus(isFocused ? "" : player.steamId)}
       onMouseEnter={() => onHover(player.steamId)}
@@ -54,14 +54,19 @@ const PlayerRow = React.memo(function PlayerRow({
         className={cn(
           "w-2 h-8 rounded-full",
           isCT ? "bg-blue-500" : "bg-orange-500",
-          !player.isAlive && "bg-gray-500"
+          !player.isAlive && "bg-gray-500",
         )}
       />
 
       {/* Player info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
-          <span className={cn("font-medium truncate", !player.isAlive && "line-through")}>
+          <span
+            className={cn(
+              "font-medium truncate",
+              !player.isAlive && "line-through",
+            )}
+          >
             {player.name || player.steamId.slice(-8)}
           </span>
           {player.hasBomb && (
@@ -104,8 +109,12 @@ const PlayerRow = React.memo(function PlayerRow({
 
 export function ReplayPlayerList() {
   const currentFrame = useCurrentFrame();
-  const { focusedPlayerSteamId, hoveredPlayerSteamId, focusPlayer, hoverPlayer } =
-    useReplayStore();
+  const {
+    focusedPlayerSteamId,
+    hoveredPlayerSteamId,
+    focusPlayer,
+    hoverPlayer,
+  } = useReplayStore();
 
   if (!currentFrame) {
     return (

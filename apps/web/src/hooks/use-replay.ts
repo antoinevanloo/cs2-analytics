@@ -79,7 +79,7 @@ interface AvailabilityResponse {
 async function fetchRoundReplay(
   demoId: string,
   roundNumber: number,
-  options?: { sampleInterval?: number; includeEvents?: boolean }
+  options?: { sampleInterval?: number; includeEvents?: boolean },
 ): Promise<RoundReplayResponse> {
   const params = new URLSearchParams();
   if (options?.sampleInterval) {
@@ -100,7 +100,7 @@ async function fetchRoundReplay(
 }
 
 async function fetchRoundsMetadata(
-  demoId: string
+  demoId: string,
 ): Promise<RoundsMetadataResponse[]> {
   const response = await fetch(`${API_BASE_URL}/v1/replay/${demoId}/rounds`);
 
@@ -121,7 +121,9 @@ async function fetchMapConfig(mapName: string): Promise<MapConfigResponse> {
   return response.json();
 }
 
-async function checkAvailability(demoId: string): Promise<AvailabilityResponse> {
+async function checkAvailability(
+  demoId: string,
+): Promise<AvailabilityResponse> {
   const response = await fetch(`${API_BASE_URL}/v1/replay/${demoId}/available`);
 
   if (!response.ok) {
@@ -140,7 +142,7 @@ interface StreamMessage {
 async function* streamRoundReplay(
   demoId: string,
   roundNumber: number,
-  options?: { sampleInterval?: number; batchSize?: number }
+  options?: { sampleInterval?: number; batchSize?: number },
 ): AsyncGenerator<StreamMessage> {
   const params = new URLSearchParams();
   if (options?.sampleInterval) {
@@ -263,7 +265,10 @@ export function useReplay({
   const replayQuery = useQuery({
     queryKey: ["round-replay", demoId, roundNumber, sampleInterval],
     queryFn: () =>
-      fetchRoundReplay(demoId, roundNumber, { sampleInterval, includeEvents: true }),
+      fetchRoundReplay(demoId, roundNumber, {
+        sampleInterval,
+        includeEvents: true,
+      }),
     enabled:
       enabled &&
       !!demoId &&
@@ -391,7 +396,13 @@ export function useReplay({
     ) {
       streamReplay();
     }
-  }, [useStreaming, enabled, availabilityQuery.data?.available, streamReplay, isStreaming]);
+  }, [
+    useStreaming,
+    enabled,
+    availabilityQuery.data?.available,
+    streamReplay,
+    isStreaming,
+  ]);
 
   // Reset store on unmount
   useEffect(() => {

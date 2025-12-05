@@ -60,7 +60,10 @@ function TrendIndicator({ value }: { value: number }) {
       )}
     >
       <Icon className="h-4 w-4" />
-      <span>{isPositive ? "+" : ""}{(value * 100).toFixed(1)}%</span>
+      <span>
+        {isPositive ? "+" : ""}
+        {(value * 100).toFixed(1)}%
+      </span>
     </div>
   );
 }
@@ -107,12 +110,17 @@ function RatingOverviewCard({
         {/* Rating progress to next tier */}
         <div className="mt-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Progress to {tier.label}</span>
+            <span className="text-muted-foreground">
+              Progress to {tier.label}
+            </span>
             <span className="font-medium">
               {Math.round(((rating.current - 0.5) / 1.5) * 100)}%
             </span>
           </div>
-          <Progress value={((rating.current - 0.5) / 1.5) * 100} className="h-2" />
+          <Progress
+            value={((rating.current - 0.5) / 1.5) * 100}
+            className="h-2"
+          />
         </div>
       </CardContent>
     </Card>

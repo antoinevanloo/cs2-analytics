@@ -13,7 +13,16 @@
  */
 
 import React, { useCallback, useMemo, useRef, useEffect } from "react";
-import { Stage, Layer, Circle, Line, Arrow, Text, Group, Rect } from "react-konva";
+import {
+  Stage,
+  Layer,
+  Circle,
+  Line,
+  Arrow,
+  Text,
+  Group,
+  Rect,
+} from "react-konva";
 import Konva from "konva";
 import {
   useReplayStore,
@@ -44,7 +53,7 @@ function gameToCanvas(
   gameY: number,
   mapConfig: MapConfig,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
 ): { x: number; y: number } {
   // Standard CS2 radar coordinate conversion
   const radarX = (gameX - mapConfig.posX) / mapConfig.scale;
@@ -86,7 +95,13 @@ const PlayerMarker = React.memo(function PlayerMarker({
   onHover,
   onClick,
 }: PlayerMarkerProps) {
-  const pos = gameToCanvas(player.x, player.y, mapConfig, canvasWidth, canvasHeight);
+  const pos = gameToCanvas(
+    player.x,
+    player.y,
+    mapConfig,
+    canvasWidth,
+    canvasHeight,
+  );
 
   // Determine color based on team and state
   const isCT = player.team === 3;
@@ -114,7 +129,8 @@ const PlayerMarker = React.memo(function PlayerMarker({
   ];
 
   // Flash effect
-  const flashOpacity = player.flashDuration > 0 ? Math.min(player.flashDuration / 2, 1) * 0.7 : 0;
+  const flashOpacity =
+    player.flashDuration > 0 ? Math.min(player.flashDuration / 2, 1) * 0.7 : 0;
 
   // Size multiplier for ducking
   const radius = player.isDucking ? PLAYER_RADIUS * 0.8 : PLAYER_RADIUS;
@@ -128,12 +144,7 @@ const PlayerMarker = React.memo(function PlayerMarker({
     >
       {/* View angle cone */}
       {player.isAlive && (
-        <Line
-          points={viewPoints}
-          closed
-          fill={color}
-          opacity={0.3}
-        />
+        <Line points={viewPoints} closed fill={color} opacity={0.3} />
       )}
 
       {/* Player circle */}
@@ -176,12 +187,7 @@ const PlayerMarker = React.memo(function PlayerMarker({
 
       {/* Bomb indicator */}
       {player.hasBomb && player.isAlive && (
-        <Circle
-          x={pos.x}
-          y={pos.y - radius - 6}
-          radius={4}
-          fill="#ff4444"
-        />
+        <Circle x={pos.x} y={pos.y - radius - 6} radius={4} fill="#ff4444" />
       )}
 
       {/* Defuse kit indicator */}
@@ -223,7 +229,13 @@ const PlayerMarker = React.memo(function PlayerMarker({
             y={pos.y - radius - 14}
             width={30 * (player.health / 100)}
             height={4}
-            fill={player.health > 50 ? "#44ff44" : player.health > 25 ? "#ffff44" : "#ff4444"}
+            fill={
+              player.health > 50
+                ? "#44ff44"
+                : player.health > 25
+                  ? "#ffff44"
+                  : "#ff4444"
+            }
           />
         </Group>
       )}
@@ -251,8 +263,20 @@ const KillLine = React.memo(function KillLine({
     return null;
   }
 
-  const attackerPos = gameToCanvas(event.x, event.y, mapConfig, canvasWidth, canvasHeight);
-  const victimPos = gameToCanvas(event.endX, event.endY, mapConfig, canvasWidth, canvasHeight);
+  const attackerPos = gameToCanvas(
+    event.x,
+    event.y,
+    mapConfig,
+    canvasWidth,
+    canvasHeight,
+  );
+  const victimPos = gameToCanvas(
+    event.endX,
+    event.endY,
+    mapConfig,
+    canvasWidth,
+    canvasHeight,
+  );
 
   const data = event.data as {
     headshot?: boolean;
@@ -300,7 +324,13 @@ const BombIndicator = React.memo(function BombIndicator({
   canvasHeight,
   currentTick,
 }: BombIndicatorProps) {
-  const pos = gameToCanvas(event.x, event.y, mapConfig, canvasWidth, canvasHeight);
+  const pos = gameToCanvas(
+    event.x,
+    event.y,
+    mapConfig,
+    canvasWidth,
+    canvasHeight,
+  );
 
   // Pulsing animation based on time
   const timeSincePlant = (currentTick - event.tick) / 64; // Assuming 64 tick
@@ -316,12 +346,7 @@ const BombIndicator = React.memo(function BombIndicator({
         strokeWidth={2}
         opacity={0.5}
       />
-      <Circle
-        x={pos.x}
-        y={pos.y}
-        radius={8}
-        fill="#ff0000"
-      />
+      <Circle x={pos.x} y={pos.y} radius={8} fill="#ff0000" />
       <Text
         x={pos.x - 4}
         y={pos.y - 5}
@@ -387,7 +412,7 @@ export function ReplayCanvas({
         const defuseEvent = events.find(
           (e) =>
             (e.type === "BOMB_DEFUSE" || e.type === "BOMB_EXPLODE") &&
-            e.tick > event.tick
+            e.tick > event.tick,
         );
         if (defuseEvent) {
           return currentTick >= event.tick && currentTick < defuseEvent.tick;
@@ -428,7 +453,7 @@ export function ReplayCanvas({
 
       setViewport(newScale, newOffset.x, newOffset.y);
     },
-    [viewportScale, viewportOffsetX, viewportOffsetY, setViewport]
+    [viewportScale, viewportOffsetX, viewportOffsetY, setViewport],
   );
 
   // Handle player click
@@ -436,7 +461,7 @@ export function ReplayCanvas({
     (steamId: string) => {
       focusPlayer(focusedPlayerSteamId === steamId ? null : steamId);
     },
-    [focusedPlayerSteamId, focusPlayer]
+    [focusedPlayerSteamId, focusPlayer],
   );
 
   // Render nothing if no data

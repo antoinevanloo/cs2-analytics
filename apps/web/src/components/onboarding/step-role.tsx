@@ -27,7 +27,10 @@ import {
 // Icon mapping
 // ============================================================================
 
-const ROLE_ICONS: Record<PreferredRole, React.ComponentType<{ className?: string }>> = {
+const ROLE_ICONS: Record<
+  PreferredRole,
+  React.ComponentType<{ className?: string }>
+> = {
   PLAYER: User,
   COACH: Users,
   SCOUT: Search,
@@ -69,7 +72,9 @@ export function StepRole() {
     <div className="flex flex-col">
       {/* Header */}
       <div className="mb-6 text-center">
-        <h2 className="mb-2 text-2xl font-bold">How do you use CS2 Analytics?</h2>
+        <h2 className="mb-2 text-2xl font-bold">
+          How do you use CS2 Analytics?
+        </h2>
         <p className="text-muted-foreground">
           Choose your primary role to customize your experience
         </p>
@@ -95,7 +100,9 @@ export function StepRole() {
               <div
                 className={cn(
                   "mb-3 flex h-12 w-12 items-center justify-center rounded-full",
-                  isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
+                  isSelected
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted",
                 )}
               >
                 <Icon className="h-6 w-6" />

@@ -61,7 +61,11 @@ export class UserController {
    */
   @Get("me")
   @ApiOperation({ summary: "Get current user profile" })
-  @ApiResponse({ status: 200, description: "User profile", type: UserProfileResponse })
+  @ApiResponse({
+    status: 200,
+    description: "User profile",
+    type: UserProfileResponse,
+  })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async getProfile(@Request() req: AuthenticatedRequest) {
     return this.userService.getProfile(req.user.id);
@@ -72,7 +76,11 @@ export class UserController {
    */
   @Get("me/preferences")
   @ApiOperation({ summary: "Get user preferences" })
-  @ApiResponse({ status: 200, description: "User preferences", type: UserPreferencesResponse })
+  @ApiResponse({
+    status: 200,
+    description: "User preferences",
+    type: UserPreferencesResponse,
+  })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async getPreferences(@Request() req: AuthenticatedRequest) {
     return this.userService.getPreferences(req.user.id);
@@ -83,7 +91,11 @@ export class UserController {
    */
   @Patch("me/preferences")
   @ApiOperation({ summary: "Update user preferences" })
-  @ApiResponse({ status: 200, description: "Updated preferences", type: UserPreferencesResponse })
+  @ApiResponse({
+    status: 200,
+    description: "Updated preferences",
+    type: UserPreferencesResponse,
+  })
   @ApiResponse({ status: 400, description: "Invalid input" })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async updatePreferences(

@@ -102,7 +102,10 @@ export class OnboardingController {
   @Post("role")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Select preferred role during onboarding" })
-  @ApiResponse({ status: 200, description: "Role selected, onboarding status updated" })
+  @ApiResponse({
+    status: 200,
+    description: "Role selected, onboarding status updated",
+  })
   @ApiResponse({ status: 400, description: "Invalid role" })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async selectRole(
@@ -126,7 +129,10 @@ export class OnboardingController {
   @Post("import/start")
   @ApiOperation({ summary: "Start importing matches from connected account" })
   @ApiResponse({ status: 201, description: "Import job started" })
-  @ApiResponse({ status: 400, description: "Account not connected or import already in progress" })
+  @ApiResponse({
+    status: 400,
+    description: "Account not connected or import already in progress",
+  })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async startImport(
     @Request() req: AuthenticatedRequest,
@@ -159,7 +165,10 @@ export class OnboardingController {
   @Post("import/skip")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Skip the import step" })
-  @ApiResponse({ status: 200, description: "Import skipped, onboarding status updated" })
+  @ApiResponse({
+    status: 200,
+    description: "Import skipped, onboarding status updated",
+  })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async skipImport(
     @Request() req: AuthenticatedRequest,
