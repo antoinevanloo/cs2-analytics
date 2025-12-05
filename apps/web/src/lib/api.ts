@@ -2,7 +2,17 @@
  * API client for communicating with the backend
  */
 
+import { useAuthStore } from "@/stores/auth-store";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+// ============================================================================
+// Auth Helper
+// ============================================================================
+
+async function getValidAuthToken(): Promise<string | null> {
+  return useAuthStore.getState().getValidAccessToken();
+}
 
 // ============================================================================
 // API Response Types
@@ -172,11 +182,22 @@ async function fetchApi<T>(
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
 
+  // Get valid auth token (auto-refreshes if expired)
+  const token = await getValidAuthToken();
+
+  // Build headers with auth
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
+      ...headers,
+      ...(options?.headers as Record<string, string>),
     },
   });
 
@@ -227,9 +248,17 @@ export const demosApi = {
     const formData = new FormData();
     formData.append("file", file);
 
+    // Get valid auth token
+    const token = await getValidAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/v1/demos/upload`, {
       method: "POST",
       body: formData,
+      headers,
     });
 
     if (!response.ok) {

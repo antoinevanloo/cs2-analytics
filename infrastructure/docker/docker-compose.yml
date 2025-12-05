@@ -63,6 +63,16 @@ services:
       - PARSER_URL=http://parser:8001
       # Demo storage path (shared with parser via volume)
       - DEMO_STORAGE_PATH=/tmp/demos
+      # Authentication
+      - STEAM_API_KEY=${STEAM_API_KEY}
+      - STEAM_RETURN_URL=http://localhost:3000/v1/auth/steam/callback
+      - STEAM_REALM=http://localhost:3000/
+      - FRONTEND_URL=http://localhost:3001
+      - CORS_ORIGINS=http://localhost:3001
+      - JWT_SECRET=cs2-analytics-dev-secret-change-in-production
+      # Dev: 24h access token, Prod: use 1h (3600) with proper refresh
+      - JWT_EXPIRES_IN_SECONDS=86400
+      - JWT_REFRESH_EXPIRES_IN_SECONDS=604800
     volumes:
       # Share demo files between API and parser
       - demo-files:/tmp/demos
