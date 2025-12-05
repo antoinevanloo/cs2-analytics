@@ -13,56 +13,17 @@
  * @module auth
  */
 
-import { Module, Global, Logger, Provider } from "@nestjs/common";
+import { Module, Global } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
 import { JwtStrategy } from "./strategies/jwt.strategy";
-import { SteamOAuthStrategy } from "./strategies/steam.strategy";
-import { FaceitOAuthStrategy } from "./strategies/faceit.strategy";
 import { AuthService } from "./auth.service";
+import { SteamService } from "./services/steam.service";
+import { FaceitService } from "./services/faceit.service";
 import { AuthController } from "./auth.controller";
 import { IntegrationsModule } from "../integrations/integrations.module";
-import { PrismaService } from "../../common/prisma";
-
-const logger = new Logger("AuthModule");
-
-/**
- * Conditionally provide Steam strategy if STEAM_API_KEY is set
- */
-const SteamStrategyProvider: Provider = {
-  provide: SteamOAuthStrategy,
-  useFactory: (configService: ConfigService, prisma: PrismaService) => {
-    const apiKey = configService.get<string>("STEAM_API_KEY");
-    if (!apiKey) {
-      logger.warn(
-        "STEAM_API_KEY not configured - Steam authentication disabled",
-      );
-      return null;
-    }
-    return new SteamOAuthStrategy(configService, prisma);
-  },
-  inject: [ConfigService, PrismaService],
-};
-
-/**
- * Conditionally provide FACEIT strategy if FACEIT_CLIENT_ID is set
- */
-const FaceitStrategyProvider: Provider = {
-  provide: FaceitOAuthStrategy,
-  useFactory: (configService: ConfigService, prisma: PrismaService) => {
-    const clientId = configService.get<string>("FACEIT_CLIENT_ID");
-    if (!clientId) {
-      logger.warn(
-        "FACEIT_CLIENT_ID not configured - FACEIT authentication disabled",
-      );
-      return null;
-    }
-    return new FaceitOAuthStrategy(configService, prisma);
-  },
-  inject: [ConfigService, PrismaService],
-};
 
 @Global()
 @Module({
@@ -86,8 +47,8 @@ const FaceitStrategyProvider: Provider = {
   controllers: [AuthController],
   providers: [
     JwtStrategy,
-    SteamStrategyProvider,
-    FaceitStrategyProvider,
+    SteamService,
+    FaceitService,
     AuthService,
   ],
   exports: [AuthService, JwtModule],
