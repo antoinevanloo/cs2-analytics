@@ -18,6 +18,7 @@ import {
   type UploadItem,
   type UploadPhase,
 } from "@/stores/upload-store";
+import { useAuthStore } from "@/stores/auth-store";
 
 // API configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -64,67 +65,103 @@ interface UseUploadOptions {
 // XHR Upload with Progress
 // ============================================================================
 
-function uploadWithProgress(
+async function uploadWithProgress(
   file: File,
   onProgress: (progress: number) => void,
   signal?: AbortSignal,
 ): Promise<UploadResponse> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("autoparse", "true"); // Auto-start parsing
+  // Get valid auth token before upload (with auto-refresh)
+  const authStore = useAuthStore.getState();
+  const token = await authStore.getValidAccessToken();
 
-    // Handle abort signal
-    if (signal) {
-      signal.addEventListener("abort", () => {
-        xhr.abort();
-        reject(new Error("Upload cancelled"));
+  // If no token, require login
+  if (!token) {
+    throw new Error("Please log in to upload demos");
+  }
+
+  const attemptUpload = (authToken: string): Promise<UploadResponse> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("autoparse", "true"); // Auto-start parsing
+
+      // Handle abort signal
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          xhr.abort();
+          reject(new Error("Upload cancelled"));
+        });
+      }
+
+      // Progress event
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          onProgress(progress);
+        }
       });
+
+      // Load complete
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response);
+          } catch (e) {
+            reject(new Error("Invalid response from server"));
+          }
+        } else if (xhr.status === 401) {
+          // Auth error - will be handled by retry logic
+          reject(new Error("AUTH_EXPIRED"));
+        } else {
+          try {
+            const error = JSON.parse(xhr.responseText);
+            reject(new Error(error.message || `Upload failed: ${xhr.status}`));
+          } catch {
+            reject(new Error(`Upload failed: ${xhr.status}`));
+          }
+        }
+      });
+
+      // Error event
+      xhr.addEventListener("error", () => {
+        reject(new Error("Network error during upload"));
+      });
+
+      // Timeout
+      xhr.addEventListener("timeout", () => {
+        reject(new Error("Upload timed out"));
+      });
+
+      // Configure and send
+      xhr.open("POST", `${API_URL}/v1/demos/upload`);
+      xhr.timeout = 600000; // 10 minute timeout for large files
+      xhr.setRequestHeader("Authorization", `Bearer ${authToken}`);
+      xhr.send(formData);
+    });
+  };
+
+  try {
+    return await attemptUpload(token);
+  } catch (error) {
+    // If auth expired, try refreshing token once and retry
+    if (error instanceof Error && error.message === "AUTH_EXPIRED") {
+      console.log("Token expired during upload, attempting refresh...");
+
+      // Force refresh the token
+      const newToken = await authStore.refreshTokens();
+
+      if (!newToken) {
+        // Refresh failed - user needs to re-login
+        throw new Error("Session expired. Please log in again.");
+      }
+
+      // Retry with new token
+      return await attemptUpload(newToken);
     }
-
-    // Progress event
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        const progress = Math.round((event.loaded / event.total) * 100);
-        onProgress(progress);
-      }
-    });
-
-    // Load complete
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          resolve(response);
-        } catch (e) {
-          reject(new Error("Invalid response from server"));
-        }
-      } else {
-        try {
-          const error = JSON.parse(xhr.responseText);
-          reject(new Error(error.message || `Upload failed: ${xhr.status}`));
-        } catch {
-          reject(new Error(`Upload failed: ${xhr.status}`));
-        }
-      }
-    });
-
-    // Error event
-    xhr.addEventListener("error", () => {
-      reject(new Error("Network error during upload"));
-    });
-
-    // Timeout
-    xhr.addEventListener("timeout", () => {
-      reject(new Error("Upload timed out"));
-    });
-
-    // Configure and send
-    xhr.open("POST", `${API_URL}/v1/demos/upload`);
-    xhr.timeout = 600000; // 10 minute timeout for large files
-    xhr.send(formData);
-  });
+    throw error;
+  }
 }
 
 // ============================================================================
