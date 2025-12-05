@@ -492,6 +492,196 @@ export const analysisApi = {
     fetchApi(`/v1/analysis/demo/${demoId}/coaching-insights`),
 };
 
+// ============================================================================
+// User Types
+// ============================================================================
+
+export type PreferredRole =
+  | "PLAYER"
+  | "COACH"
+  | "SCOUT"
+  | "ANALYST"
+  | "CREATOR";
+
+export type ProfileVisibility = "PUBLIC" | "FRIENDS" | "PRIVATE";
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  steamId: string | null;
+  faceitId: string | null;
+  avatar: string | null;
+  createdAt: string;
+}
+
+export interface UserPreferences {
+  preferredRole: PreferredRole;
+  dashboardLayout: Record<string, unknown> | null;
+  favoriteMetrics: string[];
+  defaultTimeRange: string;
+  emailNotifications: boolean;
+  weeklyDigest: boolean;
+  onboardingStep: number;
+  onboardingCompletedAt: string | null;
+  hasSeenWelcome: boolean;
+  hasCompletedTour: boolean;
+  faceitAutoImport: boolean;
+  faceitImportInterval: number;
+  theme: string;
+  compactMode: boolean;
+  showAdvancedStats: boolean;
+  profileVisibility: ProfileVisibility;
+  shareStats: boolean;
+}
+
+export interface UpdatePreferencesDto {
+  preferredRole?: PreferredRole;
+  dashboardLayout?: Record<string, unknown>;
+  favoriteMetrics?: string[];
+  defaultTimeRange?: string;
+  emailNotifications?: boolean;
+  weeklyDigest?: boolean;
+  faceitAutoImport?: boolean;
+  faceitImportInterval?: number;
+  theme?: string;
+  compactMode?: boolean;
+  showAdvancedStats?: boolean;
+  profileVisibility?: ProfileVisibility;
+  shareStats?: boolean;
+}
+
+export interface DashboardData {
+  role: PreferredRole;
+  generatedAt: string;
+  data: PlayerDashboardData | CoachDashboardData | ScoutDashboardData;
+}
+
+export interface PlayerDashboardData {
+  rating: {
+    current: number;
+    trend: number;
+    label: string;
+  };
+  recentMatches: number;
+  strengths: string[];
+  weaknesses: string[];
+  nextStep: {
+    title: string;
+    description: string;
+    actionUrl: string;
+  };
+}
+
+export interface CoachDashboardData {
+  teamHealth: {
+    overallRating: number;
+    trend: number;
+    playerCount: number;
+  };
+  playerTiles: Array<{
+    steamId: string;
+    name: string;
+    avatar: string | null;
+    rating: number;
+    trend: number;
+  }>;
+  alerts: Array<{
+    type: string;
+    message: string;
+    severity: "info" | "warning" | "error";
+  }>;
+}
+
+export interface ScoutDashboardData {
+  recentOpponents: Array<{
+    teamName: string;
+    mapPool: string[];
+    lastPlayed: string;
+    winRate: number;
+  }>;
+  mapMeta: Record<
+    string,
+    {
+      pickRate: number;
+      avgScore: string;
+    }
+  >;
+  watchlist: Array<{
+    steamId: string;
+    name: string;
+    team: string;
+    rating: number;
+  }>;
+}
+
+// User endpoints
+export const userApi = {
+  // Get current user profile
+  getProfile: (): Promise<UserProfile> =>
+    fetchApi<UserProfile>("/v1/user/me"),
+
+  // Get user preferences
+  getPreferences: (): Promise<UserPreferences> =>
+    fetchApi<UserPreferences>("/v1/user/me/preferences"),
+
+  // Update user preferences
+  updatePreferences: (data: UpdatePreferencesDto): Promise<UserPreferences> =>
+    fetchApi<UserPreferences>("/v1/user/me/preferences", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  // Get dashboard for specific role
+  getDashboard: (
+    role: PreferredRole,
+    params?: { timeRange?: string },
+  ): Promise<DashboardData> => {
+    const searchParams = new URLSearchParams();
+    if (params?.timeRange) searchParams.set("timeRange", params.timeRange);
+
+    const query = searchParams.toString();
+    return fetchApi<DashboardData>(
+      `/v1/user/me/dashboard/${role}${query ? `?${query}` : ""}`,
+    );
+  },
+
+  // Get dashboard for user's preferred role
+  getPreferredDashboard: (params?: {
+    timeRange?: string;
+  }): Promise<DashboardData> => {
+    const searchParams = new URLSearchParams();
+    if (params?.timeRange) searchParams.set("timeRange", params.timeRange);
+
+    const query = searchParams.toString();
+    return fetchApi<DashboardData>(
+      `/v1/user/me/dashboard${query ? `?${query}` : ""}`,
+    );
+  },
+
+  // Update onboarding progress
+  updateOnboarding: (
+    step: number,
+    completed: boolean,
+  ): Promise<{ step: number; completed: boolean }> =>
+    fetchApi<{ step: number; completed: boolean }>("/v1/user/me/onboarding", {
+      method: "POST",
+      body: JSON.stringify({ step, completed }),
+    }),
+
+  // Mark welcome as seen
+  markWelcomeSeen: (): Promise<{ success: boolean }> =>
+    fetchApi<{ success: boolean }>("/v1/user/me/welcome-seen", {
+      method: "POST",
+    }),
+
+  // Mark tour as completed
+  markTourCompleted: (): Promise<{ success: boolean }> =>
+    fetchApi<{ success: boolean }>("/v1/user/me/tour-completed", {
+      method: "POST",
+    }),
+};
+
 // Rating endpoints
 export const ratingsApi = {
   // Get all player ratings for a demo
