@@ -1,8 +1,21 @@
 /**
  * API client for communicating with the backend
+ * Includes automatic token refresh mechanism
  */
 
+import { useAuthStore } from "@/stores/auth-store";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+// Get valid access token with automatic refresh (async)
+async function getValidAuthToken(): Promise<string | null> {
+  return useAuthStore.getState().getValidAccessToken();
+}
+
+// Get access token synchronously (no auto-refresh, for non-critical calls)
+function getAuthTokenSync(): string | null {
+  return useAuthStore.getState().getAccessToken();
+}
 
 // ============================================================================
 // API Response Types
@@ -172,12 +185,27 @@ async function fetchApi<T>(
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
 
+  // Get valid token with automatic refresh if needed
+  const token = await getValidAuthToken();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // Add Authorization header if token available
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  // Merge with any custom headers from options
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    headers,
+    credentials: "include", // Include cookies for refresh token
   });
 
   if (!response.ok) {
@@ -227,9 +255,19 @@ export const demosApi = {
     const formData = new FormData();
     formData.append("file", file);
 
+    // Get valid token with automatic refresh if needed
+    const token = await getValidAuthToken();
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/v1/demos/upload`, {
       method: "POST",
+      headers,
       body: formData,
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -250,8 +288,17 @@ export const demosApi = {
 
   // Download demo file
   download: async (id: string, filename: string): Promise<void> => {
+    // Get valid token with automatic refresh if needed
+    const token = await getValidAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/v1/demos/${id}/download`, {
       method: "GET",
+      headers,
+      credentials: "include",
     });
 
     if (!response.ok) {

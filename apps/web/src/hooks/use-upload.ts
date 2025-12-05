@@ -18,6 +18,7 @@ import {
   type UploadItem,
   type UploadPhase,
 } from "@/stores/upload-store";
+import { useAuthStore } from "@/stores/auth-store";
 
 // API configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -67,9 +68,15 @@ interface UseUploadOptions {
 function uploadWithProgress(
   file: File,
   onProgress: (progress: number) => void,
+  accessToken: string | null,
   signal?: AbortSignal,
 ): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
+    if (!accessToken) {
+      reject(new Error("Authentication required"));
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
     formData.append("file", file);
@@ -120,8 +127,9 @@ function uploadWithProgress(
       reject(new Error("Upload timed out"));
     });
 
-    // Configure and send
+    // Configure and send with Authorization header
     xhr.open("POST", `${API_URL}/v1/demos/upload`);
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
     xhr.timeout = 600000; // 10 minute timeout for large files
     xhr.send(formData);
   });
@@ -131,8 +139,13 @@ function uploadWithProgress(
 // Status Polling
 // ============================================================================
 
-async function fetchDemoStatus(demoId: string): Promise<StatusResponse> {
-  const response = await fetch(`${API_URL}/v1/demos/${demoId}/status`);
+async function fetchDemoStatus(demoId: string, accessToken: string | null): Promise<StatusResponse> {
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  const response = await fetch(`${API_URL}/v1/demos/${demoId}/status`, { headers });
   if (!response.ok) {
     throw new Error("Failed to fetch status");
   }
@@ -189,10 +202,14 @@ export function useUpload(options: UseUploadOptions = {}) {
         // Phase: Uploading
         setUploadPhase(upload.id, "uploading");
 
-        // Upload with real progress
+        // Get valid access token with automatic refresh
+        const accessToken = await useAuthStore.getState().getValidAccessToken();
+
+        // Upload with real progress and auth
         const response = await uploadWithProgress(
           upload.file,
           (progress) => setUploadProgress(upload.id, progress),
+          accessToken,
           abortController.signal,
         );
 
@@ -235,7 +252,8 @@ export function useUpload(options: UseUploadOptions = {}) {
 
       const poll = async () => {
         try {
-          const status = await fetchDemoStatus(demoId);
+          const accessToken = await useAuthStore.getState().getValidAccessToken();
+          const status = await fetchDemoStatus(demoId, accessToken);
           pollCount++;
 
           switch (status.status) {
