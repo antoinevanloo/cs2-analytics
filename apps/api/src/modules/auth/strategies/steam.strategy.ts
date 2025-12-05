@@ -2,7 +2,8 @@
  * Steam OpenID Strategy
  *
  * Implements Steam authentication using OpenID 2.0.
- * Creates or updates user on successful authentication.
+ * Uses passport-steam-openid for reliable OpenID handling without
+ * the problematic openid library dependency.
  *
  * @module auth/strategies
  */
@@ -10,30 +11,27 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ConfigService } from "@nestjs/config";
-import { Strategy as SteamStrategy } from "passport-steam";
+import { SteamOpenIdStrategy } from "passport-steam-openid";
 import { PrismaService } from "../../../common/prisma";
+import type { FastifyRequest } from "fastify";
 
 /**
- * Steam Profile as returned by passport-steam
+ * Steam Profile as returned by passport-steam-openid
  */
-interface SteamPassportProfile {
-  id: string;
-  displayName: string;
-  _json: {
-    steamid: string;
-    personaname: string;
-    profileurl: string;
-    avatar: string;
-    avatarmedium: string;
-    avatarfull: string;
-    communityvisibilitystate: number;
-    realname?: string;
-    loccountrycode?: string;
-  };
+interface SteamOpenIdProfile {
+  steamid: string;
+  personaname: string;
+  profileurl: string;
+  avatar: string;
+  avatarmedium: string;
+  avatarfull: string;
+  communityvisibilitystate: number;
+  realname?: string;
+  loccountrycode?: string;
 }
 
 /**
- * Steam profile returned from Steam API
+ * Steam profile normalized for our application
  */
 export interface SteamProfile {
   steamId: string;
@@ -51,7 +49,7 @@ export interface SteamProfile {
 
 @Injectable()
 export class SteamOAuthStrategy extends PassportStrategy(
-  SteamStrategy,
+  SteamOpenIdStrategy,
   "steam",
 ) {
   private readonly logger = new Logger(SteamOAuthStrategy.name);
@@ -63,16 +61,12 @@ export class SteamOAuthStrategy extends PassportStrategy(
     const apiKey = configService.get<string>("STEAM_API_KEY", "");
     const returnUrl = configService.get<string>(
       "STEAM_RETURN_URL",
-      "http://localhost:3001/v1/auth/steam/callback",
-    );
-    const realm = configService.get<string>(
-      "STEAM_REALM",
-      "http://localhost:3001/",
+      "http://localhost:3000/v1/auth/steam/callback",
     );
 
     super({
       returnURL: returnUrl,
-      realm: realm,
+      profile: true, // Fetch full profile from Steam API
       apiKey: apiKey,
     });
   }
@@ -82,28 +76,29 @@ export class SteamOAuthStrategy extends PassportStrategy(
    * Called after successful Steam authentication
    */
   async validate(
+    _req: FastifyRequest,
     _identifier: string,
-    profile: SteamPassportProfile,
+    profile: SteamOpenIdProfile,
     done: (error: Error | null, user?: SteamProfile) => void,
   ): Promise<void> {
     try {
       this.logger.log(
-        `Steam authentication for: ${profile.displayName} (${profile.id})`,
+        `Steam authentication for: ${profile.personaname} (${profile.steamid})`,
       );
 
       // Extract Steam profile data
       const steamProfile: SteamProfile = {
-        steamId: profile.id,
-        personaName: profile.displayName,
-        profileUrl: profile._json.profileurl,
+        steamId: profile.steamid,
+        personaName: profile.personaname,
+        profileUrl: profile.profileurl,
         avatar: {
-          small: profile._json.avatar,
-          medium: profile._json.avatarmedium,
-          large: profile._json.avatarfull,
+          small: profile.avatar,
+          medium: profile.avatarmedium,
+          large: profile.avatarfull,
         },
-        visibilityState: profile._json.communityvisibilitystate,
-        realName: profile._json.realname,
-        countryCode: profile._json.loccountrycode,
+        visibilityState: profile.communityvisibilitystate,
+        realName: profile.realname,
+        countryCode: profile.loccountrycode,
       };
 
       // Create or update user in database
