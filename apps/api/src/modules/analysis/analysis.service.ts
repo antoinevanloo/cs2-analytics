@@ -701,26 +701,202 @@ export class AnalysisService {
 
   /**
    * Get all player ratings for a demo with full breakdown
+   *
+   * Returns player stats including:
+   * - K/D/A: Raw kills, deaths, assists
+   * - ADR: Average damage per round
+   * - Rating: HLTV 2.0 rating with components
+   * - Summary: Quick-access metrics for display
+   *
+   * Strategy:
+   * 1. Try to get computed metrics from analysis storage
+   * 2. If analysis data is empty/zero, fallback to MatchPlayerStats
+   * 3. Calculate simplified rating from available stats
    */
   async getDemoRatings(demoId: string) {
     this.logger.debug(`Getting demo ratings for ${demoId}`);
+
+    // Try to get computed metrics first
     const playerMetrics = await this.getPlayerMetricsFromStorage(demoId);
 
+    // Check if metrics have valid data (not all zeros)
+    const hasValidMetrics =
+      playerMetrics.length > 0 &&
+      playerMetrics.some((p) => p.combat.kills > 0 || p.combat.deaths > 0);
+
+    if (hasValidMetrics) {
+      // Use computed metrics
+      return this.buildRatingsResponse(demoId, playerMetrics);
+    }
+
+    // Fallback: Get stats from MatchPlayerStats table
+    this.logger.debug(
+      `No valid metrics found, falling back to MatchPlayerStats for ${demoId}`,
+    );
+    return this.buildRatingsFromMatchStats(demoId);
+  }
+
+  /**
+   * Build ratings response from computed player metrics
+   */
+  private buildRatingsResponse(
+    demoId: string,
+    playerMetrics: readonly PlayerMatchMetricsResult[],
+  ) {
     const ratings = playerMetrics.map((p) => ({
       steamId: p.steamId,
       name: p.name,
       team: p.teamNum,
+      // Raw combat stats for scoreboard display
+      kills: p.combat.kills,
+      deaths: p.combat.deaths,
+      assists: p.combat.assists,
+      adr: p.combat.adr,
+      // HLTV Rating 2.0
       rating: p.rating,
       ratingLabel: p.ratingLabel,
+      // Summary metrics for advanced display
       summary: {
         kast: p.kast.kast,
         adr: p.combat.adr,
         kd: p.combat.kd,
         hsPercent: p.combat.hsPercent,
         impact: p.impact.impact,
+        kpr: p.combat.kpr,
+        dpr: p.combat.dpr,
       },
     }));
 
+    return this.formatRatingsOutput(demoId, ratings);
+  }
+
+  /**
+   * Build ratings from MatchPlayerStats when detailed events are not available
+   * Uses simplified rating calculation based on K/D/A and ADR
+   */
+  private async buildRatingsFromMatchStats(demoId: string) {
+    // Get player stats from MatchPlayerStats table
+    const matchStats = await this.prisma.matchPlayerStats.findMany({
+      where: { demoId },
+      select: {
+        steamId: true,
+        playerName: true,
+        teamNum: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        damage: true,
+        headshotKills: true,
+      },
+    });
+
+    // Get round count for per-round calculations
+    const roundCount = await this.prisma.round.count({
+      where: { demoId },
+    });
+    const totalRounds = roundCount || 1;
+
+    const ratings = matchStats.map((p) => {
+      const kills = p.kills ?? 0;
+      const deaths = p.deaths ?? 0;
+      const assists = p.assists ?? 0;
+      const damage = p.damage ?? 0;
+      const headshotKills = p.headshotKills ?? 0;
+
+      // Calculate derived metrics
+      const adr = damage / totalRounds;
+      const kd = deaths > 0 ? kills / deaths : kills;
+      const kpr = kills / totalRounds;
+      const dpr = deaths / totalRounds;
+      const apr = assists / totalRounds;
+      const hsPercent = kills > 0 ? (headshotKills / kills) * 100 : 0;
+
+      // Simplified HLTV 2.0 rating calculation
+      // Formula: 0.0073*KAST + 0.3591*KPR - 0.5329*DPR + 0.2372*Impact + 0.0032*ADR + 0.1587
+      // Since we don't have KAST/Impact, estimate them:
+      // - Estimated KAST: ~70 baseline + bonus for high KPR
+      // - Estimated Impact: based on KPR and multi-kills (use KPR * 1.5 as proxy)
+      const estimatedKast = Math.min(100, 70 + kpr * 20);
+      const estimatedImpact = 2.13 * kpr + 0.42 * apr - 0.41;
+
+      const rating =
+        0.0073 * estimatedKast +
+        0.3591 * kpr -
+        0.5329 * dpr +
+        0.2372 * Math.max(0, estimatedImpact) +
+        0.0032 * adr +
+        0.1587;
+
+      const clampedRating = Math.max(0, Math.min(3, rating));
+
+      return {
+        steamId: p.steamId,
+        name: p.playerName,
+        team: p.teamNum,
+        // Raw combat stats
+        kills,
+        deaths,
+        assists,
+        adr: Math.round(adr * 10) / 10,
+        // Rating
+        rating: {
+          rating: Math.round(clampedRating * 1000) / 1000,
+          components: {
+            kast: Math.round(estimatedKast),
+            kpr: Math.round(kpr * 1000) / 1000,
+            dpr: Math.round(dpr * 1000) / 1000,
+            impact: Math.round(estimatedImpact * 1000) / 1000,
+            adr: Math.round(adr * 10) / 10,
+          },
+          contributions: {
+            kastContribution: Math.round(0.0073 * estimatedKast * 1000) / 1000,
+            kprContribution: Math.round(0.3591 * kpr * 1000) / 1000,
+            dprContribution: Math.round(-0.5329 * dpr * 1000) / 1000,
+            impactContribution:
+              Math.round(0.2372 * Math.max(0, estimatedImpact) * 1000) / 1000,
+            adrContribution: Math.round(0.0032 * adr * 1000) / 1000,
+            constant: 0.1587,
+          },
+          benchmarks: {
+            label: getRatingLabel(clampedRating),
+            percentile: null,
+            averageForRank: null,
+          },
+        },
+        ratingLabel: getRatingLabel(clampedRating),
+        // Summary
+        summary: {
+          kast: Math.round(estimatedKast),
+          adr: Math.round(adr * 10) / 10,
+          kd: Math.round(kd * 100) / 100,
+          hsPercent: Math.round(hsPercent * 10) / 10,
+          impact: Math.round(estimatedImpact * 1000) / 1000,
+          kpr: Math.round(kpr * 1000) / 1000,
+          dpr: Math.round(dpr * 1000) / 1000,
+        },
+      };
+    });
+
+    return this.formatRatingsOutput(demoId, ratings);
+  }
+
+  /**
+   * Format ratings output with team averages and MVP
+   */
+  private formatRatingsOutput<
+    T extends {
+      steamId: string;
+      name: string;
+      team: number;
+      kills: number;
+      deaths: number;
+      assists: number;
+      adr: number;
+      rating: { rating: number };
+      ratingLabel: string;
+      summary: Record<string, number>;
+    },
+  >(demoId: string, ratings: T[]) {
     // Calculate team averages
     const team1Players = ratings.filter((r) => r.team === 2);
     const team2Players = ratings.filter((r) => r.team === 3);
@@ -737,6 +913,11 @@ export class AnalysisService {
           team2Players.length
         : 0;
 
+    // Sort by rating for MVP
+    const sortedByRating = [...ratings].sort(
+      (a, b) => b.rating.rating - a.rating.rating,
+    );
+
     return {
       demoId,
       players: ratings,
@@ -752,12 +933,7 @@ export class AnalysisService {
           playerCount: team2Players.length,
         },
       },
-      mvp:
-        ratings.length > 0
-          ? ratings.reduce((a, b) =>
-              a.rating.rating > b.rating.rating ? a : b,
-            )
-          : null,
+      mvp: sortedByRating.length > 0 ? sortedByRating[0] : null,
     };
   }
 

@@ -134,9 +134,19 @@ function AuthCallbackContent() {
         // Small delay to show success state
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        // Redirect based on onboarding status
+        // Redirect based on onboarding status and returnTo
         if (user.onboardingCompleted) {
-          router.push("/dashboard");
+          // Check for stored returnTo path (set before OAuth redirect)
+          const returnTo = sessionStorage.getItem("auth_return_to");
+          sessionStorage.removeItem("auth_return_to");
+
+          // Validate returnTo is a safe relative path
+          const isValidReturnTo = returnTo &&
+            returnTo.startsWith("/") &&
+            !returnTo.startsWith("//") &&
+            !returnTo.includes("://");
+
+          router.push(isValidReturnTo ? returnTo : "/dashboard");
         } else {
           router.push("/onboarding");
         }

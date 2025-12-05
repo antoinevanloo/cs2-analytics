@@ -404,14 +404,23 @@ export interface PlayerRating {
   steamId: string;
   name: string;
   team: number;
+  // Raw combat stats for scoreboard display
+  kills: number;
+  deaths: number;
+  assists: number;
+  adr: number;
+  // HLTV Rating 2.0
   rating: HLTVRating;
   ratingLabel: string;
+  // Summary metrics for advanced display
   summary: {
     kast: number;
     adr: number;
     kd: number;
     hsPercent: number;
     impact: number;
+    kpr: number;
+    dpr: number;
   };
 }
 

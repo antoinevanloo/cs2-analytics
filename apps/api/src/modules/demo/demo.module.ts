@@ -13,6 +13,7 @@ import { BullModule } from "@nestjs/bullmq";
 import { ScheduleModule } from "@nestjs/schedule";
 import { DemoController } from "./demo.controller";
 import { DemoService } from "./demo.service";
+import { DemoAccessService } from "./demo-access.service";
 import { ParserService } from "./parser.service";
 import { DemoProcessor } from "./demo.processor";
 import { ArchivalService } from "./archival.service";
@@ -46,7 +47,7 @@ import { AnalysisModule } from "../analysis/analysis.module";
     forwardRef(() => AnalysisModule),
   ],
   controllers: [DemoController],
-  providers: [DemoService, ParserService, DemoProcessor, ArchivalService],
-  exports: [DemoService, ParserService, ArchivalService, BullModule],
+  providers: [DemoService, DemoAccessService, ParserService, DemoProcessor, ArchivalService],
+  exports: [DemoService, DemoAccessService, ParserService, ArchivalService, BullModule],
 })
 export class DemoModule {}

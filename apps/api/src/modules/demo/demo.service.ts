@@ -158,6 +158,7 @@ export class DemoService {
     filename: string;
     buffer: Buffer;
     autoparse: boolean;
+    userId?: string;
   }) {
     const fileHash = this.calculateFileHash(data.buffer);
 
@@ -198,6 +199,7 @@ export class DemoService {
         totalTicks: 0,
         durationSeconds: 0,
         status: DemoStatus.PENDING,
+        uploadedById: data.userId || null,
       },
     });
 
@@ -225,6 +227,7 @@ export class DemoService {
     filename: string;
     fileStream: Readable;
     autoparse: boolean;
+    userId?: string;
   }) {
     const id = crypto.randomUUID();
     const filePath = path.join(this.demoStoragePath, `${id}.dem`);
@@ -273,6 +276,7 @@ export class DemoService {
         totalTicks: 0,
         durationSeconds: 0,
         status: DemoStatus.PENDING,
+        uploadedById: data.userId || null,
       },
     });
 
@@ -352,23 +356,112 @@ export class DemoService {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
+    // Fetch rounds and players for completed demos
+    let rounds: {
+      roundNumber: number;
+      winnerTeam: number;
+      winReason: string;
+      ctScore: number;
+      tScore: number;
+    }[] = [];
+    let players: {
+      steamId: string;
+      playerName: string;
+      teamNum: number;
+      kills: number;
+      deaths: number;
+      assists: number;
+      damage: number;
+    }[] = [];
+
+    if (
+      demo.status === DemoStatus.COMPLETED ||
+      demo.status === DemoStatus.PARSED
+    ) {
+      [rounds, players] = await Promise.all([
+        this.prisma.round.findMany({
+          where: { demoId: id },
+          orderBy: { roundNumber: "asc" },
+          select: {
+            roundNumber: true,
+            winnerTeam: true,
+            winReason: true,
+            ctScore: true,
+            tScore: true,
+          },
+        }),
+        this.prisma.matchPlayerStats.findMany({
+          where: { demoId: id },
+          select: {
+            steamId: true,
+            playerName: true,
+            teamNum: true,
+            kills: true,
+            deaths: true,
+            assists: true,
+            damage: true,
+          },
+        }),
+      ]);
+    }
+
+    // Calculate total rounds for ADR
+    const totalRounds = rounds.length || 1;
+
+    // Get final score from last round if team scores not set
+    const lastRound = rounds[rounds.length - 1];
+    const team1Score =
+      demo.team1Score || (lastRound ? lastRound.ctScore : 0);
+    const team2Score =
+      demo.team2Score || (lastRound ? lastRound.tScore : 0);
+
     return {
       id: demo.id,
       filename: demo.filename,
       fileSize: demo.fileSize,
-      status: demo.status,
+      status: demo.status.toLowerCase(),
       uploadedAt: demo.createdAt,
       parsedAt: demo.parsedAt,
+      // Flat fields expected by frontend
+      mapName: demo.mapName,
+      team1Name: demo.team1Name || "CT",
+      team2Name: demo.team2Name || "T",
+      team1Score,
+      team2Score,
+      durationSeconds: demo.durationSeconds,
+      tickRate: demo.tickRate,
+      totalTicks: demo.totalTicks,
+      playerCount: players.length,
+      // Rounds for timeline
+      rounds: rounds.map((r) => ({
+        roundNumber: r.roundNumber,
+        winner: r.winnerTeam === 3 ? "CT" : "T",
+        winReason: r.winReason,
+        ctScore: r.ctScore,
+        tScore: r.tScore,
+      })),
+      // Players for performance table
+      players: players.map((p) => ({
+        steamId: p.steamId,
+        name: p.playerName,
+        team: p.teamNum === 3 ? "CT" : "T",
+        kills: p.kills,
+        deaths: p.deaths,
+        assists: p.assists,
+        adr: p.damage / totalRounds,
+        rating: null, // Will be fetched separately via ratings API
+      })),
+      // Keep metadata for backwards compatibility
       metadata: {
         map_name: demo.mapName,
         server_name: demo.serverName,
         tick_rate: demo.tickRate,
         duration_seconds: demo.durationSeconds,
         total_ticks: demo.totalTicks,
-        team1_name: demo.team1Name,
-        team2_name: demo.team2Name,
-        team1_score: demo.team1Score,
-        team2_score: demo.team2Score,
+        team1_name: demo.team1Name || "CT",
+        team2_name: demo.team2Name || "T",
+        team1_score: team1Score,
+        team2_score: team2Score,
         game_mode: demo.gameMode,
       },
     };
@@ -599,10 +692,20 @@ export class DemoService {
     };
   }
 
-  async listDemos(options: { page: number; limit: number; map?: string }) {
+  async listDemos(options: {
+    page: number;
+    limit: number;
+    map?: string;
+    accessFilter?: Prisma.DemoWhereInput;
+  }) {
     const where: Prisma.DemoWhereInput = {};
     if (options.map) {
       where.mapName = options.map;
+    }
+
+    // Apply access filter if provided
+    if (options.accessFilter) {
+      Object.assign(where, options.accessFilter);
     }
 
     const page = Number(options.page) || 1;
@@ -769,23 +872,147 @@ export class DemoService {
         }
       }
 
+      // Get rounds for tick-to-round mapping (used by kills and grenades)
+      const rounds = await this.prisma.round.findMany({
+        where: { demoId: id },
+        select: {
+          id: true,
+          roundNumber: true,
+          startTick: true,
+          endTick: true,
+        },
+        orderBy: { roundNumber: "asc" },
+      });
+
+      const findRoundForTick = (tick: number) => {
+        return rounds.find((r) => tick >= r.startTick && tick <= r.endTick);
+      };
+
+      // Insert kills from player_death events
+      if (data.events?.length) {
+        const killEvents = data.events.filter(
+          (e) => e.event_name === "player_death",
+        );
+
+        if (killEvents.length > 0) {
+          // Track first kills per round for isFirstKill computation
+          const firstKillByRound = new Map<string, number>();
+
+          // Type for player_death event data
+          interface PlayerDeathData {
+            attacker_steamid?: string;
+            attacker_name?: string;
+            attacker_team?: number;
+            user_steamid?: string;
+            user_name?: string;
+            user_team?: number;
+            assister_steamid?: string;
+            assister_name?: string;
+            weapon?: string;
+            headshot?: boolean;
+            penetrated?: number;
+            noscope?: boolean;
+            thrusmoke?: boolean;
+            attackerblind?: boolean;
+            assistedflash?: boolean;
+            distance?: number;
+          }
+
+          // Prepare kill data with all fields
+          const killsData = killEvents
+            .map((e) => {
+              const round = findRoundForTick(e.tick || 0);
+              if (!round) return null;
+
+              // Cast event data to typed structure
+              const d = (e as { data?: PlayerDeathData }).data || {};
+
+              // Determine if this is first kill of the round
+              const existingFirstKill = firstKillByRound.get(round.id);
+              const isFirstKill = existingFirstKill === undefined;
+              if (isFirstKill) {
+                firstKillByRound.set(round.id, e.tick || 0);
+              }
+
+              // Extract attacker/victim from event data
+              const attackerSteamId = d.attacker_steamid || null;
+              const victimSteamId = d.user_steamid || "";
+              const attackerTeam = d.attacker_team;
+              const victimTeam = d.user_team ?? 0;
+
+              // Compute derived fields
+              const isSuicide =
+                !attackerSteamId || attackerSteamId === victimSteamId;
+              const isTeamkill =
+                !isSuicide &&
+                attackerTeam !== undefined &&
+                attackerTeam === victimTeam;
+
+              return {
+                demoId: id,
+                roundId: round.id,
+                tick: e.tick || 0,
+                // Attacker
+                attackerSteamId,
+                attackerName: d.attacker_name || null,
+                attackerTeam: attackerTeam ?? null,
+                attackerX: null as number | null,
+                attackerY: null as number | null,
+                attackerZ: null as number | null,
+                // Victim
+                victimSteamId,
+                victimName: d.user_name || "",
+                victimTeam,
+                victimX: 0,
+                victimY: 0,
+                victimZ: 0,
+                // Assister
+                assisterSteamId: d.assister_steamid || null,
+                assisterName: d.assister_name || null,
+                // Kill details
+                weapon: d.weapon || "unknown",
+                headshot: d.headshot ?? false,
+                penetrated: d.penetrated ?? 0,
+                noscope: d.noscope ?? false,
+                thrusmoke: d.thrusmoke ?? false,
+                attackerblind: d.attackerblind ?? false,
+                assistedflash: d.assistedflash ?? false,
+                // Computed
+                distance: d.distance ?? null,
+                isSuicide,
+                isTeamkill,
+                isFirstKill,
+                isTradeKill: false, // Will be computed in analysis phase
+                tradedWithin: null as number | null,
+              };
+            })
+            .filter((k): k is NonNullable<typeof k> => k !== null);
+
+          // Batch insert kills for performance
+          const killBatchSize = 500;
+          for (let i = 0; i < killsData.length; i += killBatchSize) {
+            const batch = killsData.slice(i, i + killBatchSize);
+            await this.prisma.kill.createMany({ data: batch });
+          }
+
+          this.logger.log(
+            `Inserted ${killsData.length} kills for demo ${id}`,
+          );
+        }
+      }
+
+      // =========================================================================
+      // COMPUTE AND INSERT ROUND PLAYER STATS
+      // =========================================================================
+      // This is critical for analytics - stats per player per round
+      // Computed from events (player_death, player_hurt) and round data
+      await this.computeAndInsertRoundPlayerStats(id, data.events || [], rounds);
+
       // Insert grenades
       if (data.grenades?.length) {
-        // Get round mappings for grenades
-        const rounds = await this.prisma.round.findMany({
-          where: { demoId: id },
-          select: { id: true, startTick: true, endTick: true },
-        });
-
-        const findRoundId = (tick: number) => {
-          const round = rounds.find(
-            (r) => tick >= r.startTick && tick <= r.endTick,
-          );
-          return round?.id;
-        };
-
         for (const g of data.grenades) {
-          const roundId = findRoundId(g.tick || 0);
+          const round = findRoundForTick(g.tick || 0);
+          const roundId = round?.id;
           if (roundId) {
             await this.prisma.grenade.create({
               data: {
@@ -1018,6 +1245,409 @@ export class DemoService {
       },
     });
     this.logger.error(`Demo ${id} marked as failed: ${error}`);
+  }
+
+  // ===========================================================================
+  // ROUND PLAYER STATS COMPUTATION
+  // ===========================================================================
+
+  /**
+   * Compute and insert RoundPlayerStats from game events
+   *
+   * This is critical for analytics accuracy. Stats per player per round enable:
+   * - HLTV Rating 2.0 calculation (requires per-round KDA)
+   * - KAST % (Kill/Assist/Survived/Traded per round)
+   * - ADR (Average Damage per Round)
+   * - Economy analysis (spending per round)
+   * - Clutch detection
+   *
+   * Data sources:
+   * - player_death events → kills, deaths, assists, first kill/death
+   * - player_hurt events → damage dealt
+   * - round_freeze_end events → economy (equipValue, moneySpent)
+   *
+   * Design for extensibility:
+   * - Aggregates all stats in memory first (Map-based for O(1) lookups)
+   * - Single batch insert at the end (performance)
+   * - Graceful degradation if events are missing
+   */
+  private async computeAndInsertRoundPlayerStats(
+    demoId: string,
+    events: DemoEvent[],
+    rounds: Array<{
+      id: string;
+      roundNumber: number;
+      startTick: number;
+      endTick: number;
+    }>,
+  ): Promise<void> {
+    if (rounds.length === 0) {
+      this.logger.warn(
+        `No rounds found for demo ${demoId}, skipping RoundPlayerStats`,
+      );
+      return;
+    }
+
+    const startTime = Date.now();
+
+    // Get players for this demo (we need steamId and teamNum)
+    const players = await this.prisma.matchPlayerStats.findMany({
+      where: { demoId },
+      select: { steamId: true, teamNum: true, playerName: true },
+    });
+
+    if (players.length === 0) {
+      this.logger.warn(
+        `No players found for demo ${demoId}, skipping RoundPlayerStats`,
+      );
+      return;
+    }
+
+    // Build player lookup: steamId -> { teamNum, name }
+    const playerLookup = new Map(
+      players.map((p) => [p.steamId, { teamNum: p.teamNum, name: p.playerName }]),
+    );
+
+    // Build round lookup: tick -> round
+    const findRoundForTick = (tick: number) => {
+      return rounds.find((r) => tick >= r.startTick && tick <= r.endTick);
+    };
+
+    // Initialize stats accumulator: Map<roundId, Map<steamId, stats>>
+    type PlayerRoundStats = {
+      steamId: string;
+      teamNum: number;
+      kills: number;
+      deaths: number;
+      assists: number;
+      damage: number;
+      equipValue: number;
+      moneySpent: number;
+      startBalance: number;
+      survived: boolean;
+      firstKill: boolean;
+      firstDeath: boolean;
+      clutchVs: number | null;
+      clutchWon: boolean | null;
+    };
+
+    const statsMap = new Map<string, Map<string, PlayerRoundStats>>();
+
+    // Initialize all player slots for all rounds
+    for (const round of rounds) {
+      const roundStats = new Map<string, PlayerRoundStats>();
+      for (const [steamId, playerInfo] of playerLookup) {
+        roundStats.set(steamId, {
+          steamId,
+          teamNum: playerInfo.teamNum,
+          kills: 0,
+          deaths: 0,
+          assists: 0,
+          damage: 0,
+          equipValue: 0,
+          moneySpent: 0,
+          startBalance: 0,
+          survived: true, // Assume survived until death event
+          firstKill: false,
+          firstDeath: false,
+          clutchVs: null,
+          clutchWon: null,
+        });
+      }
+      statsMap.set(round.id, roundStats);
+    }
+
+    // Track first kill/death per round
+    const firstKillByRound = new Map<string, boolean>();
+    const firstDeathByRound = new Map<string, boolean>();
+
+    // Process events in tick order for accurate first kill/death detection
+    const sortedEvents = [...events].sort(
+      (a, b) => (a.tick || 0) - (b.tick || 0),
+    );
+
+    for (const event of sortedEvents) {
+      const round = findRoundForTick(event.tick || 0);
+      if (!round) continue;
+
+      const roundStats = statsMap.get(round.id);
+      if (!roundStats) continue;
+
+      switch (event.event_name) {
+        case "player_death": {
+          const attackerSteamId = event.attacker_steamid as string | undefined;
+          const victimSteamId = event.user_steamid as string | undefined;
+          const assisterSteamId = event.assister_steamid as string | undefined;
+          const attackerTeam = event.attacker_team as number | undefined;
+          const victimTeam = event.user_team as number | undefined;
+
+          // Increment attacker kills (if not suicide/teamkill)
+          if (attackerSteamId && victimSteamId) {
+            const isSuicide = attackerSteamId === victimSteamId;
+            const isTeamkill =
+              !isSuicide &&
+              attackerTeam !== undefined &&
+              victimTeam !== undefined &&
+              attackerTeam === victimTeam;
+
+            if (!isSuicide && !isTeamkill) {
+              const attackerStats = roundStats.get(attackerSteamId);
+              if (attackerStats) {
+                attackerStats.kills++;
+
+                // Check first kill
+                if (!firstKillByRound.has(round.id)) {
+                  firstKillByRound.set(round.id, true);
+                  attackerStats.firstKill = true;
+                }
+              }
+            }
+          }
+
+          // Increment victim deaths
+          if (victimSteamId) {
+            const victimStats = roundStats.get(victimSteamId);
+            if (victimStats) {
+              victimStats.deaths++;
+              victimStats.survived = false;
+
+              // Check first death
+              if (!firstDeathByRound.has(round.id)) {
+                firstDeathByRound.set(round.id, true);
+                victimStats.firstDeath = true;
+              }
+            }
+          }
+
+          // Increment assister assists
+          if (assisterSteamId) {
+            const assisterStats = roundStats.get(assisterSteamId);
+            if (assisterStats) {
+              assisterStats.assists++;
+            }
+          }
+          break;
+        }
+
+        case "player_hurt": {
+          const attackerSteamId = event.attacker_steamid as string | undefined;
+          const damage = (event.dmg_health as number) || 0;
+
+          // Add damage (only from actual attackers, not world damage)
+          if (attackerSteamId && damage > 0) {
+            const attackerStats = roundStats.get(attackerSteamId);
+            if (attackerStats) {
+              attackerStats.damage += damage;
+            }
+          }
+          break;
+        }
+
+        case "round_freeze_end": {
+          // Economy data at freeze end (round start)
+          // This event contains player equipment values
+          // Note: demoparser2 may not expose per-player economy in events
+          // We'll extract from tick data if available in future enhancement
+          break;
+        }
+      }
+    }
+
+    // Detect clutches: player alone vs N enemies
+    // A clutch is when a player is the last alive on their team facing multiple enemies
+    for (const round of rounds) {
+      const roundStats = statsMap.get(round.id);
+      if (!roundStats) continue;
+
+      // Group players by team and count survivors
+      const team2Survivors: string[] = [];
+      const team3Survivors: string[] = [];
+
+      for (const [steamId, stats] of roundStats) {
+        if (stats.survived) {
+          if (stats.teamNum === 2) {
+            team2Survivors.push(steamId);
+          } else if (stats.teamNum === 3) {
+            team3Survivors.push(steamId);
+          }
+        }
+      }
+
+      // Check for clutch situations (1vN where N >= 1)
+      // We detect this from kill patterns: if a player got kills when alone
+      // For now, we mark based on round end survivors
+      // More accurate detection would require tracking alive counts during round
+
+      // Simple heuristic: if one team has 1 survivor and they got kills this round
+      // while the other team had more players at some point
+      const team2SurvivorId = team2Survivors[0];
+      if (team2Survivors.length === 1 && team2SurvivorId) {
+        const clutchPlayer = roundStats.get(team2SurvivorId);
+        if (clutchPlayer && clutchPlayer.kills > 0) {
+          // Count how many enemies died this round
+          let enemyDeaths = 0;
+          for (const [, stats] of roundStats) {
+            if (stats.teamNum === 3 && stats.deaths > 0) {
+              enemyDeaths++;
+            }
+          }
+          if (enemyDeaths >= 1) {
+            clutchPlayer.clutchVs = enemyDeaths;
+            clutchPlayer.clutchWon = team3Survivors.length === 0;
+          }
+        }
+      }
+
+      const team3SurvivorId = team3Survivors[0];
+      if (team3Survivors.length === 1 && team3SurvivorId) {
+        const clutchPlayer = roundStats.get(team3SurvivorId);
+        if (clutchPlayer && clutchPlayer.kills > 0) {
+          let enemyDeaths = 0;
+          for (const [, stats] of roundStats) {
+            if (stats.teamNum === 2 && stats.deaths > 0) {
+              enemyDeaths++;
+            }
+          }
+          if (enemyDeaths >= 1) {
+            clutchPlayer.clutchVs = enemyDeaths;
+            clutchPlayer.clutchWon = team2Survivors.length === 0;
+          }
+        }
+      }
+    }
+
+    // Convert to array for batch insert
+    const roundPlayerStatsData: Prisma.RoundPlayerStatsCreateManyInput[] = [];
+
+    for (const [roundId, playerStats] of statsMap) {
+      for (const [, stats] of playerStats) {
+        roundPlayerStatsData.push({
+          roundId,
+          steamId: stats.steamId,
+          teamNum: stats.teamNum,
+          kills: stats.kills,
+          deaths: stats.deaths,
+          assists: stats.assists,
+          damage: stats.damage,
+          equipValue: stats.equipValue,
+          moneySpent: stats.moneySpent,
+          startBalance: stats.startBalance,
+          survived: stats.survived,
+          firstKill: stats.firstKill,
+          firstDeath: stats.firstDeath,
+          clutchVs: stats.clutchVs,
+          clutchWon: stats.clutchWon,
+        });
+      }
+    }
+
+    // Batch insert for performance
+    if (roundPlayerStatsData.length > 0) {
+      const batchSize = 500;
+      for (let i = 0; i < roundPlayerStatsData.length; i += batchSize) {
+        const batch = roundPlayerStatsData.slice(i, i + batchSize);
+        await this.prisma.roundPlayerStats.createMany({
+          data: batch,
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    const duration = Date.now() - startTime;
+    this.logger.log(
+      `Computed and inserted ${roundPlayerStatsData.length} RoundPlayerStats for demo ${demoId} in ${duration}ms`,
+    );
+  }
+
+  /**
+   * Recompute RoundPlayerStats for an existing demo
+   *
+   * Use this to fix demos that were parsed before RoundPlayerStats computation
+   * was implemented. Idempotent: deletes existing stats before recomputing.
+   */
+  async recomputeRoundPlayerStats(demoId: string): Promise<{
+    success: boolean;
+    recordsCreated: number;
+    durationMs: number;
+  }> {
+    const startTime = Date.now();
+
+    // Verify demo exists and is completed
+    const demo = await this.prisma.demo.findUnique({
+      where: { id: demoId },
+      select: { id: true, status: true },
+    });
+
+    if (!demo) {
+      throw new NotFoundException(`Demo ${demoId} not found`);
+    }
+
+    if (demo.status !== DemoStatus.COMPLETED) {
+      throw new Error(
+        `Demo ${demoId} is not completed (status: ${demo.status})`,
+      );
+    }
+
+    // Get rounds
+    const rounds = await this.prisma.round.findMany({
+      where: { demoId },
+      select: { id: true, roundNumber: true, startTick: true, endTick: true },
+      orderBy: { roundNumber: "asc" },
+    });
+
+    // Get events from GameEvent table
+    const gameEvents = await this.prisma.gameEvent.findMany({
+      where: {
+        demoId,
+        eventName: { in: ["player_death", "player_hurt", "round_freeze_end"] },
+      },
+      select: { eventName: true, tick: true, data: true },
+    });
+
+    // Transform to DemoEvent format
+    const events: DemoEvent[] = gameEvents.map((e) => ({
+      event_name: e.eventName,
+      tick: e.tick,
+      ...(e.data as Record<string, unknown>),
+    }));
+
+    // Delete existing RoundPlayerStats for this demo
+    const deleteResult = await this.prisma.roundPlayerStats.deleteMany({
+      where: {
+        round: { demoId },
+      },
+    });
+
+    if (deleteResult.count > 0) {
+      this.logger.log(
+        `Deleted ${deleteResult.count} existing RoundPlayerStats for demo ${demoId}`,
+      );
+    }
+
+    // Recompute
+    await this.computeAndInsertRoundPlayerStats(demoId, events, rounds);
+
+    // Count new records
+    const newCount = await this.prisma.roundPlayerStats.count({
+      where: { round: { demoId } },
+    });
+
+    const duration = Date.now() - startTime;
+
+    // Also delete cached analysis so it gets recomputed with fresh data
+    await this.prisma.analysis.deleteMany({
+      where: { demoId },
+    });
+
+    this.logger.log(
+      `Recomputed RoundPlayerStats for demo ${demoId}: ${newCount} records in ${duration}ms`,
+    );
+
+    return {
+      success: true,
+      recordsCreated: newCount,
+      durationMs: duration,
+    };
   }
 
   // Retry parsing a failed or pending demo

@@ -97,13 +97,25 @@ function LoginPageContent() {
   useEffect(() => {
     // Redirect if already authenticated
     if (isAuthenticated) {
-      router.push("/dashboard");
+      // Check for returnTo parameter to redirect back to original page
+      const returnTo = searchParams.get("returnTo");
+      const destination = returnTo ? decodeURIComponent(returnTo) : "/dashboard";
+      // Validate returnTo is a relative path to prevent open redirect
+      const isRelativePath = destination.startsWith("/") && !destination.startsWith("//");
+      router.push(isRelativePath ? destination : "/dashboard");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, searchParams]);
 
   const handleLogin = (provider: "steam" | "faceit") => {
     setIsLoading(provider);
     setError(null);
+
+    // Store returnTo in sessionStorage for after OAuth callback
+    const returnTo = searchParams.get("returnTo");
+    if (returnTo) {
+      sessionStorage.setItem("auth_return_to", decodeURIComponent(returnTo));
+    }
+
     // Redirect to backend OAuth endpoint
     window.location.href = `${API_URL}/v1/auth/${provider}`;
   };
