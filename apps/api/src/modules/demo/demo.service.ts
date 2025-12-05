@@ -7,7 +7,12 @@
  * - Batch database operations for performance
  */
 
-import { Injectable, NotFoundException, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
+} from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ConfigService } from "@nestjs/config";
@@ -1068,6 +1073,71 @@ export class DemoService {
       jobId: job.id,
       message: "Demo queued for retry",
     };
+  }
+
+  /**
+   * Delete a demo and all associated data
+   * Only the user who uploaded the demo can delete it
+   */
+  async deleteDemo(id: string, userId: string) {
+    const demo = await this.prisma.demo.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        uploadedById: true,
+        storagePath: true,
+        filename: true,
+        status: true,
+      },
+    });
+
+    if (!demo) {
+      throw new NotFoundException(`Demo ${id} not found`);
+    }
+
+    // Ownership check: only the uploader can delete
+    if (demo.uploadedById && demo.uploadedById !== userId) {
+      throw new ForbiddenException("You can only delete demos you uploaded");
+    }
+
+    // If demo is currently being parsed, warn but allow deletion
+    if (demo.status === DemoStatus.PARSING) {
+      this.logger.warn(
+        `Deleting demo ${id} while parsing is in progress - job may fail`,
+      );
+    }
+
+    try {
+      // Delete the file from disk first
+      if (demo.storagePath && fs.existsSync(demo.storagePath)) {
+        await fs.promises.unlink(demo.storagePath);
+        this.logger.log(`Deleted demo file: ${demo.storagePath}`);
+      }
+
+      // Delete the demo record - Prisma cascade will handle related records:
+      // - Round (onDelete: Cascade)
+      // - GameEvent (onDelete: Cascade)
+      // - MatchPlayerStats (onDelete: Cascade)
+      // - PlayerTick (onDelete: Cascade)
+      // - Grenade (onDelete: Cascade)
+      // - ChatMessage (onDelete: Cascade)
+      // - ReplayEvent (onDelete: Cascade)
+      // - Kill (onDelete: Cascade)
+      await this.prisma.demo.delete({
+        where: { id },
+      });
+
+      this.logger.log(`Demo ${id} (${demo.filename}) deleted by user ${userId}`);
+
+      return {
+        id,
+        deleted: true,
+        message: "Demo deleted successfully",
+      };
+    } catch (error) {
+      this.logger.error(`Failed to delete demo ${id}: ${error}`);
+      throw error;
+    }
   }
 
   // Set parser job ID for tracking (not needed with Prisma but kept for compatibility)

@@ -10,6 +10,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Param,
   Body,
   Query,
@@ -32,7 +33,8 @@ import {
 import type { FastifyRequest } from "fastify";
 import { DemoService } from "./demo.service";
 import { ParseOptionsDto } from "./dto/demo.dto";
-import { Public, Roles } from "../../common/decorators";
+import { Public, Roles, CurrentUser } from "../../common/decorators";
+import type { AuthenticatedUser } from "../auth/strategies/jwt.strategy";
 
 // Maximum demo file size (500MB - typical competitive demo ~150MB)
 const MAX_DEMO_SIZE = 500 * 1024 * 1024;
@@ -247,5 +249,28 @@ export class DemoController {
     };
     if (map !== undefined) options.map = map;
     return this.demoService.listDemos(options);
+  }
+
+  @Delete(":id")
+  @Roles("user")
+  @ApiOperation({ summary: "Delete a demo" })
+  @ApiParam({ name: "id", description: "Demo UUID" })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Demo deleted successfully",
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: "Demo not found",
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Not authorized to delete this demo",
+  })
+  async deleteDemo(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.demoService.deleteDemo(id, user.id);
   }
 }

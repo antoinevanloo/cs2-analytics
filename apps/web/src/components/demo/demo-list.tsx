@@ -11,7 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { mapNameToDisplay, formatDuration } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog";
+import { mapNameToDisplay, formatDuration, cn } from "@/lib/utils";
 import { DemoListItem, demosApi } from "@/lib/api";
 import {
   FileVideo,
@@ -25,14 +33,17 @@ import {
   Loader2,
   Copy,
   Check,
+  AlertTriangle,
+  Crosshair,
 } from "lucide-react";
 
 interface DemoListProps {
   demos: DemoListItem[];
   isLoading: boolean;
+  onDemoDeleted?: (demoId: string) => void;
 }
 
-export function DemoList({ demos, isLoading }: DemoListProps) {
+export function DemoList({ demos, isLoading, onDemoDeleted }: DemoListProps) {
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -58,14 +69,22 @@ export function DemoList({ demos, isLoading }: DemoListProps) {
   return (
     <div className="space-y-2">
       {demos.map((demo) => (
-        <DemoRow key={demo.id} demo={demo} />
+        <DemoRow key={demo.id} demo={demo} onDeleted={onDemoDeleted} />
       ))}
     </div>
   );
 }
 
-function DemoRow({ demo }: { demo: DemoListItem }) {
+interface DemoRowProps {
+  demo: DemoListItem;
+  onDeleted?: (demoId: string) => void;
+}
+
+function DemoRow({ demo, onDeleted }: DemoRowProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const statusColors: Record<string, string> = {
@@ -96,6 +115,23 @@ function DemoRow({ demo }: { demo: DemoListItem }) {
       console.error("Failed to copy:", error);
     }
   }, [demo.id]);
+
+  const handleDelete = useCallback(async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await demosApi.delete(demo.id);
+      setShowDeleteConfirm(false);
+      onDeleted?.(demo.id);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      setDeleteError(
+        error instanceof Error ? error.message : "Failed to delete demo",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [demo.id, onDeleted]);
 
   return (
     <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
@@ -213,13 +249,97 @@ function DemoRow({ demo }: { demo: DemoListItem }) {
               Download
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive cursor-pointer">
+            <DropdownMenuItem
+              className="text-destructive cursor-pointer"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Demo
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* CS2 Themed Delete Confirmation Modal */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent className="border-destructive/50 bg-gradient-to-b from-background to-destructive/5">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-full bg-destructive/20 animate-pulse">
+                <Crosshair className="h-6 w-6 text-destructive" />
+              </div>
+              <AlertDialogTitle className="text-xl font-bold tracking-tight">
+                Confirm Elimination
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-muted-foreground">
+              <div className="space-y-3">
+                <p>
+                  You are about to permanently delete this demo:
+                </p>
+                <div className="bg-muted/50 rounded-md p-3 border border-border">
+                  <div className="flex items-center gap-2">
+                    <FileVideo className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium text-foreground">
+                      {demo.mapName
+                        ? mapNameToDisplay(demo.mapName)
+                        : demo.filename}
+                    </span>
+                  </div>
+                  {demo.team1Name && demo.team2Name && (
+                    <p className="text-sm mt-1 text-muted-foreground">
+                      {demo.team1Name} vs {demo.team2Name}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-start gap-2 text-amber-500 text-sm">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>
+                    This action cannot be undone. All analysis data, rounds,
+                    kills, and replay information will be permanently removed.
+                  </span>
+                </div>
+                {deleteError && (
+                  <div className="bg-destructive/10 border border-destructive/50 rounded-md p-3 text-destructive text-sm">
+                    {deleteError}
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+              className="flex-1 sm:flex-none"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className={cn(
+                "flex-1 sm:flex-none gap-2 transition-all",
+                isDeleting && "animate-pulse",
+              )}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Eliminating...
+                </>
+              ) : (
+                <>
+                  <Crosshair className="h-4 w-4" />
+                  Eliminate Demo
+                </>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
