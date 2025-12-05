@@ -10,9 +10,11 @@ import {
   BarChart3,
   Settings,
   HelpCircle,
+  LayoutDashboard,
 } from "lucide-react";
 
 const navigation = [
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Demos", href: "/demos", icon: FileVideo },
   { name: "Players", href: "/players", icon: Users },
   { name: "Analysis", href: "/analysis", icon: BarChart3 },
