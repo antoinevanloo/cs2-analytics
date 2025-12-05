@@ -1,11 +1,31 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { mapNameToDisplay, formatDuration } from "@/lib/utils";
-import { DemoListItem } from "@/lib/api";
-import { FileVideo, Clock, MoreVertical, Play, Download } from "lucide-react";
+import { DemoListItem, demosApi } from "@/lib/api";
+import {
+  FileVideo,
+  Clock,
+  MoreVertical,
+  Play,
+  Download,
+  Share2,
+  BarChart3,
+  Trash2,
+  Loader2,
+  Copy,
+  Check,
+} from "lucide-react";
 
 interface DemoListProps {
   demos: DemoListItem[];
@@ -45,12 +65,37 @@ export function DemoList({ demos, isLoading }: DemoListProps) {
 }
 
 function DemoRow({ demo }: { demo: DemoListItem }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-500",
     parsing: "bg-blue-500",
     completed: "bg-green-500",
     failed: "bg-red-500",
   };
+
+  const handleDownload = useCallback(async () => {
+    setIsDownloading(true);
+    try {
+      await demosApi.download(demo.id, demo.filename);
+    } catch (error) {
+      console.error("Download failed:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [demo.id, demo.filename]);
+
+  const handleShare = useCallback(async () => {
+    const shareUrl = `${window.location.origin}/demos/${demo.id}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  }, [demo.id]);
 
   return (
     <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
@@ -102,18 +147,78 @@ function DemoRow({ demo }: { demo: DemoListItem }) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/demos/${demo.id}`}>
-            <Play className="h-4 w-4" />
-          </Link>
+      <div className="flex items-center gap-1">
+        {demo.status === "completed" && (
+          <Button variant="ghost" size="icon" asChild title="View demo">
+            <Link href={`/demos/${demo.id}`}>
+              <Play className="h-4 w-4" />
+            </Link>
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleDownload}
+          disabled={isDownloading}
+          title="Download demo"
+        >
+          {isDownloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
         </Button>
-        <Button variant="ghost" size="icon">
-          <Download className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon">
-          <MoreVertical className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <Link href={`/demos/${demo.id}`} className="cursor-pointer">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                View Details
+              </Link>
+            </DropdownMenuItem>
+            {demo.status === "completed" && (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/demos/${demo.id}/replay`}
+                  className="cursor-pointer"
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  2D Replay
+                </Link>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={handleShare} className="cursor-pointer">
+              {copied ? (
+                <Check className="mr-2 h-4 w-4 text-green-500" />
+              ) : (
+                <Share2 className="mr-2 h-4 w-4" />
+              )}
+              {copied ? "Copied!" : "Share Link"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="cursor-pointer"
+            >
+              {isDownloading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Download
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive cursor-pointer">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Demo
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

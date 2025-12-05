@@ -18,8 +18,8 @@ import {
   type RoundMetadata,
 } from "@/stores/replay-store";
 
-// API base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// API base URL - same as the main API
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 // API response types
 interface RoundReplayResponse {

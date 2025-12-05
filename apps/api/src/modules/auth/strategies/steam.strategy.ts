@@ -60,7 +60,7 @@ export class SteamOAuthStrategy extends PassportStrategy(
     configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const apiKey = configService.get<string>("STEAM_API_KEY");
+    const apiKey = configService.get<string>("STEAM_API_KEY", "");
     const returnUrl = configService.get<string>(
       "STEAM_RETURN_URL",
       "http://localhost:3001/v1/auth/steam/callback",
@@ -69,10 +69,6 @@ export class SteamOAuthStrategy extends PassportStrategy(
       "STEAM_REALM",
       "http://localhost:3001/",
     );
-
-    if (!apiKey) {
-      throw new Error("STEAM_API_KEY environment variable is required");
-    }
 
     super({
       returnURL: returnUrl,

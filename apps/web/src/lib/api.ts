@@ -247,11 +247,39 @@ export const demosApi = {
       method: "POST",
       body: JSON.stringify(options || {}),
     }),
+
+  // Download demo file
+  download: async (id: string, filename: string): Promise<void> => {
+    const response = await fetch(`${API_URL}/v1/demos/${id}/download`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error("Download failed");
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || `demo-${id}.dem`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  // Delete demo
+  delete: (id: string) =>
+    fetchApi(`/v1/demos/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 // Player endpoints
 export const playersApi = {
-  get: (steamId: string) => fetchApi(`/v1/players/${steamId}`),
+  get: (steamId: string): Promise<PlayerProfile> =>
+    fetchApi(`/v1/players/${steamId}`),
 
   getStats: (steamId: string, params?: { map?: string; days?: number }) => {
     const searchParams = new URLSearchParams();
