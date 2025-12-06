@@ -6,6 +6,13 @@
  * - Request timeouts with AbortController
  * - Health check monitoring
  * - Stream-based file transfer (memory-efficient)
+ * - Centralized parsing configuration
+ *
+ * Architecture:
+ * - Extensibility: Uses ParsingConfigService for profile-based options
+ * - Scalability: Circuit breaker prevents cascade failures
+ * - Resilience: Automatic retry with exponential backoff
+ * - Performance: Streaming upload, configurable tick intervals
  */
 
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
@@ -17,6 +24,10 @@ import {
   CircuitBreakerOpenError,
 } from "../../common/resilience";
 import { fileExists } from "../../common/streaming";
+import {
+  ParsingConfigService,
+  ParseOptions,
+} from "../../common/config";
 
 interface ParseResult {
   success: boolean;
@@ -42,7 +53,10 @@ export class ParserService implements OnModuleInit {
   // Timeout for health checks (5 seconds)
   private readonly HEALTH_TIMEOUT = 5000;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private parsingConfig: ParsingConfigService,
+  ) {
     this.parserUrl = this.configService.get("PARSER_URL", "http://parser:8001");
 
     // Configure timeouts based on environment
@@ -89,17 +103,14 @@ export class ParserService implements OnModuleInit {
    * Protected by circuit breaker pattern
    *
    * Uses streaming to avoid loading entire file into memory
+   *
+   * @param demoPath - Path to the demo file
+   * @param options - Partial parse options (merged with defaults from ParsingConfigService)
+   * @returns ParseResult with success status and parsed data
    */
   async parseDemo(
     demoPath: string,
-    options: {
-      extractTicks?: boolean;
-      tickInterval?: number;
-      extractGrenades?: boolean;
-      extractChat?: boolean;
-      events?: string[];
-      properties?: string[];
-    } = {},
+    options: Partial<ParseOptions> = {},
   ): Promise<ParseResult> {
     // Check file exists before consuming circuit breaker attempt
     const exists = await fileExists(demoPath);
@@ -110,16 +121,20 @@ export class ParserService implements OnModuleInit {
       };
     }
 
+    // Merge user options with centralized defaults
+    // This ensures extractTicks=true by default (for 2D replay support)
+    const mergedOptions = this.parsingConfig.mergeOptions(options);
+
     try {
       return await this.circuitBreaker.execute(async () => {
         const filename = path.basename(demoPath);
 
-        // Build query params
+        // Build query params from merged options
         const params = new URLSearchParams();
-        params.set("extract_ticks", String(options.extractTicks ?? false));
-        params.set("tick_interval", String(options.tickInterval ?? 64));
-        params.set("extract_grenades", String(options.extractGrenades ?? true));
-        params.set("extract_chat", String(options.extractChat ?? true));
+        params.set("extract_ticks", String(mergedOptions.extractTicks));
+        params.set("tick_interval", String(mergedOptions.tickInterval));
+        params.set("extract_grenades", String(mergedOptions.extractGrenades));
+        params.set("extract_chat", String(mergedOptions.extractChat));
 
         // Stream the file to FormData - memory efficient
         const formData = await this.createStreamingFormData(demoPath, filename);
@@ -223,15 +238,14 @@ export class ParserService implements OnModuleInit {
   /**
    * Upload demo to parser and get async job ID
    * Uses streaming for memory efficiency
+   *
+   * @param demoPath - Path to the demo file
+   * @param options - Partial parse options (merged with defaults)
+   * @returns Job ID for status polling or error
    */
   async uploadAndParse(
     demoPath: string,
-    options: {
-      extractTicks?: boolean;
-      tickInterval?: number;
-      extractGrenades?: boolean;
-      extractChat?: boolean;
-    } = {},
+    options: Partial<ParseOptions> = {},
   ): Promise<{ jobId: string } | { error: string }> {
     try {
       const exists = await fileExists(demoPath);
@@ -241,12 +255,15 @@ export class ParserService implements OnModuleInit {
 
       const filename = path.basename(demoPath);
 
-      // Build query params
+      // Merge with defaults - uses 'full' profile for async parsing
+      const mergedOptions = this.parsingConfig.mergeOptions(options, "full");
+
+      // Build query params from merged options
       const params = new URLSearchParams();
-      params.set("extract_ticks", String(options.extractTicks ?? true));
-      params.set("tick_interval", String(options.tickInterval ?? 1));
-      params.set("extract_grenades", String(options.extractGrenades ?? true));
-      params.set("extract_chat", String(options.extractChat ?? true));
+      params.set("extract_ticks", String(mergedOptions.extractTicks));
+      params.set("tick_interval", String(mergedOptions.tickInterval));
+      params.set("extract_grenades", String(mergedOptions.extractGrenades));
+      params.set("extract_chat", String(mergedOptions.extractChat));
 
       // Use streaming FormData
       const formData = await this.createStreamingFormData(demoPath, filename);

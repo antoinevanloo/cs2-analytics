@@ -68,7 +68,7 @@ export class ParseOptionsDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  events?: string[];
+  events?: string[] | undefined;
 
   @ApiPropertyOptional({
     description:
@@ -78,7 +78,7 @@ export class ParseOptionsDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  properties?: string[];
+  properties?: string[] | undefined;
 }
 
 export class DemoFiltersDto {

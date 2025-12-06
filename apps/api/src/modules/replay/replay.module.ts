@@ -16,8 +16,10 @@ import { Module } from "@nestjs/common";
 
 import { ReplayService } from "./replay.service";
 import { ReplayController } from "./replay.controller";
+import { DemoModule } from "../demo/demo.module";
 
 @Module({
+  imports: [DemoModule],
   controllers: [ReplayController],
   providers: [ReplayService],
   exports: [ReplayService],

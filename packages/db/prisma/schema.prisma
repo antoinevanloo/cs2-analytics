@@ -221,6 +221,12 @@ model Demo {
   parseError      String?
   parsedDataPath  String?
 
+  // Parsing configuration (for auditability and re-parsing)
+  // Stores the options used to parse this demo as JSON
+  // Enables: re-parsing with different options, debugging, analytics
+  parseOptions    Json?       // { extractTicks, tickInterval, extractGrenades, extractChat }
+  parseVersion    Int         @default(1) // Parser version for future migrations
+
   // Relations
   uploadedById    String?
   uploadedBy      User?       @relation(fields: [uploadedById], references: [id])

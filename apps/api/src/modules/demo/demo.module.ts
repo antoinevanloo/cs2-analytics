@@ -6,6 +6,11 @@
  * - BullMQ queue for async processing
  * - Automatic analysis trigger after parsing
  * - Archival service for old demos
+ * - Centralized parsing configuration
+ *
+ * Architecture:
+ * - ParsingConfigService provides extensible parsing profiles
+ * - Re-parsing support for demos without tick data
  */
 
 import { Module, forwardRef } from "@nestjs/common";
@@ -18,6 +23,7 @@ import { ParserService } from "./parser.service";
 import { DemoProcessor } from "./demo.processor";
 import { ArchivalService } from "./archival.service";
 import { AnalysisModule } from "../analysis/analysis.module";
+import { ParsingConfigService } from "../../common/config";
 
 @Module({
   imports: [
@@ -47,7 +53,21 @@ import { AnalysisModule } from "../analysis/analysis.module";
     forwardRef(() => AnalysisModule),
   ],
   controllers: [DemoController],
-  providers: [DemoService, DemoAccessService, ParserService, DemoProcessor, ArchivalService],
-  exports: [DemoService, DemoAccessService, ParserService, ArchivalService, BullModule],
+  providers: [
+    DemoService,
+    DemoAccessService,
+    ParserService,
+    DemoProcessor,
+    ArchivalService,
+    ParsingConfigService,
+  ],
+  exports: [
+    DemoService,
+    DemoAccessService,
+    ParserService,
+    ArchivalService,
+    ParsingConfigService,
+    BullModule,
+  ],
 })
 export class DemoModule {}

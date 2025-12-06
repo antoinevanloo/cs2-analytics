@@ -5,12 +5,20 @@
  * - Stream-based file upload (memory-efficient)
  * - Hash calculation during write
  * - Batch database operations for performance
+ * - Re-parsing support with configurable options
+ * - Parsing configuration auditability (stored in DB)
+ *
+ * Architecture:
+ * - Extensibility: Uses ParsingConfigService for profile-based defaults
+ * - Scalability: Batch inserts for large tick datasets
+ * - Resilience: Graceful handling of re-parse scenarios
  */
 
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
@@ -30,6 +38,11 @@ import * as crypto from "crypto";
 import type { Readable } from "stream";
 import { writeStreamWithHash } from "../../common/streaming";
 import type { ParseOptionsDto } from "./dto/demo.dto";
+import {
+  ParsingConfigService,
+  ParseOptions,
+  PARSER_VERSION,
+} from "../../common/config";
 
 // Interfaces for parser data
 export interface DemoGrenade {
@@ -134,10 +147,12 @@ export interface DemoTick {
 export class DemoService {
   private readonly logger = new Logger(DemoService.name);
   private readonly demoStoragePath: string;
+
   constructor(
     @InjectQueue("demo-parsing") private parsingQueue: Queue,
     private configService: ConfigService,
     private prisma: PrismaService,
+    private parsingConfig: ParsingConfigService,
   ) {
     this.demoStoragePath = this.configService.get(
       "DEMO_STORAGE_PATH",
@@ -296,24 +311,42 @@ export class DemoService {
     };
   }
 
-  async queueForParsing(id: string, options: ParseOptionsDto) {
+  /**
+   * Queue a demo for parsing with configurable options
+   *
+   * Uses ParsingConfigService to merge user options with defaults
+   * Stores the final options in the database for auditability
+   *
+   * @param id - Demo ID
+   * @param userOptions - User-specified options (partial, merged with defaults)
+   */
+  async queueForParsing(id: string, userOptions: ParseOptionsDto = {}) {
     const demo = await this.prisma.demo.findUnique({ where: { id } });
     if (!demo) {
       throw new NotFoundException(`Demo ${id} not found`);
     }
 
+    // Merge user options with centralized defaults
+    // This ensures extractTicks=true by default for 2D replay support
+    const mergedOptions = this.parsingConfig.mergeOptions(userOptions);
+
     await this.prisma.demo.update({
       where: { id },
-      data: { status: DemoStatus.PARSING },
+      data: {
+        status: DemoStatus.PARSING,
+        // Store the options used for this parse (auditability)
+        parseOptions: mergedOptions as unknown as Prisma.JsonObject,
+        parseVersion: PARSER_VERSION,
+      },
     });
 
-    // Add to parsing queue
+    // Add to parsing queue with merged options
     const job = await this.parsingQueue.add(
       "parse",
       {
         demoId: id,
         filePath: demo.storagePath,
-        options,
+        options: mergedOptions,
       },
       {
         attempts: 3,
@@ -324,12 +357,15 @@ export class DemoService {
       },
     );
 
-    this.logger.log(`Demo ${id} queued for parsing, job: ${job.id}`);
+    this.logger.log(
+      `Demo ${id} queued for parsing, job: ${job.id}, options: extractTicks=${mergedOptions.extractTicks}, tickInterval=${mergedOptions.tickInterval}`,
+    );
 
     return {
       id,
       status: "parsing",
       jobId: job.id,
+      options: mergedOptions,
       message: "Demo queued for parsing",
     };
   }
@@ -347,6 +383,142 @@ export class DemoService {
       parsedAt: demo.parsedAt,
       parserStatus: null,
       error: demo.parseError,
+      parseOptions: demo.parseOptions,
+      parseVersion: demo.parseVersion,
+    };
+  }
+
+  /**
+   * Re-parse a demo with tick extraction enabled
+   *
+   * Use case: Demo was parsed without tick data (no 2D replay)
+   * This method clears existing tick data and re-queues for parsing
+   *
+   * Architecture considerations:
+   * - Resilience: Validates demo exists and file is accessible
+   * - Performance: Deletes old tick data before re-parsing
+   * - UX: Returns immediately, processing is async
+   * - Extensibility: Accepts custom options or uses 'replay' profile
+   *
+   * @param id - Demo ID to re-parse
+   * @param userId - User requesting the re-parse (for authorization)
+   * @param options - Custom parsing options (defaults to 'replay' profile)
+   */
+  async reparseDemo(
+    id: string,
+    userId?: string,
+    options?: Partial<ParseOptionsDto>,
+  ) {
+    const demo = await this.prisma.demo.findUnique({ where: { id } });
+    if (!demo) {
+      throw new NotFoundException(`Demo ${id} not found`);
+    }
+
+    // Authorization: only owner can re-parse (if userId provided)
+    if (userId && demo.uploadedById && demo.uploadedById !== userId) {
+      throw new ForbiddenException("Not authorized to re-parse this demo");
+    }
+
+    // Validate demo file still exists
+    if (!fs.existsSync(demo.storagePath)) {
+      throw new BadRequestException(
+        "Demo file no longer exists. Please re-upload the demo.",
+      );
+    }
+
+    // Check if already parsing
+    if (demo.status === DemoStatus.PARSING) {
+      throw new BadRequestException("Demo is already being parsed");
+    }
+
+    // Use 'replay' profile for re-parsing (optimized for 2D replay)
+    // This ensures extractTicks=true with good tick_interval for smooth replay
+    const mergedOptions = this.parsingConfig.mergeOptions(options, "replay");
+
+    this.logger.log(
+      `Re-parsing demo ${id} with options: extractTicks=${mergedOptions.extractTicks}, tickInterval=${mergedOptions.tickInterval}`,
+    );
+
+    // Delete existing tick data (will be replaced)
+    // This is safe because we're re-parsing anyway
+    const deletedTicks = await this.prisma.playerTick.deleteMany({
+      where: { demoId: id },
+    });
+
+    if (deletedTicks.count > 0) {
+      this.logger.log(`Deleted ${deletedTicks.count} existing ticks for demo ${id}`);
+    }
+
+    // Delete existing replay events (will be regenerated)
+    await this.prisma.replayEvent.deleteMany({
+      where: { demoId: id },
+    });
+
+    // Queue for re-parsing
+    return this.queueForParsing(id, mergedOptions);
+  }
+
+  /**
+   * Check if a demo needs re-parsing for 2D replay support
+   *
+   * @param id - Demo ID
+   * @returns Whether the demo needs tick extraction
+   */
+  async needsReparse(id: string): Promise<{
+    needsReparse: boolean;
+    reason?: string;
+    currentOptions?: ParseOptions | null;
+  }> {
+    const demo = await this.prisma.demo.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        parseOptions: true,
+        status: true,
+      },
+    });
+
+    if (!demo) {
+      throw new NotFoundException(`Demo ${id} not found`);
+    }
+
+    if (demo.status !== DemoStatus.COMPLETED && demo.status !== DemoStatus.PARSED) {
+      return {
+        needsReparse: false,
+        reason: "Demo is not fully parsed yet",
+        currentOptions: demo.parseOptions as ParseOptions | null,
+      };
+    }
+
+    const currentOptions = demo.parseOptions as ParseOptions | null;
+
+    // Check if tick data exists
+    const tickCount = await this.prisma.playerTick.count({
+      where: { demoId: id },
+      take: 1,
+    });
+
+    if (tickCount === 0) {
+      return {
+        needsReparse: true,
+        reason: "No tick data available for 2D replay",
+        currentOptions,
+      };
+    }
+
+    // Check if options indicate tick extraction was disabled
+    if (currentOptions && !currentOptions.extractTicks) {
+      return {
+        needsReparse: true,
+        reason: "Tick extraction was disabled during parsing",
+        currentOptions,
+      };
+    }
+
+    return {
+      needsReparse: false,
+      reason: "Tick data is available",
+      currentOptions,
     };
   }
 

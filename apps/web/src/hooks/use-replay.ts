@@ -2,7 +2,7 @@
  * useReplay Hook - Fetch and manage replay data
  *
  * Features:
- * - Fetches round replay data from API
+ * - Fetches round replay data from API with authentication
  * - Supports NDJSON streaming for large replays
  * - Manages loading state and error handling
  * - Integrates with replay store
@@ -17,9 +17,19 @@ import {
   type MapConfig,
   type RoundMetadata,
 } from "@/stores/replay-store";
+import { useAuthStore } from "@/stores/auth-store";
 
 // API base URL - same as the main API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+// Get authentication headers
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await useAuthStore.getState().getValidAccessToken();
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+}
 
 // API response types
 interface RoundReplayResponse {
@@ -75,7 +85,7 @@ interface AvailabilityResponse {
   tickDataExists: boolean;
 }
 
-// Fetch functions
+// Fetch functions with authentication
 async function fetchRoundReplay(
   demoId: string,
   roundNumber: number,
@@ -90,10 +100,15 @@ async function fetchRoundReplay(
   }
 
   const url = `${API_BASE_URL}/v1/replay/${demoId}/round/${roundNumber}${params.toString() ? `?${params}` : ""}`;
-  const response = await fetch(url);
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(url, {
+    headers: authHeaders,
+    credentials: "include",
+  });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch replay: ${response.statusText}`);
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch replay: ${response.statusText}`);
   }
 
   return response.json();
@@ -102,20 +117,27 @@ async function fetchRoundReplay(
 async function fetchRoundsMetadata(
   demoId: string,
 ): Promise<RoundsMetadataResponse[]> {
-  const response = await fetch(`${API_BASE_URL}/v1/replay/${demoId}/rounds`);
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/v1/replay/${demoId}/rounds`, {
+    headers: authHeaders,
+    credentials: "include",
+  });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch rounds: ${response.statusText}`);
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch rounds: ${response.statusText}`);
   }
 
   return response.json();
 }
 
 async function fetchMapConfig(mapName: string): Promise<MapConfigResponse> {
+  // Map config is public, no auth needed
   const response = await fetch(`${API_BASE_URL}/v1/replay/map/${mapName}`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch map config: ${response.statusText}`);
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch map config: ${response.statusText}`);
   }
 
   return response.json();
@@ -124,10 +146,15 @@ async function fetchMapConfig(mapName: string): Promise<MapConfigResponse> {
 async function checkAvailability(
   demoId: string,
 ): Promise<AvailabilityResponse> {
-  const response = await fetch(`${API_BASE_URL}/v1/replay/${demoId}/available`);
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/v1/replay/${demoId}/available`, {
+    headers: authHeaders,
+    credentials: "include",
+  });
 
   if (!response.ok) {
-    throw new Error(`Failed to check availability: ${response.statusText}`);
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to check availability: ${response.statusText}`);
   }
 
   return response.json();
@@ -153,10 +180,15 @@ async function* streamRoundReplay(
   }
 
   const url = `${API_BASE_URL}/v1/replay/${demoId}/round/${roundNumber}/stream${params.toString() ? `?${params}` : ""}`;
-  const response = await fetch(url);
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(url, {
+    headers: authHeaders,
+    credentials: "include",
+  });
 
   if (!response.ok) {
-    throw new Error(`Failed to stream replay: ${response.statusText}`);
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to stream replay: ${response.statusText}`);
   }
 
   const reader = response.body?.getReader();
@@ -446,14 +478,15 @@ export function useRoundsMetadata(demoId: string, enabled = true) {
   });
 }
 
-// Hook to fetch all available maps
+// Hook to fetch all available maps (public endpoint, no auth needed)
 export function useAvailableMaps() {
   return useQuery({
     queryKey: ["available-maps"],
     queryFn: async () => {
       const response = await fetch(`${API_BASE_URL}/v1/replay/maps`);
       if (!response.ok) {
-        throw new Error(`Failed to fetch maps: ${response.statusText}`);
+        const error = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(error.message || `Failed to fetch maps: ${response.statusText}`);
       }
       return response.json() as Promise<MapConfigResponse[]>;
     },

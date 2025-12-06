@@ -41,26 +41,36 @@ import type {
   RoundMetadata,
   MapRadarConfig,
 } from "./types/replay.types";
+import { Public, Roles, CurrentUser } from "../../common/decorators";
+import { DemoAccessService } from "../demo/demo-access.service";
+import type { AuthenticatedUser } from "../auth/strategies/jwt.strategy";
 
 @ApiTags("2D Replay")
-@Controller("v1/replay")
+@Controller({ path: "replay", version: "1" })
 export class ReplayController {
   private readonly logger = new Logger(ReplayController.name);
 
-  constructor(private readonly replayService: ReplayService) {}
+  constructor(
+    private readonly replayService: ReplayService,
+    private readonly demoAccessService: DemoAccessService,
+  ) {}
 
   /**
    * Get all rounds metadata for a demo
    */
   @Get(":demoId/rounds")
+  @Roles("user")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get rounds metadata for replay" })
   @ApiParam({ name: "demoId", description: "Demo ID" })
   @ApiResponse({ status: 200, description: "Rounds metadata" })
+  @ApiResponse({ status: 403, description: "Not authorized to access this demo" })
   @ApiResponse({ status: 404, description: "Demo not found" })
   async getDemoRounds(
     @Param("demoId") demoId: string,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<RoundMetadata[]> {
+    await this.demoAccessService.assertCanAccessDemo(demoId, user);
     return this.replayService.getDemoRoundsMetadata(demoId);
   }
 
@@ -68,6 +78,7 @@ export class ReplayController {
    * Get complete replay data for a round
    */
   @Get(":demoId/round/:roundNumber")
+  @Roles("user")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get full round replay data" })
   @ApiParam({ name: "demoId", description: "Demo ID" })
@@ -83,13 +94,16 @@ export class ReplayController {
     description: "Tick sampling interval (default: 8)",
   })
   @ApiResponse({ status: 200, description: "Round replay data" })
+  @ApiResponse({ status: 403, description: "Not authorized to access this demo" })
   @ApiResponse({ status: 404, description: "Round not found" })
   async getRoundReplay(
     @Param("demoId") demoId: string,
     @Param("roundNumber", ParseIntPipe) roundNumber: number,
     @Query("includeEvents") includeEvents?: string,
     @Query("sampleInterval") sampleInterval?: string,
+    @CurrentUser() user?: AuthenticatedUser,
   ): Promise<RoundReplayData> {
+    await this.demoAccessService.assertCanAccessDemo(demoId, user || null);
     const options: { includeEvents?: boolean; sampleInterval?: number } = {
       includeEvents: includeEvents !== "false",
     };
@@ -109,6 +123,7 @@ export class ReplayController {
    * - { type: "end", data: { framesStreamed, eventsStreamed } }
    */
   @Get(":demoId/round/:roundNumber/stream")
+  @Roles("user")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Stream round replay as NDJSON" })
   @ApiParam({ name: "demoId", description: "Demo ID" })
@@ -136,6 +151,7 @@ export class ReplayController {
       },
     },
   })
+  @ApiResponse({ status: 403, description: "Not authorized to access this demo" })
   @ApiResponse({ status: 404, description: "Round not found" })
   async streamRoundReplay(
     @Param("demoId") demoId: string,
@@ -143,7 +159,10 @@ export class ReplayController {
     @Query("sampleInterval") sampleInterval: string | undefined,
     @Query("batchSize") batchSize: string | undefined,
     @Res() reply: FastifyReply,
+    @CurrentUser() user?: AuthenticatedUser,
   ): Promise<void> {
+    // Check access before streaming
+    await this.demoAccessService.assertCanAccessDemo(demoId, user || null);
     // Set headers for streaming NDJSON
     reply.raw.writeHead(HttpStatus.OK, {
       "Content-Type": "application/x-ndjson",
@@ -204,9 +223,10 @@ export class ReplayController {
 
   /**
    * Get map radar configuration
+   * Public endpoint - map data is static and not user-specific
    */
   @Get("map/:mapName")
-  @ApiBearerAuth()
+  @Public()
   @ApiOperation({ summary: "Get map radar configuration" })
   @ApiParam({ name: "mapName", description: "Map name (e.g., de_dust2)" })
   @ApiResponse({ status: 200, description: "Map radar config" })
@@ -227,13 +247,17 @@ export class ReplayController {
    * Check if tick data is available for a demo
    */
   @Get(":demoId/available")
+  @Roles("user")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Check if replay data is available" })
   @ApiParam({ name: "demoId", description: "Demo ID" })
   @ApiResponse({ status: 200, description: "Availability status" })
+  @ApiResponse({ status: 403, description: "Not authorized to access this demo" })
   async checkAvailability(
     @Param("demoId") demoId: string,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ available: boolean; tickDataExists: boolean }> {
+    await this.demoAccessService.assertCanAccessDemo(demoId, user);
     const tickDataExists = await this.replayService.hasTickData(demoId);
 
     return {
@@ -244,9 +268,10 @@ export class ReplayController {
 
   /**
    * Get all available maps with radar configurations
+   * Public endpoint - map data is static and not user-specific
    */
   @Get("maps")
-  @ApiBearerAuth()
+  @Public()
   @ApiOperation({ summary: "Get all available map configurations" })
   @ApiResponse({ status: 200, description: "List of map configurations" })
   async getAllMaps(): Promise<MapRadarConfig[]> {

@@ -155,6 +155,100 @@ export class DemoController {
     return this.demoService.retryParsing(id);
   }
 
+  @Post(":id/reparse")
+  @Roles("user")
+  @ApiOperation({
+    summary: "Re-parse a demo with tick extraction enabled",
+    description:
+      "Re-parses a demo that was parsed without tick data, enabling 2D replay support. " +
+      "Uses the 'replay' parsing profile by default (extractTicks=true, tickInterval=4). " +
+      "Existing tick data will be deleted and replaced with new data.",
+  })
+  @ApiParam({ name: "id", description: "Demo UUID" })
+  @ApiBody({
+    type: ParseOptionsDto,
+    required: false,
+    description: "Optional parsing options to override defaults",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Demo queued for re-parsing",
+    schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        status: { type: "string" },
+        jobId: { type: "string" },
+        options: {
+          type: "object",
+          properties: {
+            extractTicks: { type: "boolean" },
+            tickInterval: { type: "number" },
+            extractGrenades: { type: "boolean" },
+            extractChat: { type: "boolean" },
+          },
+        },
+        message: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: "Demo file no longer exists or demo is already being parsed",
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Not authorized to re-parse this demo",
+  })
+  async reparseDemo(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() options: ParseOptionsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.demoAccessService.assertCanAccessDemo(id, user);
+    return this.demoService.reparseDemo(id, user.id, options);
+  }
+
+  @Get(":id/needs-reparse")
+  @Roles("user")
+  @ApiOperation({
+    summary: "Check if a demo needs re-parsing for 2D replay",
+    description:
+      "Returns whether the demo has tick data for 2D replay support. " +
+      "If needsReparse is true, call POST /demos/:id/reparse to enable replay.",
+  })
+  @ApiParam({ name: "id", description: "Demo UUID" })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Re-parse status",
+    schema: {
+      type: "object",
+      properties: {
+        needsReparse: { type: "boolean" },
+        reason: { type: "string" },
+        currentOptions: {
+          type: "object",
+          nullable: true,
+          properties: {
+            extractTicks: { type: "boolean" },
+            tickInterval: { type: "number" },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Not authorized to access this demo",
+  })
+  async checkNeedsReparse(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.demoAccessService.assertCanAccessDemo(id, user);
+    return this.demoService.needsReparse(id);
+  }
+
   @Post(":id/recompute-stats")
   @Roles("user")
   @ApiOperation({
