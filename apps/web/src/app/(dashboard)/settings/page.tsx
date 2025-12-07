@@ -47,7 +47,7 @@ interface Integration {
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { user } = useAuthStore();
+  const { user, getValidAccessToken } = useAuthStore();
 
   // Integrations state - Initialize based on user data
   const [integrations, setIntegrations] = useState<Integration[]>([
@@ -144,10 +144,18 @@ export default function SettingsPage() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
+      // Get valid auth token
+      const token = await getValidAccessToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       // Call export API
       const response = await fetch(`${API_URL}/v1/user/me/export`, {
         method: "POST",
         credentials: "include",
+        headers,
       });
 
       if (response.ok) {

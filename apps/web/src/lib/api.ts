@@ -176,6 +176,20 @@ export interface PlayerSearchResponse {
   total: number;
 }
 
+/**
+ * Generic API fetch wrapper with authentication handling.
+ *
+ * Features:
+ * - Automatic access token injection via Authorization header
+ * - Auto-refresh of expired tokens via getValidAuthToken()
+ * - HttpOnly cookie support via credentials: "include"
+ * - Consistent error handling
+ *
+ * @param endpoint - API endpoint path (e.g., "/v1/demos")
+ * @param options - Optional fetch options
+ * @returns Parsed JSON response
+ * @throws Error with message from API or status code
+ */
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit,
@@ -195,6 +209,8 @@ async function fetchApi<T>(
 
   const response = await fetch(url, {
     ...options,
+    // Include credentials to send HttpOnly cookies (refresh token)
+    credentials: "include",
     headers: {
       ...headers,
       ...(options?.headers as Record<string, string>),
@@ -259,6 +275,7 @@ export const demosApi = {
       method: "POST",
       body: formData,
       headers,
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -279,8 +296,16 @@ export const demosApi = {
 
   // Download demo file
   download: async (id: string, filename: string): Promise<void> => {
+    const token = await getValidAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/v1/demos/${id}/download`, {
       method: "GET",
+      headers,
+      credentials: "include",
     });
 
     if (!response.ok) {

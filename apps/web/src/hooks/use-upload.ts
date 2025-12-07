@@ -168,8 +168,54 @@ async function uploadWithProgress(
 // Status Polling
 // ============================================================================
 
+/**
+ * Fetch demo parsing status with authentication.
+ *
+ * Uses the same auth pattern as the rest of the app:
+ * - Access token in Authorization header
+ * - HttpOnly refresh token cookie via credentials: "include"
+ * - Automatic token refresh on 401
+ *
+ * @param demoId - UUID of the demo to check status for
+ * @returns Status response with parsing state
+ * @throws Error if authentication fails or request fails
+ */
 async function fetchDemoStatus(demoId: string): Promise<StatusResponse> {
-  const response = await fetch(`${API_URL}/v1/demos/${demoId}/status`);
+  const authStore = useAuthStore.getState();
+  const token = await authStore.getValidAccessToken();
+
+  if (!token) {
+    throw new Error("Authentication required");
+  }
+
+  const response = await fetch(`${API_URL}/v1/demos/${demoId}/status`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    // Include credentials to send HttpOnly cookies (refresh token)
+    credentials: "include",
+  });
+
+  // Handle token expiration - attempt automatic refresh
+  if (response.status === 401) {
+    const newToken = await authStore.refreshTokens();
+    if (!newToken) {
+      throw new Error("Session expired");
+    }
+
+    const retryResponse = await fetch(`${API_URL}/v1/demos/${demoId}/status`, {
+      headers: {
+        Authorization: `Bearer ${newToken}`,
+      },
+      credentials: "include",
+    });
+
+    if (!retryResponse.ok) {
+      throw new Error("Failed to fetch status");
+    }
+    return retryResponse.json();
+  }
+
   if (!response.ok) {
     throw new Error("Failed to fetch status");
   }

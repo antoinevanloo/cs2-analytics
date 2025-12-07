@@ -137,19 +137,30 @@ export const useAuthStore = create<AuthState>()(
         return state.tokens.accessToken;
       },
 
-      // Refresh tokens using the refresh endpoint
+      /**
+       * Refresh access token using the refresh endpoint.
+       *
+       * Architecture note: The refresh token is stored in an HttpOnly cookie
+       * by the backend for security (not accessible via JavaScript).
+       * The browser automatically sends this cookie when credentials: "include" is set.
+       *
+       * @returns New access token or null if refresh failed
+       */
       refreshTokens: async () => {
         const state = get();
-        if (!state.tokens?.refreshToken) {
+
+        // Must have an authenticated session to attempt refresh
+        // Note: We check isAuthenticated, not refreshToken, because the
+        // refresh token is in an HttpOnly cookie (inaccessible to JS)
+        if (!state.isAuthenticated) {
           return null;
         }
 
-        // If a refresh is already in progress, wait for it
+        // Prevent concurrent refresh requests (race condition protection)
         if (refreshPromise) {
           return refreshPromise;
         }
 
-        // Create new refresh promise
         refreshPromise = (async () => {
           try {
             const response = await fetch(`${API_URL}/v1/auth/refresh`, {
@@ -157,26 +168,27 @@ export const useAuthStore = create<AuthState>()(
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({
-                refreshToken: state.tokens?.refreshToken,
-              }),
+              // Empty body - refresh token is sent via HttpOnly cookie
+              body: JSON.stringify({}),
+              // Critical: This sends the HttpOnly cookie with the request
               credentials: "include",
             });
 
             if (!response.ok) {
-              // Refresh failed - logout user
+              // Refresh failed - session invalid, logout user
               get().logout();
               return null;
             }
 
             const data = await response.json();
+
+            // Update tokens - refreshToken stays empty as it's in HttpOnly cookie
             const newTokens: AuthTokens = {
               accessToken: data.accessToken,
-              refreshToken: state.tokens?.refreshToken || "", // Keep existing refresh token
+              refreshToken: "", // Stored in HttpOnly cookie, not accessible
               expiresAt: Date.now() + data.expiresIn * 1000,
             };
 
-            // Update tokens in store
             set({ tokens: newTokens });
             return newTokens.accessToken;
           } catch (error) {

@@ -42,10 +42,26 @@ export interface TickFrame {
   players: PlayerFrame[];
 }
 
+// Replay event types - synchronized with API types
+export type ReplayEventType =
+  | "KILL"
+  | "BOMB_PLANT"
+  | "BOMB_DEFUSE"
+  | "BOMB_EXPLODE"
+  | "GRENADE"
+  // Granular grenade types from API
+  | "SMOKE_START"
+  | "SMOKE_END"
+  | "MOLOTOV_START"
+  | "MOLOTOV_END"
+  | "HE_EXPLODE"
+  | "FLASH_EFFECT"
+  | "GRENADE_THROW";
+
 // Replay event overlay
 export interface ReplayEvent {
   id: string;
-  type: "KILL" | "BOMB_PLANT" | "BOMB_DEFUSE" | "BOMB_EXPLODE" | "GRENADE";
+  type: ReplayEventType;
   tick: number;
   x: number;
   y: number;
@@ -54,6 +70,20 @@ export interface ReplayEvent {
   endX?: number;
   endY?: number;
   endZ?: number;
+}
+
+// Helper to check if an event is a grenade-related event
+export function isGrenadeEvent(type: ReplayEventType): boolean {
+  return [
+    "GRENADE",
+    "SMOKE_START",
+    "SMOKE_END",
+    "MOLOTOV_START",
+    "MOLOTOV_END",
+    "HE_EXPLODE",
+    "FLASH_EFFECT",
+    "GRENADE_THROW",
+  ].includes(type);
 }
 
 // Map configuration for coordinate conversion
@@ -70,6 +100,14 @@ export interface MapConfig {
   lowerScale?: number;
   splitAltitude?: number;
   displayName?: string;
+  radarImageUrl?: string; // URL to radar background image
+}
+
+// Generate radar image URL from map name
+// CS2 radar images are typically served from a static path or CDN
+export function getRadarImageUrl(mapName: string): string {
+  // Try local public folder first, then fallback to CDN
+  return `/radars/${mapName}_radar.png`;
 }
 
 // Round metadata

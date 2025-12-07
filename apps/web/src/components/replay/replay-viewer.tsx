@@ -19,7 +19,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Loader2, AlertCircle, RefreshCw, Sparkles, CheckCircle2 } from "lucide-react";
-import { useReplayStore, useReplayLoaded } from "@/stores/replay-store";
+import { useReplayStore, useReplayLoaded, getRadarImageUrl } from "@/stores/replay-store";
 import { useReplay, useRoundsMetadata } from "@/hooks/use-replay";
 import { useAuthStore } from "@/stores/auth-store";
 import { useReplayAnimation } from "@/hooks/use-replay-animation";
@@ -67,7 +67,7 @@ export function ReplayViewer({
   const [reparseStatus, setReparseStatus] = useState<ReparseStatus>("idle");
   const [reparseError, setReparseError] = useState<string | null>(null);
 
-  const { playbackState, error } = useReplayStore();
+  const { playbackState, error, mapConfig } = useReplayStore();
   const isLoaded = useReplayLoaded();
 
   // Start animation loop when playing
@@ -363,6 +363,7 @@ export function ReplayViewer({
               <ReplayCanvas
                 width={canvasSize.width}
                 height={canvasSize.height}
+                radarImageUrl={mapConfig?.mapName ? getRadarImageUrl(mapConfig.mapName) : undefined}
               />
             )}
           </CardContent>
