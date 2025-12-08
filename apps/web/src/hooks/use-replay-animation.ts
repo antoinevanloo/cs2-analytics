@@ -23,93 +23,118 @@ interface AnimationState {
 }
 
 export function useReplayAnimation() {
-  const animationStateRef = useRef<AnimationState>({
-    lastTimestamp: 0,
-    accumulatedTime: 0,
-    animationFrameId: null,
+  // Use a single ref to track animation state
+  const animationRef = useRef<{
+    frameId: number | null;
+    lastTime: number;
+    accumulator: number;
+    cancelled: boolean;  // Flag to stop in-flight callbacks
+  }>({
+    frameId: null,
+    lastTime: 0,
+    accumulator: 0,
+    cancelled: false,
   });
 
-  const {
-    playbackState,
-    playbackSpeed,
-    frames,
-    currentFrameIndex,
-    tickRate,
-    sampleInterval,
-    nextFrame,
-  } = useReplayStore();
+  // Subscribe to playback state changes
+  const playbackState = useReplayStore((s) => s.playbackState);
+  const framesLength = useReplayStore((s) => s.frames.length);
 
-  // Calculate the time between frames based on tick rate and sample interval
-  // At 64 tick rate with sample interval of 8, we have 8 frames per second
-  // We need to advance one frame every (1000 / (tickRate / sampleInterval)) ms
-  const msPerFrame = useCallback(() => {
-    const framesPerSecond = tickRate / sampleInterval;
-    return 1000 / framesPerSecond / playbackSpeed;
-  }, [tickRate, sampleInterval, playbackSpeed]);
-
-  // Animation loop
-  const animate = useCallback(
-    (timestamp: number) => {
-      const state = animationStateRef.current;
-
-      // Initialize timestamp on first frame
-      if (state.lastTimestamp === 0) {
-        state.lastTimestamp = timestamp;
-      }
-
-      // Calculate delta time
-      const deltaTime = timestamp - state.lastTimestamp;
-      state.lastTimestamp = timestamp;
-
-      // Accumulate time
-      state.accumulatedTime += deltaTime;
-
-      // Calculate frame duration based on playback speed
-      const frameDuration = msPerFrame();
-
-      // Advance frames based on accumulated time
-      while (state.accumulatedTime >= frameDuration) {
-        nextFrame();
-        state.accumulatedTime -= frameDuration;
-      }
-
-      // Schedule next frame if still playing
-      state.animationFrameId = requestAnimationFrame(animate);
-    },
-    [msPerFrame, nextFrame],
-  );
-
-  // Start/stop animation based on playback state
   useEffect(() => {
-    const state = animationStateRef.current;
+    const anim = animationRef.current;
 
-    if (playbackState === "playing" && frames.length > 0) {
-      // Reset timing state when starting
-      state.lastTimestamp = 0;
-      state.accumulatedTime = 0;
+    console.log(`[Animation] Effect triggered: playbackState=${playbackState}, framesLength=${framesLength}`);
 
-      // Start animation loop
-      state.animationFrameId = requestAnimationFrame(animate);
-    } else {
-      // Stop animation loop
-      if (state.animationFrameId !== null) {
-        cancelAnimationFrame(state.animationFrameId);
-        state.animationFrameId = null;
+    // Only start if playing and has frames
+    if (playbackState !== "playing" || framesLength === 0) {
+      // Stop any running animation
+      if (anim.frameId !== null) {
+        console.log(`[Animation] Stopping animation (state=${playbackState}, frames=${framesLength})`);
+        cancelAnimationFrame(anim.frameId);
+        anim.frameId = null;
       }
+      return;
     }
 
-    // Cleanup on unmount
+    console.log(`[Animation] Starting animation loop`);
+
+    // Reset timing and cancelled flag
+    anim.lastTime = 0;
+    anim.accumulator = 0;
+    anim.cancelled = false;
+
+    // Animation loop
+    const tick = (currentTime: number) => {
+      // Check if we've been cancelled (e.g., by cleanup or StrictMode re-mount)
+      if (anim.cancelled) {
+        console.log(`[Animation] Tick: cancelled flag is true, stopping`);
+        anim.frameId = null;
+        return;
+      }
+
+      // Get fresh store state each frame
+      const store = useReplayStore.getState();
+
+      // Stop if no longer playing
+      if (store.playbackState !== "playing") {
+        console.log(`[Animation] Tick: playbackState changed to ${store.playbackState}, stopping`);
+        anim.frameId = null;
+        return;
+      }
+
+      // First frame - just record time
+      if (anim.lastTime === 0) {
+        anim.lastTime = currentTime;
+        anim.frameId = requestAnimationFrame(tick);
+        return;
+      }
+
+      // Calculate delta
+      const delta = currentTime - anim.lastTime;
+      anim.lastTime = currentTime;
+      anim.accumulator += delta;
+
+      // Calculate ms per game frame
+      // tickRate=64, sampleInterval=8 → 8 frames/sec → 125ms per frame at 1x speed
+      const msPerFrame = (1000 * store.sampleInterval) / store.tickRate / store.playbackSpeed;
+
+      // Advance frames while we have accumulated enough time
+      while (anim.accumulator >= msPerFrame) {
+        anim.accumulator -= msPerFrame;
+        store.nextFrame();
+
+        // Check if ended after advancing
+        if (useReplayStore.getState().playbackState !== "playing") {
+          anim.frameId = null;
+          return;
+        }
+      }
+
+      // Continue animation
+      anim.frameId = requestAnimationFrame(tick);
+    };
+
+    // Start animation
+    anim.frameId = requestAnimationFrame(tick);
+
+    // Cleanup
     return () => {
-      if (state.animationFrameId !== null) {
-        cancelAnimationFrame(state.animationFrameId);
-        state.animationFrameId = null;
+      console.log(`[Animation] Cleanup called`);
+      anim.cancelled = true;  // Signal in-flight callbacks to stop
+      if (anim.frameId !== null) {
+        cancelAnimationFrame(anim.frameId);
+        anim.frameId = null;
       }
     };
-  }, [playbackState, frames.length, animate]);
+  }, [playbackState, framesLength]);
 
-  // Return animation state for debugging
+  // Get values for return
+  const tickRate = useReplayStore((s) => s.tickRate);
+  const sampleInterval = useReplayStore((s) => s.sampleInterval);
+  const playbackSpeed = useReplayStore((s) => s.playbackSpeed);
+
   return {
-    isAnimating: animationStateRef.current.animationFrameId !== null,
+    isAnimating: animationRef.current.frameId !== null,
     targetFps: TARGET_FPS,
     effectiveFps: (tickRate / sampleInterval) * playbackSpeed,
   };
@@ -130,16 +155,12 @@ export function useFrameInterpolation() {
     interpolationFactor: 0,
   });
 
-  const {
-    frames,
-    currentFrameIndex,
-    playbackState,
-    playbackSpeed,
-    tickRate,
-    sampleInterval,
-  } = useReplayStore();
+  // Get reactive values
+  const frames = useReplayStore((s) => s.frames);
+  const currentFrameIndex = useReplayStore((s) => s.currentFrameIndex);
+  const playbackState = useReplayStore((s) => s.playbackState);
 
-  // Update interpolation state
+  // Update interpolation state when frame changes
   useEffect(() => {
     const currentFrame = frames[currentFrameIndex];
     const previousFrame =
@@ -152,39 +173,48 @@ export function useFrameInterpolation() {
 
   // Interpolation animation (runs at display refresh rate)
   useEffect(() => {
-    let animationFrameId: number | null = null;
-    let lastTimestamp = 0;
-
-    const animate = (timestamp: number) => {
-      if (lastTimestamp === 0) {
-        lastTimestamp = timestamp;
-      }
-
-      const deltaTime = timestamp - lastTimestamp;
-      lastTimestamp = timestamp;
-
-      // Calculate interpolation factor
-      const msPerFrame = 1000 / (tickRate / sampleInterval) / playbackSpeed;
-      interpolationRef.current.interpolationFactor = Math.min(
-        1,
-        interpolationRef.current.interpolationFactor + deltaTime / msPerFrame,
-      );
-
-      if (playbackState === "playing") {
-        animationFrameId = requestAnimationFrame(animate);
-      }
-    };
-
-    if (playbackState === "playing") {
-      animationFrameId = requestAnimationFrame(animate);
+    if (playbackState !== "playing") {
+      return;
     }
 
+    let frameId: number | null = null;
+    let lastTime = 0;
+
+    const tick = (currentTime: number) => {
+      const store = useReplayStore.getState();
+
+      if (store.playbackState !== "playing") {
+        return;
+      }
+
+      if (lastTime === 0) {
+        lastTime = currentTime;
+        frameId = requestAnimationFrame(tick);
+        return;
+      }
+
+      const delta = currentTime - lastTime;
+      lastTime = currentTime;
+
+      // Calculate interpolation factor
+      const msPerFrame =
+        (1000 * store.sampleInterval) / store.tickRate / store.playbackSpeed;
+      interpolationRef.current.interpolationFactor = Math.min(
+        1,
+        interpolationRef.current.interpolationFactor + delta / msPerFrame,
+      );
+
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+
     return () => {
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
       }
     };
-  }, [playbackState, playbackSpeed, tickRate, sampleInterval]);
+  }, [playbackState]);
 
   // Interpolate player positions
   const getInterpolatedPositions = useCallback(() => {

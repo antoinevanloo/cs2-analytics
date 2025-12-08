@@ -22,6 +22,7 @@ import { DemoAccessService } from "./demo-access.service";
 import { ParserService } from "./parser.service";
 import { DemoProcessor } from "./demo.processor";
 import { ArchivalService } from "./archival.service";
+import { PlayerTickService } from "./services/player-tick.service";
 import { AnalysisModule } from "../analysis/analysis.module";
 import { ParsingConfigService } from "../../common/config";
 
@@ -59,6 +60,7 @@ import { ParsingConfigService } from "../../common/config";
     ParserService,
     DemoProcessor,
     ArchivalService,
+    PlayerTickService,
     ParsingConfigService,
   ],
   exports: [
@@ -66,6 +68,7 @@ import { ParsingConfigService } from "../../common/config";
     DemoAccessService,
     ParserService,
     ArchivalService,
+    PlayerTickService,
     ParsingConfigService,
     BullModule,
   ],

@@ -10,7 +10,7 @@
  * @module replay
  */
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Logger } from "@nestjs/common";
 
 import { PrismaService } from "../../common/prisma";
 import { RedisService } from "../../common/redis/redis.service";
@@ -32,12 +32,6 @@ const CACHE_TTL = {
   ROUND_METADATA: 60 * 60 * 1000, // 1 hour
   MAP_METADATA: 24 * 60 * 60 * 1000, // 24 hours
   ROUND_REPLAY: 30 * 60 * 1000, // 30 minutes
-};
-
-// Batch sizes for database queries
-const BATCH_SIZE = {
-  TICKS: 5000,
-  EVENTS: 1000,
 };
 
 @Injectable()
@@ -138,6 +132,8 @@ export class ReplayService {
     return config;
   }
 
+  private readonly logger = new Logger(ReplayService.name);
+
   /**
    * Get complete replay data for a round
    */
@@ -178,10 +174,14 @@ export class ReplayService {
       );
     }
 
+    // Get player names for all players in this round
+    const playerSteamIds = round.playerStats.map((p) => p.steamId);
+    const playerNames = await this.getPlayerNames(playerSteamIds);
+
     // Get map config for coordinate conversion
     const mapConfig = await this.getMapMetadata(round.demo.mapName);
 
-    // Get tick data
+    // Get tick data with player names
     const frames = await this.getTickFrames(
       demoId,
       round.id,
@@ -190,6 +190,7 @@ export class ReplayService {
       round.demo.tickRate,
       sampleInterval,
       mapConfig,
+      playerNames,
     );
 
     // Get events if requested
@@ -241,7 +242,7 @@ export class ReplayService {
     const { sampleInterval = DEFAULT_SAMPLE_INTERVAL, batchSize = 100 } =
       options;
 
-    // Get round info
+    // Get round info with player stats
     const round = await this.prisma.round.findUnique({
       where: {
         demoId_roundNumber: { demoId, roundNumber },
@@ -253,6 +254,11 @@ export class ReplayService {
             mapName: true,
           },
         },
+        playerStats: {
+          select: {
+            steamId: true,
+          },
+        },
       },
     });
 
@@ -261,6 +267,10 @@ export class ReplayService {
         `Round ${roundNumber} not found in demo ${demoId}`,
       );
     }
+
+    // Get player names for all players in this round
+    const playerSteamIds = round.playerStats.map((p) => p.steamId);
+    const playerNames = await this.getPlayerNames(playerSteamIds);
 
     const mapConfig = await this.getMapMetadata(round.demo.mapName);
 
@@ -278,45 +288,67 @@ export class ReplayService {
       },
     };
 
-    // Stream frames in batches
-    let offset = 0;
-    let framesStreamed = 0;
+    // Get all distinct ticks that exist in the DB for this round
+    const distinctTicks = await this.prisma.playerTick.findMany({
+      where: {
+        demoId,
+        roundId: round.id,
+        tick: { gte: round.startTick, lte: round.endTick },
+      },
+      select: { tick: true },
+      distinct: ["tick"],
+      orderBy: { tick: "asc" },
+    });
 
-    while (true) {
+    const availableTicks = distinctTicks.map((t) => t.tick);
+
+    // Sample the available ticks
+    const storedInterval = availableTicks.length > 1
+      ? availableTicks[1]! - availableTicks[0]!
+      : sampleInterval;
+    const skipCount = Math.max(1, Math.round(sampleInterval / storedInterval));
+
+    const sampledTicks: number[] = [];
+    for (let i = 0; i < availableTicks.length; i += skipCount) {
+      sampledTicks.push(availableTicks[i]!);
+    }
+
+    // Stream frames in batches
+    let framesStreamed = 0;
+    const TICKS_PER_BATCH = batchSize;
+
+    for (let i = 0; i < sampledTicks.length; i += TICKS_PER_BATCH) {
+      const batchTicks = sampledTicks.slice(i, i + TICKS_PER_BATCH);
+
       const ticks = await this.prisma.playerTick.findMany({
         where: {
           demoId,
           roundId: round.id,
-          tick: {
-            gte: round.startTick,
-            lte: round.endTick,
-          },
+          tick: { in: batchTicks },
         },
-        orderBy: { tick: "asc" },
-        skip: offset,
-        take: batchSize * 10, // Get more ticks, then sample
+        orderBy: [{ tick: "asc" }, { steamId: "asc" }],
       });
 
-      if (ticks.length === 0) break;
+      if (ticks.length === 0) continue;
 
-      // Group by tick and sample
+      // Group by tick
       const tickGroups = this.groupTicksByTick(ticks);
-      const sampledTicks = this.sampleTicks(tickGroups, sampleInterval);
 
-      for (const [tick, players] of sampledTicks) {
-        const frame = this.buildTickFrame(
-          tick,
-          players,
-          round.startTick,
-          round.demo.tickRate,
-          mapConfig,
-        );
-        yield frame;
-        framesStreamed++;
+      for (const tickNum of batchTicks) {
+        const players = tickGroups.get(tickNum);
+        if (players && players.length > 0) {
+          const frame = this.buildTickFrame(
+            tickNum,
+            players,
+            round.startTick,
+            round.demo.tickRate,
+            mapConfig,
+            playerNames,
+          );
+          yield frame;
+          framesStreamed++;
+        }
       }
-
-      offset += batchSize * 10;
-      if (ticks.length < batchSize * 10) break;
     }
 
     // Stream events
@@ -352,16 +384,31 @@ export class ReplayService {
 
   /**
    * Convert game coordinates to radar coordinates (0-1024)
+   *
+   * Enhanced with:
+   * - Input validation (NaN, Infinity handling)
+   * - Out-of-bounds detection flag
+   * - Debug logging for invalid coordinates
+   *
+   * @returns Object with x, y (clamped to radar bounds), level, and isOutOfBounds flag
    */
   convertToRadarCoords(
     gameX: number,
     gameY: number,
     gameZ: number,
     mapConfig: MapRadarConfig | null,
-  ): { x: number; y: number; level: "upper" | "lower" } {
+  ): { x: number; y: number; level: "upper" | "lower"; isOutOfBounds: boolean } {
+    // Validate input coordinates
+    if (!Number.isFinite(gameX) || !Number.isFinite(gameY)) {
+      this.logger.warn(
+        `Invalid game coordinates: (${gameX}, ${gameY}, ${gameZ}) - returning origin`,
+      );
+      return { x: 0, y: 0, level: "upper", isOutOfBounds: true };
+    }
+
     if (!mapConfig) {
-      // Return normalized coordinates if no map config
-      return { x: gameX, y: gameY, level: "upper" };
+      // Return raw coordinates if no map config (client will handle conversion)
+      return { x: gameX, y: gameY, level: "upper", isOutOfBounds: false };
     }
 
     // Check for multi-level maps
@@ -370,9 +417,16 @@ export class ReplayService {
     let scale = mapConfig.scale;
     let level: "upper" | "lower" = "upper";
 
+    // Validate scale to avoid division by zero
+    if (!Number.isFinite(scale) || scale === 0) {
+      this.logger.warn(`Invalid map scale: ${scale} for map ${mapConfig.mapName}`);
+      return { x: 0, y: 0, level: "upper", isOutOfBounds: true };
+    }
+
     if (
       mapConfig.hasLowerLevel &&
       mapConfig.splitAltitude !== undefined &&
+      Number.isFinite(gameZ) &&
       gameZ < mapConfig.splitAltitude
     ) {
       posX = mapConfig.lowerPosX ?? posX;
@@ -386,11 +440,35 @@ export class ReplayService {
     const radarX = (gameX - posX) / scale;
     const radarY = (posY - gameY) / scale; // Y is inverted
 
+    // Check if out of bounds (before clamping)
+    const isOutOfBounds =
+      radarX < 0 ||
+      radarX > mapConfig.radarWidth ||
+      radarY < 0 ||
+      radarY > mapConfig.radarHeight;
+
+    // Debug log for significantly out-of-bounds coordinates (>10% outside)
+    if (isOutOfBounds) {
+      const outsideMargin = Math.max(
+        Math.abs(Math.min(0, radarX)),
+        Math.abs(Math.max(0, radarX - mapConfig.radarWidth)),
+        Math.abs(Math.min(0, radarY)),
+        Math.abs(Math.max(0, radarY - mapConfig.radarHeight)),
+      );
+      if (outsideMargin > mapConfig.radarWidth * 0.1) {
+        this.logger.debug(
+          `Player significantly out of bounds: game(${gameX.toFixed(0)}, ${gameY.toFixed(0)}) -> ` +
+          `radar(${radarX.toFixed(0)}, ${radarY.toFixed(0)}) on ${mapConfig.mapName}`,
+        );
+      }
+    }
+
     // Clamp to radar bounds
     return {
       x: Math.max(0, Math.min(mapConfig.radarWidth, radarX)),
       y: Math.max(0, Math.min(mapConfig.radarHeight, radarY)),
       level,
+      isOutOfBounds,
     };
   }
 
@@ -399,7 +477,41 @@ export class ReplayService {
   // ============================================================================
 
   /**
+   * Get player names by steam IDs
+   * Caches results for efficiency
+   */
+  private async getPlayerNames(steamIds: string[]): Promise<Map<string, string>> {
+    if (steamIds.length === 0) return new Map();
+
+    // Try cache first
+    const cacheKey = `replay:playernames:${steamIds.sort().join(",")}`;
+    const cached = await this.redis.get<Record<string, string>>(cacheKey);
+    if (cached) {
+      return new Map(Object.entries(cached));
+    }
+
+    // Fetch from database
+    const players = await this.prisma.player.findMany({
+      where: { steamId: { in: steamIds } },
+      select: { steamId: true, name: true },
+    });
+
+    const nameMap = new Map<string, string>();
+    for (const player of players) {
+      nameMap.set(player.steamId, player.name);
+    }
+
+    // Cache for 1 hour
+    await this.redis.set(cacheKey, Object.fromEntries(nameMap), CACHE_TTL.ROUND_METADATA);
+    return nameMap;
+  }
+
+  /**
    * Get tick frames for a round
+   *
+   * Fetches all available ticks for the round and applies sampling.
+   * This approach handles cases where stored ticks don't align perfectly
+   * with calculated sample intervals (e.g., due to parser timing variations).
    */
   private async getTickFrames(
     demoId: string,
@@ -409,46 +521,96 @@ export class ReplayService {
     tickRate: number,
     sampleInterval: number,
     mapConfig: MapRadarConfig | null,
+    playerNames?: Map<string, string>,
   ): Promise<TickFrame[]> {
     const frames: TickFrame[] = [];
-    let cursor: string | undefined;
 
-    while (true) {
+    // First, get all distinct ticks that exist in the DB for this round
+    const distinctTicks = await this.prisma.playerTick.findMany({
+      where: {
+        demoId,
+        roundId,
+        tick: { gte: startTick, lte: endTick },
+      },
+      select: { tick: true },
+      distinct: ["tick"],
+      orderBy: { tick: "asc" },
+    });
+
+    const availableTicks = distinctTicks.map((t) => t.tick);
+    this.logger.debug(`[getTickFrames] Found ${availableTicks.length} distinct ticks in round`);
+
+    if (availableTicks.length === 0) {
+      return frames;
+    }
+
+    // Sample the available ticks (take every Nth tick based on sampleInterval)
+    // If data was stored at 8-tick intervals and we want 8-tick intervals, take every tick
+    // If stored at 8 and we want 16, take every 2nd tick, etc.
+    const storedInterval = availableTicks.length > 1
+      ? availableTicks[1]! - availableTicks[0]!
+      : sampleInterval;
+    const skipCount = Math.max(1, Math.round(sampleInterval / storedInterval));
+
+    const sampledTicks: number[] = [];
+    for (let i = 0; i < availableTicks.length; i += skipCount) {
+      sampledTicks.push(availableTicks[i]!);
+    }
+
+    this.logger.debug(
+      `[getTickFrames] Stored interval=${storedInterval}, requested=${sampleInterval}, ` +
+      `skipCount=${skipCount}, sampling ${sampledTicks.length} of ${availableTicks.length} ticks`
+    );
+
+    // Fetch sampled ticks in batches
+    const TICKS_PER_BATCH = 500;
+
+    for (let i = 0; i < sampledTicks.length; i += TICKS_PER_BATCH) {
+      const batchTicks = sampledTicks.slice(i, i + TICKS_PER_BATCH);
+
       const ticks = await this.prisma.playerTick.findMany({
         where: {
           demoId,
           roundId,
-          tick: { gte: startTick, lte: endTick },
+          tick: { in: batchTicks },
         },
-        orderBy: { tick: "asc" },
-        take: BATCH_SIZE.TICKS,
-        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        orderBy: [{ tick: "asc" }, { steamId: "asc" }],
       });
 
-      if (ticks.length === 0) break;
+      this.logger.debug(`[getTickFrames] Batch ${i}: fetched ${ticks.length} playerTick rows for ${batchTicks.length} ticks`);
+
+      if (ticks.length === 0) continue;
 
       // Group by tick
       const tickGroups = this.groupTicksByTick(ticks);
 
-      // Sample and convert
-      const sampledTicks = this.sampleTicks(tickGroups, sampleInterval);
-
-      for (const [tick, players] of sampledTicks) {
-        frames.push(
-          this.buildTickFrame(tick, players, startTick, tickRate, mapConfig),
-        );
+      // Log first tick group to debug
+      if (i === 0 && tickGroups.size > 0) {
+        const firstTick = Array.from(tickGroups.keys())[0] ?? 0;
+        const firstGroup = tickGroups.get(firstTick);
+        this.logger.debug(`[getTickFrames] First tick ${firstTick} has ${firstGroup?.length ?? 0} players`);
       }
 
-      const lastTick = ticks[ticks.length - 1];
-      if (!lastTick || ticks.length < BATCH_SIZE.TICKS) break;
-      cursor = lastTick.id;
+      // Build frames for each tick
+      for (const tickNum of batchTicks) {
+        const players = tickGroups.get(tickNum);
+        if (players && players.length > 0) {
+          frames.push(
+            this.buildTickFrame(tickNum, players, startTick, tickRate, mapConfig, playerNames),
+          );
+        }
+      }
     }
+
+    this.logger.debug(`[getTickFrames] Built ${frames.length} frames, first frame has ${frames[0]?.players?.length ?? 0} players`);
 
     return frames;
   }
 
   /**
    * Group player ticks by tick number
+   *
+   * Updated to include new fields: velocity, isWalking, weaponAmmo, flashAlpha
    */
   private groupTicksByTick(
     ticks: Array<{
@@ -457,21 +619,27 @@ export class ReplayService {
       x: number;
       y: number;
       z: number;
+      velocityX: number;
+      velocityY: number;
+      velocityZ: number;
       yaw: number;
       pitch: number;
       health: number;
       armor: number;
       isAlive: boolean;
       isDucking: boolean;
+      isWalking: boolean;
       isScoped: boolean;
       isDefusing: boolean;
       isPlanting: boolean;
       team: number;
       activeWeapon: string | null;
+      weaponAmmo: number | null;
       hasDefuseKit: boolean;
       hasBomb: boolean;
       money: number;
       flashDuration: number;
+      flashAlpha: number;
     }>,
   ): Map<number, typeof ticks> {
     const groups = new Map<number, typeof ticks>();
@@ -489,32 +657,9 @@ export class ReplayService {
   }
 
   /**
-   * Sample ticks at specified interval
-   */
-  private sampleTicks<T>(
-    tickGroups: Map<number, T[]>,
-    sampleInterval: number,
-  ): Map<number, T[]> {
-    const sampled = new Map<number, T[]>();
-    const sortedTicks = Array.from(tickGroups.keys()).sort((a, b) => a - b);
-
-    let lastSampledTick = -sampleInterval;
-
-    for (const tick of sortedTicks) {
-      if (tick - lastSampledTick >= sampleInterval) {
-        const data = tickGroups.get(tick);
-        if (data) {
-          sampled.set(tick, data);
-        }
-        lastSampledTick = tick;
-      }
-    }
-
-    return sampled;
-  }
-
-  /**
    * Build a tick frame from player data
+   *
+   * Includes all new fields: velocity, isWalking, weaponAmmo, flashAlpha
    */
   private buildTickFrame(
     tick: number,
@@ -523,51 +668,76 @@ export class ReplayService {
       x: number;
       y: number;
       z: number;
+      velocityX: number;
+      velocityY: number;
+      velocityZ: number;
       yaw: number;
       pitch: number;
       health: number;
       armor: number;
       isAlive: boolean;
       isDucking: boolean;
+      isWalking: boolean;
       isScoped: boolean;
       isDefusing: boolean;
       isPlanting: boolean;
       team: number;
       activeWeapon: string | null;
+      weaponAmmo: number | null;
       hasDefuseKit: boolean;
       hasBomb: boolean;
       money: number;
       flashDuration: number;
+      flashAlpha: number;
     }>,
     startTick: number,
     tickRate: number,
     mapConfig: MapRadarConfig | null,
+    playerNames?: Map<string, string>,
   ): TickFrame {
     const playerFrames: PlayerFrame[] = players.map((p) => {
       const coords = this.convertToRadarCoords(p.x, p.y, p.z, mapConfig);
 
       const frame: PlayerFrame = {
         steamId: p.steamId,
+        // Radar coordinates (converted from game coords)
         x: coords.x,
         y: coords.y,
         z: p.z,
+        // Velocity (game units/sec)
+        velocityX: p.velocityX,
+        velocityY: p.velocityY,
+        velocityZ: p.velocityZ,
+        // View angles
         yaw: p.yaw,
         pitch: p.pitch,
+        // Health/Armor
         health: p.health,
         armor: p.armor,
+        // State flags
         isAlive: p.isAlive,
         isDucking: p.isDucking,
+        isWalking: p.isWalking,
         isScoped: p.isScoped,
         isDefusing: p.isDefusing,
         isPlanting: p.isPlanting,
+        // Team & equipment
         team: p.team,
         hasDefuseKit: p.hasDefuseKit,
         hasBomb: p.hasBomb,
         money: p.money,
+        // Flash state
         flashDuration: p.flashDuration,
+        flashAlpha: p.flashAlpha,
       };
 
+      // Add player name if available
+      const name = playerNames?.get(p.steamId);
+      if (name) frame.name = name;
+
+      // Add optional fields
       if (p.activeWeapon) frame.activeWeapon = p.activeWeapon;
+      if (p.weaponAmmo !== null) frame.weaponAmmo = p.weaponAmmo;
 
       return frame;
     });

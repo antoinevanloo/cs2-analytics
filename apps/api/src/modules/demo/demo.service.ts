@@ -43,6 +43,7 @@ import {
   ParseOptions,
   PARSER_VERSION,
 } from "../../common/config";
+import { PlayerTickService } from "./services/player-tick.service";
 
 // Interfaces for parser data
 export interface DemoGrenade {
@@ -116,11 +117,48 @@ export interface DemoEvent {
 }
 
 /**
- * Tick data from parser - player position/state at a specific tick
- * Used for 2D replay visualization
+ * Tick data from parser - supports both grouped and flat formats
+ *
+ * Grouped format: { tick, game_time, players: [{steamid, x, y, ...}, ...] }
+ * Flat format: { tick, steamid, x, y, ... }
  */
 export interface DemoTick {
   tick?: number;
+  game_time?: number;
+  // Grouped format - array of players for this tick
+  players?: Array<{
+    steamid?: string | number;
+    name?: string;
+    X?: number;
+    Y?: number;
+    Z?: number;
+    x?: number;
+    y?: number;
+    z?: number;
+    yaw?: number;
+    pitch?: number;
+    health?: number;
+    armor_value?: number;
+    armor?: number;
+    is_alive?: boolean;
+    ducking?: boolean;
+    is_ducking?: boolean;
+    is_scoped?: boolean;
+    is_defusing?: boolean;
+    is_planting?: boolean;
+    team_num?: number;
+    team?: number;
+    active_weapon_name?: string;
+    active_weapon?: string;
+    has_defuser?: boolean;
+    has_defuse_kit?: boolean;
+    has_bomb?: boolean;
+    balance?: number;
+    money?: number;
+    flash_duration?: number;
+    [key: string]: unknown;
+  }>;
+  // Flat format fields
   steamid?: string;
   name?: string;
   x?: number;
@@ -141,6 +179,7 @@ export interface DemoTick {
   has_bomb?: boolean;
   money?: number;
   flash_duration?: number;
+  [key: string]: unknown;
 }
 
 @Injectable()
@@ -153,6 +192,7 @@ export class DemoService {
     private configService: ConfigService,
     private prisma: PrismaService,
     private parsingConfig: ParsingConfigService,
+    private playerTickService: PlayerTickService,
   ) {
     this.demoStoragePath = this.configService.get(
       "DEMO_STORAGE_PATH",
@@ -1218,75 +1258,23 @@ export class DemoService {
         });
       }
 
-      // Insert player ticks for 2D replay (high volume - batch insert)
+      // Insert player ticks for 2D replay using dedicated service
       if (data.ticks?.length) {
-        // Get rounds for tick-to-round mapping
-        const roundsForTicks = await this.prisma.round.findMany({
-          where: { demoId: id },
-          select: { id: true, startTick: true, endTick: true },
-          orderBy: { roundNumber: "asc" },
-        });
-
-        // Pre-compute round lookup for efficiency
-        const findRoundIdForTick = (tick: number): string | null => {
-          const round = roundsForTicks.find(
-            (r) => tick >= r.startTick && tick <= r.endTick,
-          );
-          return round?.id ?? null;
-        };
-
-        // Batch insert for performance (1000 ticks per batch)
-        const tickBatchSize = 1000;
-        let ticksInserted = 0;
-
-        for (let i = 0; i < data.ticks.length; i += tickBatchSize) {
-          const batch = data.ticks.slice(i, i + tickBatchSize);
-
-          const tickData = batch.map((t) => {
-            const roundId = findRoundIdForTick(t.tick || 0);
-            return {
-              demoId: id,
-              tick: t.tick || 0,
-              steamId: t.steamid || "",
-              x: t.x || 0,
-              y: t.y || 0,
-              z: t.z || 0,
-              yaw: t.yaw || 0,
-              pitch: t.pitch || 0,
-              health: t.health ?? 100,
-              armor: t.armor ?? 0,
-              isAlive: t.is_alive ?? true,
-              isDucking: t.is_ducking ?? false,
-              isScoped: t.is_scoped ?? false,
-              isDefusing: t.is_defusing ?? false,
-              isPlanting: t.is_planting ?? false,
-              team: t.team || 0,
-              activeWeapon: t.active_weapon ?? null,
-              hasDefuseKit: t.has_defuse_kit ?? false,
-              hasBomb: t.has_bomb ?? false,
-              money: t.money ?? 0,
-              flashDuration: t.flash_duration ?? 0,
-              roundId,
-            };
-          });
-
-          await this.prisma.playerTick.createMany({
-            data: tickData,
-          });
-
-          ticksInserted += batch.length;
-
-          // Log progress for large tick datasets
-          if (ticksInserted % 10000 === 0) {
-            this.logger.debug(
-              `Inserted ${ticksInserted}/${data.ticks.length} ticks for demo ${id}`,
-            );
-          }
-        }
-
-        this.logger.log(
-          `Inserted ${ticksInserted} player ticks for demo ${id}`,
+        const tickResult = await this.playerTickService.processAndStoreTicks(
+          id,
+          data.ticks,
         );
+
+        if (!tickResult.success) {
+          this.logger.warn(
+            `Failed to process ticks for demo ${id}: ${tickResult.error}`,
+          );
+        } else {
+          this.logger.log(
+            `Processed ${tickResult.totalInputTicks} tick frames -> ${tickResult.totalInserted} player ticks ` +
+            `(${tickResult.invalidSkipped} invalid) in ${tickResult.processingTimeMs}ms`,
+          );
+        }
       }
 
       // Create ReplayEvents from game events for 2D visualization overlays

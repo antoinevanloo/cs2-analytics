@@ -12,27 +12,47 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 
 // Player frame data for a single tick
+// Enhanced with velocity, isWalking, weaponAmmo, flashAlpha for richer replay visualization
 export interface PlayerFrame {
   steamId: string;
   name?: string;
+
+  // Position (radar coordinates 0-1024)
   x: number;
   y: number;
   z: number;
-  yaw: number;
-  pitch: number;
-  health: number;
-  armor: number;
+
+  // Velocity (game units per second) - enables smooth interpolation
+  // Typical values: 0-250 (walking), 250-450 (running), >450 (falling/jumping)
+  velocityX: number;
+  velocityY: number;
+  velocityZ: number;
+
+  // View direction
+  yaw: number;   // Horizontal angle (0-360)
+  pitch: number; // Vertical angle (-90 to 90)
+
+  // Player state
+  health: number;  // 0-100
+  armor: number;   // 0-100
   isAlive: boolean;
   isDucking: boolean;
+  isWalking: boolean; // Shift-walking (slower, silent movement)
   isScoped: boolean;
   isDefusing: boolean;
   isPlanting: boolean;
+
+  // Team & equipment
   team: number; // 2 = T, 3 = CT
   activeWeapon?: string;
+  weaponAmmo?: number | null; // Current magazine ammo (null if unknown/melee)
   hasDefuseKit: boolean;
   hasBomb: boolean;
   money: number;
-  flashDuration: number;
+
+  // Flash effects
+  flashDuration: number;    // Remaining flash duration in seconds
+  flashAlpha: number;       // Flash intensity 0-255 (0=none, 255=full blind)
 }
 
 // Single tick frame with all players
@@ -103,11 +123,14 @@ export interface MapConfig {
   radarImageUrl?: string; // URL to radar background image
 }
 
-// Generate radar image URL from map name
-// CS2 radar images are typically served from a static path or CDN
-export function getRadarImageUrl(mapName: string): string {
-  // Try local public folder first, then fallback to CDN
-  return `/radars/${mapName}_radar.png`;
+/**
+ * Generate radar image URL from map name
+ * Images are served statically from /radars/
+ */
+export function getRadarImageUrl(mapName: string, level?: "lower" | "upper"): string {
+  const normalizedName = mapName.toLowerCase().replace(/\.bsp$/, "");
+  const suffix = level === "lower" ? "_lower" : "";
+  return `/radars/${normalizedName}${suffix}.png`;
 }
 
 // Round metadata
@@ -244,12 +267,33 @@ const initialState = {
   error: null,
 };
 
+// Debug: Log all state changes in development
+const debugSet = (
+  set: (partial: Partial<ReplayState> | ((state: ReplayState) => Partial<ReplayState>)) => void,
+  partial: Partial<ReplayState> | ((state: ReplayState) => Partial<ReplayState>),
+  actionName: string,
+) => {
+  if (typeof partial === "function") {
+    set(partial);
+  } else {
+    if (partial.playbackState !== undefined) {
+      console.log(`[Store:${actionName}] playbackState ->`, partial.playbackState);
+    }
+    set(partial);
+  }
+};
+
 export const useReplayStore = create<ReplayState>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set, get) => {
+    const trackedSet = (partial: Partial<ReplayState> | ((state: ReplayState) => Partial<ReplayState>), actionName = "unknown") => {
+      debugSet(set, partial, actionName);
+    };
+
+    return {
     ...initialState,
 
     loadReplay: async (demoId: string, roundNumber: number) => {
-      set({
+      trackedSet({
         demoId,
         roundNumber,
         playbackState: "loading",
@@ -258,7 +302,7 @@ export const useReplayStore = create<ReplayState>()(
         events: [],
         currentFrameIndex: 0,
         currentTick: 0,
-      });
+      }, "loadReplay");
 
       // Note: Actual data loading is handled by the use-replay hook
       // This just sets up the initial state
@@ -266,11 +310,25 @@ export const useReplayStore = create<ReplayState>()(
 
     setFrames: (frames: TickFrame[]) => {
       const firstFrame = frames[0];
-      set({
-        frames,
-        currentTick: firstFrame?.tick ?? 0,
-        playbackState: frames.length > 0 ? "ready" : "idle",
-      });
+      const currentState = get().playbackState;
+      // Don't reset playbackState if already playing/paused - only set when loading new data
+      const shouldResetState = currentState === "loading" || currentState === "idle";
+      const newState = shouldResetState
+        ? (frames.length > 0 ? "ready" : "idle")
+        : currentState;
+      console.log(`[Store:setFrames] frames=${frames.length}, currentState=${currentState}, shouldReset=${shouldResetState}`);
+      if (shouldResetState) {
+        trackedSet({
+          frames,
+          currentTick: firstFrame?.tick ?? 0,
+          playbackState: newState,
+        }, "setFrames");
+      } else {
+        set({
+          frames,
+          currentTick: firstFrame?.tick ?? 0,
+        });
+      }
     },
 
     setEvents: (events: ReplayEvent[]) => {
@@ -290,22 +348,31 @@ export const useReplayStore = create<ReplayState>()(
 
     play: () => {
       const { playbackState, frames, currentFrameIndex } = get();
-      if (playbackState === "loading" || frames.length === 0) return;
+      console.log(`[Store:play] t=${Date.now()}, called, state=${playbackState}, frames=${frames.length}, frameIdx=${currentFrameIndex}`);
+      console.trace(`[Store:play] call stack`);
+      if (playbackState === "loading" || frames.length === 0) {
+        console.log(`[Store:play] blocked - loading or no frames`);
+        return;
+      }
 
       // If at end, restart from beginning
       if (currentFrameIndex >= frames.length - 1) {
+        console.log(`[Store:play] at end, restarting from beginning`);
         set({ currentFrameIndex: 0, currentTick: frames[0]?.tick ?? 0 });
       }
 
-      set({ playbackState: "playing" });
+      trackedSet({ playbackState: "playing" }, "play");
     },
 
     pause: () => {
-      set({ playbackState: "paused" });
+      console.log(`[Store:pause] t=${Date.now()}, called`);
+      console.trace(`[Store:pause] call stack`);
+      trackedSet({ playbackState: "paused" }, "pause");
     },
 
     togglePlay: () => {
       const { playbackState } = get();
+      console.log(`[Store:togglePlay] t=${Date.now()}, current state=${playbackState}`);
       if (playbackState === "playing") {
         get().pause();
       } else {
@@ -359,7 +426,8 @@ export const useReplayStore = create<ReplayState>()(
       if (currentFrameIndex < frames.length - 1) {
         get().seek(currentFrameIndex + 1);
       } else {
-        set({ playbackState: "ended" });
+        console.log(`[Store:nextFrame] reached end at frame ${currentFrameIndex}/${frames.length}`);
+        trackedSet({ playbackState: "ended" }, "nextFrame:ended");
       }
     },
 
@@ -429,9 +497,15 @@ export const useReplayStore = create<ReplayState>()(
     },
 
     setError: (error: string | null) => {
-      set({ error, playbackState: error ? "idle" : get().playbackState });
+      if (error) {
+        console.log(`[Store:setError] error="${error}", resetting to idle`);
+        trackedSet({ error, playbackState: "idle" }, "setError");
+      } else {
+        set({ error });
+      }
     },
-  })),
+  };
+  }),
 );
 
 // Selector hooks for performance

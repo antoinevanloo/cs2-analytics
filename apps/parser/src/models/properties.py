@@ -249,8 +249,11 @@ ALL_PLAYER_PROPS: Final[list[str]] = (
 )
 
 # Properties that should be extracted at every tick (high-frequency)
+# Includes team_num for 2D replay visualization (player coloring)
 HIGH_FREQUENCY_PROPS: Final[list[str]] = [
     "steamid",
+    "name",
+    "team_num",
     "X",
     "Y",
     "Z",
@@ -267,7 +270,13 @@ HIGH_FREQUENCY_PROPS: Final[list[str]] = [
     "is_scoped",
     "is_walking",
     "ducking",
+    "is_defusing",
+    "is_planting",
+    "has_defuser",
+    "has_c4",
+    "flash_duration",
     "flash_alpha",
+    "balance",
     "tick",
 ]
 

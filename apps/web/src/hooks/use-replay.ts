@@ -256,6 +256,18 @@ export function useReplay({
   useStreaming = false,
   enabled = true,
 }: UseReplayOptions) {
+  // Use stable references to store actions to avoid re-renders
+  // These are accessed directly from the store to ensure stability
+  const storeActions = useRef({
+    setFrames: useReplayStore.getState().setFrames,
+    setEvents: useReplayStore.getState().setEvents,
+    setMapConfig: useReplayStore.getState().setMapConfig,
+    setRoundMetadata: useReplayStore.getState().setRoundMetadata,
+    setError: useReplayStore.getState().setError,
+    loadReplay: useReplayStore.getState().loadReplay,
+    reset: useReplayStore.getState().reset,
+  }).current;
+
   const {
     setFrames,
     setEvents,
@@ -264,7 +276,7 @@ export function useReplay({
     setError,
     loadReplay,
     reset,
-  } = useReplayStore();
+  } = storeActions;
 
   const [streamingProgress, setStreamingProgress] = useState(0);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -310,10 +322,26 @@ export function useReplay({
     staleTime: 300000, // 5 minutes
   });
 
+  // Track if we've already loaded this data to prevent re-triggering
+  const loadedDataRef = useRef<string | null>(null);
+
   // Update store when replay data changes
   useEffect(() => {
     if (replayQuery.data) {
       const data = replayQuery.data;
+
+      // Create a unique key for this data to prevent duplicate processing
+      const dataKey = `${data.demoId}-${data.roundNumber}-${data.frames.length}`;
+
+      // Skip if we've already loaded this exact data
+      if (loadedDataRef.current === dataKey) {
+        console.log(`[useReplay] Skipping duplicate data load: ${dataKey}`);
+        return;
+      }
+
+      console.log(`[useReplay] Loading new data: ${dataKey}, frames=${data.frames.length}`);
+      loadedDataRef.current = dataKey;
+
       const metadata: RoundMetadata = {
         roundNumber: data.roundNumber,
         startTick: data.startTick,

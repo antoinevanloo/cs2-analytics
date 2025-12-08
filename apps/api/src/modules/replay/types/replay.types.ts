@@ -12,6 +12,8 @@
 
 /**
  * Single player's state at a specific tick
+ *
+ * Enhanced with velocity, isWalking, weaponAmmo, flashAlpha for richer replay visualization
  */
 export interface PlayerFrame {
   steamId: string;
@@ -22,15 +24,22 @@ export interface PlayerFrame {
   y: number;
   z: number;
 
+  // Velocity (game units per second) - enables smooth interpolation
+  // Typical values: 0-250 (walking), 250-450 (running), >450 (falling/jumping)
+  velocityX: number;
+  velocityY: number;
+  velocityZ: number;
+
   // View direction
-  yaw: number;
-  pitch: number;
+  yaw: number;   // Horizontal angle (0-360)
+  pitch: number; // Vertical angle (-90 to 90)
 
   // Player state
-  health: number;
-  armor: number;
+  health: number;  // 0-100
+  armor: number;   // 0-100
   isAlive: boolean;
   isDucking: boolean;
+  isWalking: boolean; // Shift-walking (slower, silent movement)
   isScoped: boolean;
   isDefusing: boolean;
   isPlanting: boolean;
@@ -38,12 +47,14 @@ export interface PlayerFrame {
   // Team & equipment
   team: number; // 2=T, 3=CT
   activeWeapon?: string;
+  weaponAmmo?: number | null; // Current magazine ammo (null if unknown/melee)
   hasDefuseKit: boolean;
   hasBomb: boolean;
   money: number;
 
-  // Effects
-  flashDuration: number;
+  // Flash effects
+  flashDuration: number;    // Remaining flash duration in seconds
+  flashAlpha: number;       // Flash intensity 0-255 (0=none, 255=full blind)
 }
 
 /**

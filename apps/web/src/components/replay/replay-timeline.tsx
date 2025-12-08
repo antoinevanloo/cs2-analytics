@@ -192,9 +192,9 @@ export function ReplayTimeline() {
         <div className="absolute inset-0 overflow-hidden rounded-full">
           {events
             .filter((e) => e.type === "KILL" || e.type.startsWith("BOMB"))
-            .map((event) => (
+            .map((event, index) => (
               <EventMarker
-                key={event.id}
+                key={`${event.id}-${event.tick}-${index}`}
                 event={event}
                 startTick={startTick}
                 endTick={endTick}

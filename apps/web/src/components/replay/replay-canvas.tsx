@@ -65,23 +65,40 @@ const GRENADE_COLORS: Record<string, string> = {
 
 // Player rendering constants
 const PLAYER_RADIUS = 8;
+const PLAYER_RADIUS_WALKING = 6.5; // Smaller when walking (shift) for visual distinction
+const PLAYER_RADIUS_DUCKING = 6; // Smallest when crouching
 const VIEW_ANGLE_LENGTH = 20;
 const VIEW_ANGLE_SPREAD = 30; // degrees
 const GRENADE_DISPLAY_DURATION = 64 * 5; // 5 seconds at 64 tick
 
-// Convert game coordinates to canvas coordinates
-function gameToCanvas(
-  gameX: number,
-  gameY: number,
+// Movement speed thresholds (game units per second)
+const SPEED_WALKING_MAX = 140; // Max walking speed with shift
+const SPEED_RUNNING_MIN = 200; // Minimum running speed
+
+// Movement indicator constants
+const MOVEMENT_INDICATOR_LENGTH = 12; // Arrow length for movement direction
+const MOVEMENT_INDICATOR_MIN_SPEED = 50; // Minimum speed to show indicator
+
+/**
+ * Convert radar coordinates to canvas coordinates
+ *
+ * The API already converts game coords → radar coords (0 to radarWidth/radarHeight).
+ * This function simply scales radar coords to fit the canvas dimensions.
+ *
+ * @param radarX - X position in radar coords (0 to radarWidth, typically 1024)
+ * @param radarY - Y position in radar coords (0 to radarHeight, typically 1024)
+ * @param mapConfig - Map configuration with radar dimensions
+ * @param canvasWidth - Canvas width in pixels
+ * @param canvasHeight - Canvas height in pixels
+ */
+function radarToCanvas(
+  radarX: number,
+  radarY: number,
   mapConfig: MapConfig,
   canvasWidth: number,
   canvasHeight: number,
 ): { x: number; y: number } {
-  // Standard CS2 radar coordinate conversion
-  const radarX = (gameX - mapConfig.posX) / mapConfig.scale;
-  const radarY = (mapConfig.posY - gameY) / mapConfig.scale; // Y is inverted
-
-  // Scale to canvas size
+  // Scale radar coordinates (0-1024) to canvas size
   const scaleX = canvasWidth / mapConfig.radarWidth;
   const scaleY = canvasHeight / mapConfig.radarHeight;
 
@@ -117,7 +134,7 @@ const PlayerMarker = React.memo(function PlayerMarker({
   onHover,
   onClick,
 }: PlayerMarkerProps) {
-  const pos = gameToCanvas(
+  const pos = radarToCanvas(
     player.x,
     player.y,
     mapConfig,
@@ -150,12 +167,36 @@ const PlayerMarker = React.memo(function PlayerMarker({
     pos.y - Math.sin(yawRad + spreadRad / 2) * VIEW_ANGLE_LENGTH,
   ];
 
-  // Flash effect
-  const flashOpacity =
-    player.flashDuration > 0 ? Math.min(player.flashDuration / 2, 1) * 0.7 : 0;
+  // Flash effect - use flashAlpha if available (more precise), fallback to flashDuration
+  const flashOpacity = player.flashAlpha !== undefined && player.flashAlpha > 0
+    ? (player.flashAlpha / 255) * 0.8 // Use precise flashAlpha (0-255)
+    : player.flashDuration > 0
+      ? Math.min(player.flashDuration / 2, 1) * 0.7 // Fallback to duration-based
+      : 0;
 
-  // Size multiplier for ducking
-  const radius = player.isDucking ? PLAYER_RADIUS * 0.8 : PLAYER_RADIUS;
+  // Calculate movement speed from velocity
+  const velocityX = player.velocityX ?? 0;
+  const velocityY = player.velocityY ?? 0;
+  const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+
+  // Determine player radius based on state:
+  // - Ducking: smallest (6)
+  // - Walking (shift): medium (6.5)
+  // - Running: largest (8)
+  let radius: number;
+  if (player.isDucking) {
+    radius = PLAYER_RADIUS_DUCKING;
+  } else if (player.isWalking || speed < SPEED_WALKING_MAX) {
+    radius = PLAYER_RADIUS_WALKING;
+  } else {
+    radius = PLAYER_RADIUS;
+  }
+
+  // Movement direction indicator (arrow showing where player is moving)
+  const showMovementIndicator = player.isAlive && speed > MOVEMENT_INDICATOR_MIN_SPEED;
+  const movementAngle = Math.atan2(velocityY, velocityX);
+  // Normalize arrow length based on speed (caps at running speed)
+  const arrowLength = Math.min(speed / SPEED_RUNNING_MIN, 1) * MOVEMENT_INDICATOR_LENGTH;
 
   return (
     <Group
@@ -220,6 +261,23 @@ const PlayerMarker = React.memo(function PlayerMarker({
           width={6}
           height={6}
           fill="#44ff44"
+        />
+      )}
+
+      {/* Movement direction indicator (arrow showing velocity direction) */}
+      {showMovementIndicator && (
+        <Arrow
+          points={[
+            pos.x,
+            pos.y,
+            pos.x + Math.cos(movementAngle) * arrowLength,
+            pos.y - Math.sin(movementAngle) * arrowLength, // Y inverted in canvas
+          ]}
+          stroke={color}
+          strokeWidth={2}
+          pointerLength={4}
+          pointerWidth={4}
+          opacity={0.7}
         />
       )}
 
@@ -305,14 +363,14 @@ const KillLine = React.memo(function KillLine({
     return null;
   }
 
-  const attackerPos = gameToCanvas(
+  const attackerPos = radarToCanvas(
     event.x,
     event.y,
     mapConfig,
     canvasWidth,
     canvasHeight,
   );
-  const victimPos = gameToCanvas(
+  const victimPos = radarToCanvas(
     event.endX,
     event.endY,
     mapConfig,
@@ -366,7 +424,7 @@ const BombIndicator = React.memo(function BombIndicator({
   canvasHeight,
   currentTick,
 }: BombIndicatorProps) {
-  const pos = gameToCanvas(
+  const pos = radarToCanvas(
     event.x,
     event.y,
     mapConfig,
@@ -452,7 +510,7 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
   const x = event.endX ?? event.x;
   const y = event.endY ?? event.y;
 
-  const pos = gameToCanvas(x, y, mapConfig, canvasWidth, canvasHeight);
+  const pos = radarToCanvas(x, y, mapConfig, canvasWidth, canvasHeight);
 
   // Time-based opacity fade out
   const ticksSinceEvent = currentTick - event.tick;

@@ -747,6 +747,11 @@ model EseaProfile {
 /// Stores player positions at sampled tick intervals for 2D replay visualization.
 /// Note: For performance, we sample every N ticks (typically 8 at 64 tick = 8fps).
 /// At 64 tick rate with 8 tick sampling, a 45-minute match generates ~27K rows per player.
+///
+/// Performance targets:
+/// - Insert: <15s for full match (~300k rows)
+/// - Query: <50ms for single round (~10k rows)
+/// - Stream: <16ms per batch for 60fps playback
 model PlayerTick {
   id              String   @id @default(cuid())
 
@@ -754,19 +759,27 @@ model PlayerTick {
   steamId         String
 
   // Position (in-game coordinates)
+  // CS2 maps typically range: X/Y [-4000, 4000], Z [-500, 2000]
   x               Float
   y               Float
   z               Float
 
+  // Velocity (units per second) - enables smooth interpolation & movement prediction
+  // Typical values: 0-250 (walking), 250-450 (running), >450 (falling/jumping)
+  velocityX       Float    @default(0)
+  velocityY       Float    @default(0)
+  velocityZ       Float    @default(0)
+
   // View angles
   yaw             Float    // Horizontal angle (0-360)
-  pitch           Float    // Vertical angle
+  pitch           Float    // Vertical angle (-90 to 90)
 
   // Player state
   health          Int      @default(100)
   armor           Int      @default(0)
   isAlive         Boolean  @default(true)
   isDucking       Boolean  @default(false)
+  isWalking       Boolean  @default(false)  // Shift-walking (slower, silent movement)
   isScoped        Boolean  @default(false)
   isDefusing      Boolean  @default(false)
   isPlanting      Boolean  @default(false)
@@ -774,12 +787,14 @@ model PlayerTick {
   // Team & equipment
   team            Int      // 2=T, 3=CT
   activeWeapon    String?
+  weaponAmmo      Int?     // Current magazine ammo (null if unknown/melee)
   hasDefuseKit    Boolean  @default(false)
   hasBomb         Boolean  @default(false)
   money           Int      @default(0)
 
   // Flash state
   flashDuration   Float    @default(0)
+  flashAlpha      Int      @default(0)  // Flash intensity 0-255 (0=none, 255=full blind)
 
   // Relations
   demoId          String
