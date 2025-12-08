@@ -26,9 +26,23 @@ import { JwtAuthGuard, RolesGuard } from "./common/guards";
 const logger = new Logger("Bootstrap");
 
 async function bootstrap() {
+  // Configure Fastify with extended timeouts to prevent premature connection drops
+  // Default keepAliveTimeout is 65s which causes ~1 minute disconnections
+  const fastifyAdapter = new FastifyAdapter({
+    logger: true,
+    // Connection keep-alive settings (in milliseconds)
+    connectionTimeout: 0, // No connection timeout
+    keepAliveTimeout: 5 * 60 * 1000, // 5 minutes - prevents idle disconnects
+  });
+
+  // Configure HTTP server timeouts after creation
+  const fastifyInstance = fastifyAdapter.getInstance();
+  fastifyInstance.server.headersTimeout = 6 * 60 * 1000; // 6 minutes (must be > keepAliveTimeout)
+  fastifyInstance.server.requestTimeout = 5 * 60 * 1000; // 5 minutes for long requests
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: true }),
+    fastifyAdapter,
   );
 
   const configService = app.get(ConfigService);

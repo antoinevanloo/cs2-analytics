@@ -1,5 +1,13 @@
 /**
  * API client for communicating with the backend
+ *
+ * Features:
+ * - Automatic token refresh on 401 errors
+ * - Request retry with exponential backoff
+ * - Concurrent request deduplication for auth
+ * - Graceful error handling
+ *
+ * @module lib/api
  */
 
 import { useAuthStore } from "@/stores/auth-store";
@@ -7,11 +15,28 @@ import { useAuthStore } from "@/stores/auth-store";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 // ============================================================================
+// Configuration
+// ============================================================================
+
+const API_CONFIG = {
+  maxRetries: 2,
+  retryDelay: 1000, // Base delay in ms
+  timeout: 30000, // 30 seconds
+} as const;
+
+// ============================================================================
 // Auth Helper
 // ============================================================================
 
 async function getValidAuthToken(): Promise<string | null> {
   return useAuthStore.getState().getValidAccessToken();
+}
+
+/**
+ * Force refresh the auth token
+ */
+async function forceRefreshToken(): Promise<string | null> {
+  return useAuthStore.getState().refreshTokens();
 }
 
 // ============================================================================
@@ -177,27 +202,51 @@ export interface PlayerSearchResponse {
 }
 
 /**
+ * API Error class with status code and retry information
+ */
+class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public isRetryable: boolean = false,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * Generic API fetch wrapper with authentication handling.
  *
  * Features:
  * - Automatic access token injection via Authorization header
  * - Auto-refresh of expired tokens via getValidAuthToken()
  * - HttpOnly cookie support via credentials: "include"
- * - Consistent error handling
+ * - Automatic retry on 401 with token refresh
+ * - Exponential backoff on retryable errors
  *
  * @param endpoint - API endpoint path (e.g., "/v1/demos")
  * @param options - Optional fetch options
+ * @param retryCount - Internal retry counter
  * @returns Parsed JSON response
- * @throws Error with message from API or status code
+ * @throws ApiError with message from API or status code
  */
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit,
+  retryCount: number = 0,
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
 
   // Get valid auth token (auto-refreshes if expired)
-  const token = await getValidAuthToken();
+  let token = await getValidAuthToken();
 
   // Build headers with auth
   const headers: Record<string, string> = {
@@ -207,23 +256,94 @@ async function fetchApi<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    // Include credentials to send HttpOnly cookies (refresh token)
-    credentials: "include",
-    headers: {
-      ...headers,
-      ...(options?.headers as Record<string, string>),
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      // Include credentials to send HttpOnly cookies (refresh token)
+      credentials: "include",
+      headers: {
+        ...headers,
+        ...(options?.headers as Record<string, string>),
+      },
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error || `API error: ${response.status}`);
+    // Handle 401 Unauthorized - attempt token refresh and retry
+    if (response.status === 401 && retryCount < API_CONFIG.maxRetries) {
+      console.log(`[API] 401 received, attempting token refresh (attempt ${retryCount + 1})`);
+
+      // Force refresh the token
+      const newToken = await forceRefreshToken();
+
+      if (newToken) {
+        // Retry the request with the new token
+        console.log("[API] Token refreshed, retrying request");
+        return fetchApi<T>(endpoint, options, retryCount + 1);
+      } else {
+        // Refresh failed - user will be logged out by auth store
+        throw new ApiError("Session expired. Please login again.", 401, false);
+      }
+    }
+
+    // Handle other error responses
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = errorText;
+
+      // Try to parse JSON error
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorText;
+      } catch {
+        // Keep the text error
+      }
+
+      // Determine if error is retryable (5xx errors, network issues)
+      const isRetryable =
+        response.status >= 500 && retryCount < API_CONFIG.maxRetries;
+
+      if (isRetryable) {
+        const delay = API_CONFIG.retryDelay * Math.pow(2, retryCount);
+        console.log(`[API] Server error ${response.status}, retrying in ${delay}ms`);
+        await sleep(delay);
+        return fetchApi<T>(endpoint, options, retryCount + 1);
+      }
+
+      throw new ApiError(
+        errorMessage || `API error: ${response.status}`,
+        response.status,
+        false,
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      if (retryCount < API_CONFIG.maxRetries) {
+        const delay = API_CONFIG.retryDelay * Math.pow(2, retryCount);
+        console.log(`[API] Network error, retrying in ${delay}ms`);
+        await sleep(delay);
+        return fetchApi<T>(endpoint, options, retryCount + 1);
+      }
+      throw new ApiError("Network error. Please check your connection.", 0, false);
+    }
+
+    // Re-throw ApiError as-is
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    // Wrap unknown errors
+    throw new ApiError(
+      error instanceof Error ? error.message : "Unknown error occurred",
+      0,
+      false,
+    );
   }
-
-  return response.json();
 }
+
+// Export ApiError for type checking in consumers
+export { ApiError };
 
 // Demo endpoints
 export const demosApi = {

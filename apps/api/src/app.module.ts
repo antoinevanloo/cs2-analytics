@@ -10,7 +10,7 @@ import { APP_GUARD } from "@nestjs/core";
 
 import { PrismaModule } from "./common/prisma";
 import { RedisModule } from "./common/redis";
-import { CorrelationIdMiddleware } from "./common/middleware";
+import { CorrelationIdMiddleware, SessionActivityMiddleware } from "./common/middleware";
 import { AuthModule } from "./modules/auth/auth.module";
 import { IntegrationsModule } from "./modules/integrations/integrations.module";
 import { DemoModule } from "./modules/demo/demo.module";
@@ -105,6 +105,8 @@ import { HealthController } from "./health.controller";
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    // Session activity tracking middleware
+    SessionActivityMiddleware,
   ],
 })
 export class AppModule implements NestModule {
@@ -114,5 +116,8 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Apply correlation ID middleware to all routes
     consumer.apply(CorrelationIdMiddleware).forRoutes("*");
+    // Apply session activity tracking to authenticated routes
+    // Note: This runs after authentication due to middleware order
+    consumer.apply(SessionActivityMiddleware).forRoutes("*");
   }
 }

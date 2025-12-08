@@ -253,6 +253,10 @@ export class AuthController {
 
   /**
    * Refresh access token using refresh token
+   *
+   * IMPORTANT: This endpoint performs token rotation for security.
+   * The old refresh token is revoked and a new one is issued in the HttpOnly cookie.
+   * The client must use the new refresh token for subsequent refreshes.
    */
   @Post("refresh")
   @Public()
@@ -264,6 +268,7 @@ export class AuthController {
   async refresh(
     @Body() body: RefreshTokenDto,
     @Req() req: FastifyRequestWithCookies,
+    @Res({ passthrough: true }) reply: FastifyReplyWithCookies,
   ): Promise<{
     accessToken: string;
     expiresIn: number;
@@ -277,6 +282,17 @@ export class AuthController {
 
     try {
       const tokens = await this.authService.refreshAccessToken(refreshToken);
+
+      // CRITICAL: Update the HttpOnly cookie with the NEW refresh token
+      // Token rotation means the old token is revoked, so we must set the new one
+      reply.setCookie("refresh_token", tokens.refreshToken, {
+        httpOnly: true,
+        secure: this.configService.get("NODE_ENV") === "production",
+        sameSite: "lax",
+        path: "/v1/auth",
+        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+      });
+
       return {
         accessToken: tokens.accessToken,
         expiresIn: tokens.expiresIn,

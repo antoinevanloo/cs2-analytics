@@ -4,16 +4,26 @@
  * Handles user authentication state, tokens, and session management.
  * Persists auth state to localStorage for session continuity.
  *
+ * Features:
+ * - Proactive token refresh via AuthManager
+ * - Automatic session recovery on page visibility
+ * - Exponential backoff on refresh failures
+ * - Concurrent refresh request deduplication
+ *
  * @module stores/auth-store
  */
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { authManager } from "@/lib/auth-manager";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 // Singleton promise for refresh to prevent concurrent refresh requests
 let refreshPromise: Promise<string | null> | null = null;
+
+// Track initialization state
+let isAuthManagerInitialized = false;
 
 // ============================================================================
 // Types
@@ -93,24 +103,30 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ error }),
 
       // Login - sets both user and tokens
-      login: (user, tokens) =>
+      login: (user, tokens) => {
         set({
           user,
           tokens,
           isAuthenticated: true,
           isLoading: false,
           error: null,
-        }),
+        });
+        // Notify auth manager of login
+        authManager.onLogin();
+      },
 
       // Logout - clears everything
-      logout: () =>
+      logout: () => {
+        // Notify auth manager before clearing state
+        authManager.onLogout();
         set({
           user: null,
           tokens: null,
           isAuthenticated: false,
           isLoading: false,
           error: null,
-        }),
+        });
+      },
 
       // Refresh tokens
       refreshSession: (tokens) =>
@@ -243,3 +259,46 @@ export const selectIsAuthenticated = (state: AuthState) =>
   state.isAuthenticated;
 export const selectIsLoading = (state: AuthState) => state.isLoading;
 export const selectError = (state: AuthState) => state.error;
+
+// ============================================================================
+// Auth Manager Integration
+// ============================================================================
+
+/**
+ * Initialize the auth manager with store actions.
+ * Should be called once when the app starts.
+ * Safe to call multiple times - subsequent calls are no-ops.
+ */
+export function initializeAuthManager(): void {
+  if (isAuthManagerInitialized) {
+    return;
+  }
+
+  // IMPORTANT: Always use useAuthStore.getState() to get CURRENT state
+  // Do NOT capture store reference - it won't update after state changes
+  authManager.initialize({
+    getTokens: () => useAuthStore.getState().tokens,
+    refreshTokens: () => useAuthStore.getState().refreshTokens(),
+    logout: () => useAuthStore.getState().logout(),
+    isAuthenticated: () => useAuthStore.getState().isAuthenticated,
+  });
+
+  // Subscribe to auth events for logging/analytics
+  authManager.subscribe((event) => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Auth Event]", event.type, event.data);
+    }
+
+    // Handle specific events
+    if (event.type === "session_ended") {
+      // Could trigger UI notification here
+    }
+  });
+
+  isAuthManagerInitialized = true;
+}
+
+/**
+ * Get the auth manager instance for advanced usage
+ */
+export { authManager };

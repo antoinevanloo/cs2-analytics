@@ -5,3 +5,4 @@
  */
 
 export { CorrelationIdMiddleware } from "./correlation-id.middleware";
+export { SessionActivityMiddleware } from "./session-activity.middleware";
