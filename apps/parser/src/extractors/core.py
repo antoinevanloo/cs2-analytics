@@ -433,10 +433,32 @@ class DemoParser:
 
         return rounds
 
-    def _safe_parse_event(self, parser: DP2, event_name: str):
-        """Safely parse an event, returning None if it fails or returns a list."""
+    def _safe_parse_event(
+        self,
+        parser: DP2,
+        event_name: str,
+        player_props: list[str] | None = None,
+        other_props: list[str] | None = None,
+    ):
+        """Safely parse an event, returning None if it fails or returns a list.
+
+        Args:
+            parser: DemoParser instance
+            event_name: Name of the event to parse
+            player_props: Optional list of player properties for main player (e.g., ["X", "Y", "Z"])
+            other_props: Optional list of properties for other player (e.g., attacker in deaths)
+        """
         try:
-            result = parser.parse_event(event_name)
+            kwargs = {}
+            if player_props:
+                kwargs["player"] = player_props
+            if other_props:
+                kwargs["other"] = other_props
+
+            if kwargs:
+                result = parser.parse_event(event_name, **kwargs)
+            else:
+                result = parser.parse_event(event_name)
             # demoparser2 sometimes returns empty lists instead of DataFrames
             if isinstance(result, list):
                 return None
@@ -444,16 +466,40 @@ class DemoParser:
         except Exception:
             return None
 
+    # Events that need player position (X, Y, Z) for visualization
+    EVENTS_NEEDING_POSITION = {
+        "bomb_planted",
+        "bomb_defused",
+        "bomb_exploded",
+    }
+
+    # Events that need both victim AND attacker positions
+    EVENTS_NEEDING_BOTH_POSITIONS = {
+        "player_death",  # Need attacker and victim positions for kill lines
+    }
+
     def _extract_events(
         self, parser: DP2, event_list: list[str] | None = None
     ) -> list[dict[str, Any]]:
-        """Extract all game events."""
+        """Extract all game events with position data for visualization."""
         events = []
         target_events = event_list or ALL_EVENTS
 
         for event_name in target_events:
             try:
-                event_df = self._safe_parse_event(parser, event_name)
+                # Add position props for events that need them for 2D replay
+                player_props = None
+                other_props = None
+
+                if event_name in self.EVENTS_NEEDING_POSITION:
+                    # Only victim/user position needed
+                    player_props = ["X", "Y", "Z"]
+                elif event_name in self.EVENTS_NEEDING_BOTH_POSITIONS:
+                    # Both victim and attacker positions needed
+                    player_props = ["X", "Y", "Z"]  # user (victim)
+                    other_props = ["X", "Y", "Z"]   # attacker
+
+                event_df = self._safe_parse_event(parser, event_name, player_props, other_props)
                 if event_df is not None and len(event_df) > 0:
                     for _, row in event_df.iterrows():
                         event_data = row.to_dict()

@@ -1115,9 +1115,23 @@ export class DemoService {
             attacker_steamid?: string;
             attacker_name?: string;
             attacker_team?: number;
+            // Attacker position (from demoparser2 other=["X","Y","Z"])
+            attacker_X?: number;
+            attacker_Y?: number;
+            attacker_Z?: number;
+            attackerX?: number;  // Alternative format
+            attackerY?: number;
+            attackerZ?: number;
             user_steamid?: string;
             user_name?: string;
             user_team?: number;
+            // Victim position (from demoparser2 player=["X","Y","Z"])
+            user_X?: number;
+            user_Y?: number;
+            user_Z?: number;
+            victimX?: number;  // Alternative format
+            victimY?: number;
+            victimZ?: number;
             assister_steamid?: string;
             assister_name?: string;
             weapon?: string;
@@ -1136,8 +1150,8 @@ export class DemoService {
               const round = findRoundForTick(e.tick || 0);
               if (!round) return null;
 
-              // Cast event data to typed structure
-              const d = (e as { data?: PlayerDeathData }).data || {};
+              // Cast event to typed structure - parser puts fields directly on event, not in nested data
+              const d = e as unknown as PlayerDeathData;
 
               // Determine if this is first kill of the round
               const existingFirstKill = firstKillByRound.get(round.id);
@@ -1160,6 +1174,15 @@ export class DemoService {
                 attackerTeam !== undefined &&
                 attackerTeam === victimTeam;
 
+              // Extract positions from demoparser2 format
+              // attacker_X/Y/Z for attacker, user_X/Y/Z for victim
+              const attackerX = d.attacker_X ?? d.attackerX ?? null;
+              const attackerY = d.attacker_Y ?? d.attackerY ?? null;
+              const attackerZ = d.attacker_Z ?? d.attackerZ ?? null;
+              const victimX = d.user_X ?? d.victimX ?? 0;
+              const victimY = d.user_Y ?? d.victimY ?? 0;
+              const victimZ = d.user_Z ?? d.victimZ ?? 0;
+
               return {
                 demoId: id,
                 roundId: round.id,
@@ -1168,16 +1191,16 @@ export class DemoService {
                 attackerSteamId,
                 attackerName: d.attacker_name || null,
                 attackerTeam: attackerTeam ?? null,
-                attackerX: null as number | null,
-                attackerY: null as number | null,
-                attackerZ: null as number | null,
+                attackerX: typeof attackerX === "number" ? attackerX : null,
+                attackerY: typeof attackerY === "number" ? attackerY : null,
+                attackerZ: typeof attackerZ === "number" ? attackerZ : null,
                 // Victim
                 victimSteamId,
                 victimName: d.user_name || "",
                 victimTeam,
-                victimX: 0,
-                victimY: 0,
-                victimZ: 0,
+                victimX: typeof victimX === "number" ? victimX : 0,
+                victimY: typeof victimY === "number" ? victimY : 0,
+                victimZ: typeof victimZ === "number" ? victimZ : 0,
                 // Assister
                 assisterSteamId: d.assister_steamid || null,
                 assisterName: d.assister_name || null,
@@ -1351,18 +1374,23 @@ export class DemoService {
             eventType === ReplayEventType.BOMB_DEFUSE ||
             eventType === ReplayEventType.BOMB_EXPLODE
           ) {
-            // Bomb events
+            // Bomb events - player position comes from user_X/user_Y/user_Z (demoparser2 format)
+            // or x/y/z for backward compatibility
+            const playerX = (event.user_X as number) ?? (event.x as number) ?? 0;
+            const playerY = (event.user_Y as number) ?? (event.y as number) ?? 0;
+            const playerZ = (event.user_Z as number) ?? (event.z as number) ?? 0;
+
             replayEvents.push({
               ...baseEvent,
-              x: (event.x as number) || 0,
-              y: (event.y as number) || 0,
-              z: (event.z as number) || 0,
+              x: playerX,
+              y: playerY,
+              z: playerZ,
               data: {
                 playerSteamId: String(
-                  event.player_steamid || event.userid_steamid || "",
+                  event.player_steamid || event.userid_steamid || event.user_steamid || "",
                 ),
                 playerName: String(
-                  event.player_name || event.userid_name || "",
+                  event.player_name || event.userid_name || event.user_name || "",
                 ),
                 site: String(event.site || ""),
               },

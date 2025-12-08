@@ -82,21 +82,31 @@ export type ReplayEventType =
   | "MOLOTOV_START"
   | "MOLOTOV_END"
   | "HE_EXPLODE"
+  | "DECOY_START"
   | "FOOTSTEP"
   | "SHOT_FIRED"
   | "GRENADE_THROW";
 
 export interface ReplayEventBase {
+  id: string;
   type: ReplayEventType;
   tick: number;
   time: number;
   x: number;
   y: number;
   z: number;
+  // Optional end position (for kill lines: attacker->victim)
+  endX?: number;
+  endY?: number;
+  endZ?: number;
 }
 
 export interface KillEvent extends ReplayEventBase {
   type: "KILL";
+  // End position is victim location
+  endX: number;
+  endY: number;
+  endZ: number;
   attackerSteamId?: string;
   attackerName?: string;
   victimSteamId: string;

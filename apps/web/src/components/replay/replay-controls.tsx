@@ -116,30 +116,43 @@ export function ReplayControls() {
           }
           break;
         case "Digit1":
+          e.preventDefault();
           setPlaybackSpeed(0.25);
           break;
         case "Digit2":
+          e.preventDefault();
           setPlaybackSpeed(0.5);
           break;
         case "Digit3":
+          e.preventDefault();
           setPlaybackSpeed(1);
           break;
         case "Digit4":
+          e.preventDefault();
           setPlaybackSpeed(2);
           break;
         case "Digit5":
+          e.preventDefault();
           setPlaybackSpeed(4);
           break;
         case "KeyK":
+          e.preventDefault();
           toggleKillLines();
           break;
+        case "KeyG":
+          e.preventDefault();
+          toggleGrenades();
+          break;
         case "KeyN":
+          e.preventDefault();
           togglePlayerNames();
           break;
         case "KeyH":
+          e.preventDefault();
           toggleHealthBars();
           break;
         case "KeyR":
+          e.preventDefault();
           resetViewport();
           break;
       }
@@ -155,6 +168,7 @@ export function ReplayControls() {
     skipBackward,
     setPlaybackSpeed,
     toggleKillLines,
+    toggleGrenades,
     togglePlayerNames,
     toggleHealthBars,
     resetViewport,
@@ -294,7 +308,7 @@ export function ReplayControls() {
                 <Target className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Toggle grenades</TooltipContent>
+            <TooltipContent>Toggle grenades (G)</TooltipContent>
           </Tooltip>
 
           <Tooltip>

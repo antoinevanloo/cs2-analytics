@@ -53,15 +53,20 @@ const TEAM_COLORS = {
   T_FOCUSED: "#f4c56e",
 };
 
-// Grenade colors (CS2 official colors)
-const GRENADE_COLORS: Record<string, string> = {
-  smoke: "#a0a0a0", // Gray smoke
-  flashbang: "#ffff00", // Yellow flash
-  hegrenade: "#ff4444", // Red explosive
-  molotov: "#ff6600", // Orange fire
-  incgrenade: "#ff6600", // Orange fire (CT incendiary)
-  decoy: "#44ff44", // Green decoy
+// Grenade visual config - colors, icons, and labels for each type
+const GRENADE_CONFIG: Record<string, { color: string; icon: string; label: string; glowColor: string }> = {
+  smoke: { color: "#b0b0b0", icon: "💨", label: "SMOKE", glowColor: "#808080" },
+  flashbang: { color: "#ffee00", icon: "⚡", label: "FLASH", glowColor: "#ffffaa" },
+  hegrenade: { color: "#ff3333", icon: "💥", label: "HE", glowColor: "#ff6666" },
+  molotov: { color: "#ff6600", icon: "🔥", label: "MOLLY", glowColor: "#ffaa00" },
+  incgrenade: { color: "#ff6600", icon: "🔥", label: "INCEN", glowColor: "#ffaa00" },
+  decoy: { color: "#44ff44", icon: "📢", label: "DECOY", glowColor: "#88ff88" },
 };
+
+// Backwards compat
+const GRENADE_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(GRENADE_CONFIG).map(([k, v]) => [k, v.color])
+);
 
 // Player rendering constants
 const PLAYER_RADIUS = 8;
@@ -352,6 +357,26 @@ interface KillLineProps {
   isVisible: boolean;
 }
 
+/**
+ * Check if kill coordinates are valid (not at origin which indicates missing data)
+ * Coordinates are considered invalid if both attacker and victim are at or very near 0,0
+ */
+function hasValidKillCoordinates(event: ReplayEvent): boolean {
+  const COORD_THRESHOLD = 1; // Coords < 1 are considered invalid (origin)
+
+  // Check victim position (endX, endY)
+  const hasValidVictim = event.endX !== undefined &&
+    event.endY !== undefined &&
+    (Math.abs(event.endX) > COORD_THRESHOLD || Math.abs(event.endY) > COORD_THRESHOLD);
+
+  // Check attacker position (x, y)
+  const hasValidAttacker =
+    Math.abs(event.x) > COORD_THRESHOLD || Math.abs(event.y) > COORD_THRESHOLD;
+
+  // Need at least victim position to render (victim is where skull appears)
+  return hasValidVictim;
+}
+
 const KillLine = React.memo(function KillLine({
   event,
   mapConfig,
@@ -359,7 +384,8 @@ const KillLine = React.memo(function KillLine({
   canvasHeight,
   isVisible,
 }: KillLineProps) {
-  if (!isVisible || event.endX === undefined || event.endY === undefined) {
+  // Skip rendering if not visible, missing coordinates, or invalid coordinates (0,0)
+  if (!isVisible || event.endX === undefined || event.endY === undefined || !hasValidKillCoordinates(event)) {
     return null;
   }
 
@@ -378,18 +404,17 @@ const KillLine = React.memo(function KillLine({
     canvasHeight,
   );
 
-  const data = event.data as {
-    headshot?: boolean;
-    weapon?: string;
-  };
+  // Kill properties can be on event directly or in event.data
+  const headshot = (event as { headshot?: boolean }).headshot ??
+    (event.data as { headshot?: boolean })?.headshot ?? false;
 
   return (
     <Group>
       {/* Kill line */}
       <Arrow
         points={[attackerPos.x, attackerPos.y, victimPos.x, victimPos.y]}
-        stroke={data.headshot ? "#ff0000" : "#ffffff"}
-        strokeWidth={data.headshot ? 2 : 1}
+        stroke={headshot ? "#ff0000" : "#ffffff"}
+        strokeWidth={headshot ? 2 : 1}
         opacity={0.6}
         pointerLength={6}
         pointerWidth={4}
@@ -475,11 +500,9 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
   canvasHeight,
   currentTick,
 }: GrenadeIndicatorProps) {
-  const data = event.data as {
-    grenadeType?: string;
-    throwerName?: string;
-    throwerTeam?: number;
-  };
+  // Grenade type can be on event directly or in event.data
+  const eventGrenadeType = (event as { grenadeType?: string }).grenadeType;
+  const dataGrenadeType = (event.data as { grenadeType?: string })?.grenadeType;
 
   // Determine grenade type from event type or data
   const getGrenadeType = (): string => {
@@ -495,16 +518,19 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
         return "hegrenade";
       case "FLASH_EFFECT":
         return "flashbang";
+      case "DECOY_START":
+        return "decoy";
       case "GRENADE_THROW":
         // Fall through to check data
         break;
     }
-    // Check data for grenadeType
-    return data.grenadeType?.toLowerCase() || "hegrenade";
+    // Check grenadeType on event or in data
+    const rawType = eventGrenadeType || dataGrenadeType;
+    return rawType?.toLowerCase() || "hegrenade";
   };
 
   const grenadeType = getGrenadeType();
-  const color = GRENADE_COLORS[grenadeType] || "#ff4444";
+  const config = GRENADE_CONFIG[grenadeType] || GRENADE_CONFIG.hegrenade;
 
   // Calculate position - use end position if available (detonation point), otherwise start
   const x = event.endX ?? event.x;
@@ -515,93 +541,214 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
   // Time-based opacity fade out
   const ticksSinceEvent = currentTick - event.tick;
   const fadeProgress = Math.min(ticksSinceEvent / GRENADE_DISPLAY_DURATION, 1);
-  const opacity = Math.max(0.2, 1 - fadeProgress * 0.8);
+  const opacity = Math.max(0.3, 1 - fadeProgress * 0.7);
+
+  // Common icon badge that's always visible
+  const IconBadge = () => (
+    <Group>
+      {/* Glow effect */}
+      <Circle
+        x={pos.x}
+        y={pos.y}
+        radius={14}
+        fill={config.glowColor}
+        opacity={0.4}
+      />
+      {/* Background circle */}
+      <Circle
+        x={pos.x}
+        y={pos.y}
+        radius={11}
+        fill={config.color}
+        stroke="#ffffff"
+        strokeWidth={2}
+        opacity={0.9}
+      />
+      {/* Icon */}
+      <Text
+        x={pos.x - 7}
+        y={pos.y - 7}
+        text={config.icon}
+        fontSize={14}
+        align="center"
+      />
+      {/* Label above */}
+      <Text
+        x={pos.x - 20}
+        y={pos.y - 26}
+        width={40}
+        text={config.label}
+        fontSize={9}
+        fontStyle="bold"
+        fill="#ffffff"
+        align="center"
+        shadowColor="#000000"
+        shadowBlur={3}
+        shadowOffset={{ x: 1, y: 1 }}
+        shadowOpacity={1}
+      />
+    </Group>
+  );
 
   // Smoke has expanding radius effect
   if (grenadeType === "smoke") {
-    const smokeRadius = Math.min(ticksSinceEvent / 10, 25); // Expand over time
+    const smokeRadius = Math.min(ticksSinceEvent / 8, 30);
     return (
       <Group opacity={opacity}>
+        {/* Outer smoke ring */}
         <Circle
           x={pos.x}
           y={pos.y}
           radius={smokeRadius}
-          fill={color}
-          opacity={0.4}
+          fill={config.color}
+          opacity={0.3}
         />
+        {/* Inner smoke */}
         <Circle
           x={pos.x}
           y={pos.y}
-          radius={smokeRadius * 0.6}
-          fill={color}
-          opacity={0.6}
+          radius={smokeRadius * 0.7}
+          fill={config.color}
+          opacity={0.5}
         />
+        {/* Dashed outline */}
+        <Circle
+          x={pos.x}
+          y={pos.y}
+          radius={smokeRadius}
+          stroke={config.color}
+          strokeWidth={2}
+          dash={[4, 4]}
+          opacity={0.8}
+        />
+        <IconBadge />
       </Group>
     );
   }
 
   // Molotov/incendiary has fire spread effect
   if (grenadeType === "molotov" || grenadeType === "incgrenade") {
-    const fireRadius = Math.min(ticksSinceEvent / 8, 20);
+    const fireRadius = Math.min(ticksSinceEvent / 6, 25);
+    const pulseOffset = Math.sin(ticksSinceEvent / 4) * 3;
     return (
       <Group opacity={opacity}>
+        {/* Outer fire ring */}
         <Circle
           x={pos.x}
           y={pos.y}
           radius={fireRadius}
-          fill={color}
-          opacity={0.5}
+          fill={config.color}
+          opacity={0.4}
         />
         {/* Pulsing inner fire */}
         <Circle
           x={pos.x}
           y={pos.y}
-          radius={fireRadius * 0.5 + Math.sin(ticksSinceEvent / 5) * 3}
+          radius={fireRadius * 0.6 + pulseOffset}
           fill="#ffaa00"
+          opacity={0.6}
+        />
+        {/* Hot center */}
+        <Circle
+          x={pos.x}
+          y={pos.y}
+          radius={fireRadius * 0.3}
+          fill="#ffff00"
           opacity={0.7}
         />
+        <IconBadge />
       </Group>
     );
   }
 
   // Flashbang - brief bright flash
   if (grenadeType === "flashbang") {
-    const flashOpacity = Math.max(0, 1 - ticksSinceEvent / 30);
+    const flashIntensity = Math.max(0, 1 - ticksSinceEvent / 25);
+    const flashRadius = 12 + flashIntensity * 15;
     return (
-      <Group opacity={flashOpacity}>
-        <Circle x={pos.x} y={pos.y} radius={15} fill={color} opacity={0.8} />
-        <Circle x={pos.x} y={pos.y} radius={8} fill="#ffffff" opacity={0.9} />
+      <Group opacity={Math.max(opacity, flashIntensity)}>
+        {/* Outer glow */}
+        <Circle
+          x={pos.x}
+          y={pos.y}
+          radius={flashRadius}
+          fill={config.glowColor}
+          opacity={flashIntensity * 0.6}
+        />
+        {/* Bright center */}
+        <Circle
+          x={pos.x}
+          y={pos.y}
+          radius={flashRadius * 0.5}
+          fill="#ffffff"
+          opacity={flashIntensity * 0.9}
+        />
+        <IconBadge />
       </Group>
     );
   }
 
   // HE grenade - explosion effect
   if (grenadeType === "hegrenade") {
-    const explosionRadius = Math.min(ticksSinceEvent / 5, 18);
-    const explosionOpacity = Math.max(0, 1 - ticksSinceEvent / 40);
+    const explosionProgress = Math.min(ticksSinceEvent / 20, 1);
+    const explosionRadius = 8 + explosionProgress * 18;
+    const explosionOpacity = Math.max(0.3, 1 - explosionProgress * 0.7);
     return (
       <Group opacity={explosionOpacity}>
+        {/* Outer blast */}
         <Circle
           x={pos.x}
           y={pos.y}
           radius={explosionRadius}
-          fill={color}
-          opacity={0.6}
+          fill={config.color}
+          opacity={0.5}
         />
+        {/* Inner blast */}
         <Circle
           x={pos.x}
           y={pos.y}
-          radius={explosionRadius * 0.4}
+          radius={explosionRadius * 0.5}
           fill="#ffff00"
-          opacity={0.8}
+          opacity={0.7}
         />
+        {/* Shockwave ring */}
+        <Circle
+          x={pos.x}
+          y={pos.y}
+          radius={explosionRadius * 1.2}
+          stroke={config.color}
+          strokeWidth={2}
+          opacity={1 - explosionProgress}
+        />
+        <IconBadge />
       </Group>
     );
   }
 
-  // Default - simple circle marker
+  // Decoy
+  if (grenadeType === "decoy") {
+    const pulseRadius = 8 + Math.sin(ticksSinceEvent / 3) * 3;
+    return (
+      <Group opacity={opacity}>
+        <Circle
+          x={pos.x}
+          y={pos.y}
+          radius={pulseRadius}
+          stroke={config.color}
+          strokeWidth={2}
+          dash={[3, 3]}
+          opacity={0.7}
+        />
+        <IconBadge />
+      </Group>
+    );
+  }
+
+  // Default - with icon badge
   return (
-    <Circle x={pos.x} y={pos.y} radius={6} fill={color} opacity={opacity} />
+    <Group opacity={opacity}>
+      <IconBadge />
+    </Group>
   );
 });
 

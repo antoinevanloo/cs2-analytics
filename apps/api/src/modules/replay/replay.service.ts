@@ -176,7 +176,7 @@ export class ReplayService {
 
     // Get player names for all players in this round
     const playerSteamIds = round.playerStats.map((p) => p.steamId);
-    const playerNames = await this.getPlayerNames(playerSteamIds);
+    const playerNames = await this.getPlayerNames(demoId, playerSteamIds);
 
     // Get map config for coordinate conversion
     const mapConfig = await this.getMapMetadata(round.demo.mapName);
@@ -270,7 +270,7 @@ export class ReplayService {
 
     // Get player names for all players in this round
     const playerSteamIds = round.playerStats.map((p) => p.steamId);
-    const playerNames = await this.getPlayerNames(playerSteamIds);
+    const playerNames = await this.getPlayerNames(demoId, playerSteamIds);
 
     const mapConfig = await this.getMapMetadata(round.demo.mapName);
 
@@ -447,22 +447,6 @@ export class ReplayService {
       radarY < 0 ||
       radarY > mapConfig.radarHeight;
 
-    // Debug log for significantly out-of-bounds coordinates (>10% outside)
-    if (isOutOfBounds) {
-      const outsideMargin = Math.max(
-        Math.abs(Math.min(0, radarX)),
-        Math.abs(Math.max(0, radarX - mapConfig.radarWidth)),
-        Math.abs(Math.min(0, radarY)),
-        Math.abs(Math.max(0, radarY - mapConfig.radarHeight)),
-      );
-      if (outsideMargin > mapConfig.radarWidth * 0.1) {
-        this.logger.debug(
-          `Player significantly out of bounds: game(${gameX.toFixed(0)}, ${gameY.toFixed(0)}) -> ` +
-          `radar(${radarX.toFixed(0)}, ${radarY.toFixed(0)}) on ${mapConfig.mapName}`,
-        );
-      }
-    }
-
     // Clamp to radar bounds
     return {
       x: Math.max(0, Math.min(mapConfig.radarWidth, radarX)),
@@ -480,25 +464,28 @@ export class ReplayService {
    * Get player names by steam IDs
    * Caches results for efficiency
    */
-  private async getPlayerNames(steamIds: string[]): Promise<Map<string, string>> {
+  private async getPlayerNames(
+    demoId: string,
+    steamIds: string[],
+  ): Promise<Map<string, string>> {
     if (steamIds.length === 0) return new Map();
 
-    // Try cache first
-    const cacheKey = `replay:playernames:${steamIds.sort().join(",")}`;
+    // Try cache first (include demoId for specificity)
+    const cacheKey = `replay:playernames:${demoId}:${steamIds.sort().join(",")}`;
     const cached = await this.redis.get<Record<string, string>>(cacheKey);
     if (cached) {
       return new Map(Object.entries(cached));
     }
 
-    // Fetch from database
-    const players = await this.prisma.player.findMany({
-      where: { steamId: { in: steamIds } },
-      select: { steamId: true, name: true },
+    // Fetch from MatchPlayerStats (has playerName from demo)
+    const matchStats = await this.prisma.matchPlayerStats.findMany({
+      where: { demoId, steamId: { in: steamIds } },
+      select: { steamId: true, playerName: true },
     });
 
     const nameMap = new Map<string, string>();
-    for (const player of players) {
-      nameMap.set(player.steamId, player.name);
+    for (const stat of matchStats) {
+      nameMap.set(stat.steamId, stat.playerName);
     }
 
     // Cache for 1 hour
@@ -538,7 +525,6 @@ export class ReplayService {
     });
 
     const availableTicks = distinctTicks.map((t) => t.tick);
-    this.logger.debug(`[getTickFrames] Found ${availableTicks.length} distinct ticks in round`);
 
     if (availableTicks.length === 0) {
       return frames;
@@ -557,11 +543,6 @@ export class ReplayService {
       sampledTicks.push(availableTicks[i]!);
     }
 
-    this.logger.debug(
-      `[getTickFrames] Stored interval=${storedInterval}, requested=${sampleInterval}, ` +
-      `skipCount=${skipCount}, sampling ${sampledTicks.length} of ${availableTicks.length} ticks`
-    );
-
     // Fetch sampled ticks in batches
     const TICKS_PER_BATCH = 500;
 
@@ -577,19 +558,10 @@ export class ReplayService {
         orderBy: [{ tick: "asc" }, { steamId: "asc" }],
       });
 
-      this.logger.debug(`[getTickFrames] Batch ${i}: fetched ${ticks.length} playerTick rows for ${batchTicks.length} ticks`);
-
       if (ticks.length === 0) continue;
 
       // Group by tick
       const tickGroups = this.groupTicksByTick(ticks);
-
-      // Log first tick group to debug
-      if (i === 0 && tickGroups.size > 0) {
-        const firstTick = Array.from(tickGroups.keys())[0] ?? 0;
-        const firstGroup = tickGroups.get(firstTick);
-        this.logger.debug(`[getTickFrames] First tick ${firstTick} has ${firstGroup?.length ?? 0} players`);
-      }
 
       // Build frames for each tick
       for (const tickNum of batchTicks) {
@@ -601,8 +573,6 @@ export class ReplayService {
         }
       }
     }
-
-    this.logger.debug(`[getTickFrames] Built ${frames.length} frames, first frame has ${frames[0]?.players?.length ?? 0} players`);
 
     return frames;
   }
@@ -616,6 +586,7 @@ export class ReplayService {
     ticks: Array<{
       tick: number;
       steamId: string;
+      name: string | null;
       x: number;
       y: number;
       z: number;
@@ -665,6 +636,7 @@ export class ReplayService {
     tick: number,
     players: Array<{
       steamId: string;
+      name: string | null;
       x: number;
       y: number;
       z: number;
@@ -731,9 +703,13 @@ export class ReplayService {
         flashAlpha: p.flashAlpha,
       };
 
-      // Add player name if available
-      const name = playerNames?.get(p.steamId);
-      if (name) frame.name = name;
+      // Add player name - prefer from PlayerTick, fallback to playerNames map
+      if (p.name) {
+        frame.name = p.name;
+      } else {
+        const nameFromMap = playerNames?.get(p.steamId);
+        if (nameFromMap) frame.name = nameFromMap;
+      }
 
       // Add optional fields
       if (p.activeWeapon) frame.activeWeapon = p.activeWeapon;
@@ -776,23 +752,41 @@ export class ReplayService {
     });
 
     const events: ReplayEvent[] = [];
+    let eventIndex = 0;
 
     // Convert kills
     for (const kill of kills) {
-      const coords = this.convertToRadarCoords(
+      // Victim position (where the kill happened)
+      const victimCoords = this.convertToRadarCoords(
         kill.victimX,
         kill.victimY,
         kill.victimZ,
         mapConfig,
       );
 
+      // Attacker position (for kill line)
+      const attackerCoords = kill.attackerX !== null && kill.attackerY !== null
+        ? this.convertToRadarCoords(
+            kill.attackerX,
+            kill.attackerY,
+            kill.attackerZ ?? 0,
+            mapConfig,
+          )
+        : null;
+
       events.push({
+        id: `kill-${eventIndex++}`,
         type: "KILL",
         tick: kill.tick,
         time: 0, // Will be calculated by client
-        x: coords.x,
-        y: coords.y,
-        z: kill.victimZ,
+        // Attacker position at x,y (start of line)
+        x: attackerCoords?.x ?? victimCoords.x,
+        y: attackerCoords?.y ?? victimCoords.y,
+        z: kill.attackerZ ?? kill.victimZ,
+        // Victim position at endX,endY (end of line / skull)
+        endX: victimCoords.x,
+        endY: victimCoords.y,
+        endZ: kill.victimZ,
         attackerSteamId: kill.attackerSteamId ?? undefined,
         attackerName: kill.attackerName ?? undefined,
         victimSteamId: kill.victimSteamId,
@@ -817,6 +811,7 @@ export class ReplayService {
       const eventType = this.mapGrenadeType(nade.type);
       if (eventType) {
         events.push({
+          id: `nade-${eventIndex++}`,
           type: eventType,
           tick: nade.tick,
           time: 0,
@@ -829,7 +824,7 @@ export class ReplayService {
       }
     }
 
-    // Add replay events
+    // Add replay events (bomb plants, defuses, etc.)
     for (const event of replayEvents) {
       const coords = this.convertToRadarCoords(
         event.x,
@@ -839,6 +834,7 @@ export class ReplayService {
       );
 
       events.push({
+        id: `event-${eventIndex++}`,
         type: event.type as ReplayEvent["type"],
         tick: event.tick,
         time: 0,
@@ -858,7 +854,7 @@ export class ReplayService {
    */
   private mapGrenadeType(
     type: string,
-  ): "SMOKE_START" | "FLASH_EFFECT" | "HE_EXPLODE" | "MOLOTOV_START" | null {
+  ): "SMOKE_START" | "FLASH_EFFECT" | "HE_EXPLODE" | "MOLOTOV_START" | "DECOY_START" | null {
     switch (type) {
       case "SMOKE":
         return "SMOKE_START";
@@ -869,6 +865,8 @@ export class ReplayService {
       case "MOLOTOV":
       case "INCENDIARY":
         return "MOLOTOV_START";
+      case "DECOY":
+        return "DECOY_START";
       default:
         return null;
     }

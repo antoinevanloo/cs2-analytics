@@ -76,6 +76,7 @@ export type ReplayEventType =
   | "MOLOTOV_END"
   | "HE_EXPLODE"
   | "FLASH_EFFECT"
+  | "DECOY_START"
   | "GRENADE_THROW";
 
 // Replay event overlay
@@ -102,6 +103,7 @@ export function isGrenadeEvent(type: ReplayEventType): boolean {
     "MOLOTOV_END",
     "HE_EXPLODE",
     "FLASH_EFFECT",
+    "DECOY_START",
     "GRENADE_THROW",
   ].includes(type);
 }

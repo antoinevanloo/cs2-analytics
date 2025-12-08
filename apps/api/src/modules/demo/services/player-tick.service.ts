@@ -95,6 +95,7 @@ interface NormalizedPlayerTick {
   roundId: string | null;
   tick: number;
   steamId: string;
+  name: string | null; // Player display name
   // Position
   x: number;
   y: number;
@@ -170,7 +171,6 @@ interface ProcessingMetrics {
 // ============================================================================
 
 const BATCH_SIZE = 1000; // Optimal for PostgreSQL batch inserts
-const PROGRESS_LOG_INTERVAL = 10000;
 const VALID_TEAMS = new Set([2, 3]); // 2=T, 3=CT
 
 // ============================================================================
@@ -258,15 +258,6 @@ export class PlayerTickService {
         this.logger.warn(
           `Data quality issues: invalidSteamId=${metrics.invalidSteamId}, ` +
           `invalidTeam=${metrics.invalidTeam}, invalidCoords=${metrics.invalidCoords}`,
-        );
-      }
-
-      // Log soft validation metrics at debug level
-      const softClamps = metrics.clampedHealth + metrics.clampedArmor + metrics.clampedPitch + metrics.clampedFlashAlpha;
-      if (softClamps > 0) {
-        this.logger.debug(
-          `Soft validations applied: health=${metrics.clampedHealth}, armor=${metrics.clampedArmor}, ` +
-          `pitch=${metrics.clampedPitch}, flashAlpha=${metrics.clampedFlashAlpha}`,
         );
       }
 
@@ -446,11 +437,17 @@ export class PlayerTickService {
     // BUILD NORMALIZED OUTPUT
     // ========================================================================
 
+    // Extract player name (optional)
+    const name = player.name && typeof player.name === "string" && player.name.trim()
+      ? player.name.trim()
+      : null;
+
     return {
       demoId,
       roundId,
       tick,
       steamId,
+      name,
 
       // Position (validated above)
       x: rawX,
@@ -566,10 +563,6 @@ export class PlayerTickService {
       });
 
       inserted += batch.length;
-
-      if (inserted % PROGRESS_LOG_INTERVAL === 0) {
-        this.logger.debug(`Inserted ${inserted}/${ticks.length} player ticks`);
-      }
     }
 
     return inserted;

@@ -757,6 +757,7 @@ model PlayerTick {
 
   tick            Int
   steamId         String
+  name            String?  // Player display name (extracted from demo)
 
   // Position (in-game coordinates)
   // CS2 maps typically range: X/Y [-4000, 4000], Z [-500, 2000]
