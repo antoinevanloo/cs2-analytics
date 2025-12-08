@@ -28,10 +28,11 @@ model User {
   planExpiresAt DateTime?
 
   // Relations
-  teams         TeamMember[]
-  demos         Demo[]
-  analyses      Analysis[]
-  preferences   UserPreferences?
+  teams            TeamMember[]
+  demos            Demo[]
+  analyses         Analysis[]
+  preferences      UserPreferences?
+  steamMatchSync   SteamMatchSync?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -244,6 +245,9 @@ model Demo {
   // 2D Replay data
   playerTicks     PlayerTick[]
   replayEvents    ReplayEvent[]
+
+  // Steam import (optional source tracking)
+  steamMatch      SteamMatch?
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -902,4 +906,122 @@ enum ReplayEventType {
   FOOTSTEP
   SHOT_FIRED
   GRENADE_THROW
+}
+
+// ============================================================================
+// STEAM MATCH IMPORT
+// ============================================================================
+
+/// User's Steam import configuration
+/// Stores auth credentials and sync state per user
+model SteamMatchSync {
+  id                 String            @id @default(cuid())
+
+  // User reference
+  userId             String            @unique
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Steam authentication
+  steamId            String            // User's Steam ID (from their User record)
+  authCode           String            // Game authentication code (encrypted at app level)
+  lastShareCode      String?           // Last processed share code
+
+  // Sync state
+  status             SteamSyncStatus   @default(INACTIVE)
+  lastSyncAt         DateTime?
+  lastSyncError      String?
+  totalMatchesSynced Int               @default(0)
+
+  // Configuration
+  importPremier      Boolean           @default(true)
+  importCompetitive  Boolean           @default(true)
+  autoDownloadDemos  Boolean           @default(true)
+
+  // Relations
+  matches            SteamMatch[]
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([steamId])
+  @@index([status])
+}
+
+enum SteamSyncStatus {
+  INACTIVE      // Not configured
+  ACTIVE        // Ready to sync
+  SYNCING       // Currently syncing
+  ERROR         // Last sync failed
+  RATE_LIMITED  // Steam API rate limited
+}
+
+/// Individual Steam match metadata
+/// Links to Demo once downloaded and parsed
+model SteamMatch {
+  id                 String              @id @default(cuid())
+
+  // Match identification (from share code)
+  matchId            BigInt              @unique // Steam matchId decoded from share code
+  outcomeId          BigInt              // outcomeId from share code
+  token              Int                 // token from share code
+  shareCode          String              @unique // Original CSGO-xxxxx-xxxxx format
+
+  // Match metadata (from Game Coordinator response)
+  mapName            String?
+  matchTime          DateTime?           // When match was played
+  matchDuration      Int?                // Duration in seconds
+  gameMode           GameMode            @default(COMPETITIVE)
+  serverIp           String?
+
+  // Score info
+  team1Score         Int?
+  team2Score         Int?
+  matchResult        MatchResult?        // WIN, LOSS, TIE for the syncing user
+
+  // Download state
+  downloadStatus     MatchDownloadStatus @default(PENDING)
+  demoUrl            String?             // GC-provided download URL
+  demoUrlExpiresAt   DateTime?           // URLs expire after ~4 hours
+  downloadError      String?
+  downloadAttempts   Int                 @default(0)
+
+  // Progress tracking for UX/gamification
+  downloadProgress   Int                 @default(0)  // 0-100 percentage
+  downloadedBytes    BigInt?             // Bytes downloaded so far
+  totalBytes         BigInt?             // Total file size
+  currentStep        String?             // FETCHING_URL, DOWNLOADING, DECOMPRESSING, PARSING
+
+  // Relations
+  syncId             String
+  sync               SteamMatchSync      @relation(fields: [syncId], references: [id], onDelete: Cascade)
+  demoId             String?             @unique
+  demo               Demo?               @relation(fields: [demoId], references: [id])
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([syncId])
+  @@index([matchId])
+  @@index([downloadStatus])
+  @@index([matchTime])
+  @@index([syncId, downloadStatus])      // Filtered queries by sync + status
+}
+
+enum MatchDownloadStatus {
+  PENDING       // Discovered, not yet fetched URL
+  URL_FETCHED   // Have download URL from GC
+  DOWNLOADING   // Currently downloading
+  DOWNLOADED    // Demo file saved
+  PARSING       // Demo being parsed
+  COMPLETED     // Fully imported
+  FAILED        // Download failed
+  EXPIRED       // URL expired before download
+  UNAVAILABLE   // GC reports demo unavailable
+}
+
+enum MatchResult {
+  WIN
+  LOSS
+  TIE
 }

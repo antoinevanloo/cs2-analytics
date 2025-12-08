@@ -21,6 +21,7 @@ import { AggregationModule } from "./modules/aggregation/aggregation.module";
 import { ReplayModule } from "./modules/replay/replay.module";
 import { UserModule } from "./modules/user/user.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
+import { SteamImportModule } from "./modules/steam-import/steam-import.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -95,6 +96,7 @@ import { HealthController } from "./health.controller";
     ReplayModule,
     UserModule,
     OnboardingModule,
+    SteamImportModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -27,9 +27,11 @@ import {
   Download,
   HardDrive,
   AlertCircle,
+  Cloud,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { userApi, type UserPreferences } from "@/lib/api";
+import { SteamImportConfig } from "@/components/steam-import";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -281,6 +283,24 @@ export default function SettingsPage() {
           ))}
         </CardContent>
       </Card>
+
+      {/* Steam Match Import */}
+      {user?.steamId && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Cloud className="h-5 w-5 text-primary" />
+              <CardTitle>Steam Match Import</CardTitle>
+            </div>
+            <CardDescription>
+              Import your Premier and Competitive matches from Steam
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SteamImportConfig />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notifications */}
       <Card id="notifications">

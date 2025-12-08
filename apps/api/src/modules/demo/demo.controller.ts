@@ -15,7 +15,6 @@ import {
   Param,
   Body,
   Query,
-  ParseUUIDPipe,
   HttpStatus,
   Req,
   BadRequestException,
@@ -131,7 +130,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async parseDemo(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @Body() options: ParseOptionsDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
@@ -148,7 +147,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async retryDemo(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -201,7 +200,7 @@ export class DemoController {
     description: "Not authorized to re-parse this demo",
   })
   async reparseDemo(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @Body() options: ParseOptionsDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
@@ -242,7 +241,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async checkNeedsReparse(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -280,7 +279,7 @@ export class DemoController {
     description: "Demo is not in COMPLETED status",
   })
   async recomputeStats(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -296,7 +295,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getParseStatus(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -312,7 +311,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getDemo(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -338,7 +337,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getDemoEvents(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @Query("type") eventType?: string,
     @Query("round") round?: string,
     @CurrentUser() user?: AuthenticatedUser,
@@ -361,7 +360,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getDemoRounds(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -377,7 +376,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getDemoPlayers(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -400,7 +399,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getDemoTicks(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @Query("startTick") startTick?: number,
     @Query("endTick") endTick?: number,
     @Query("interval") interval?: number,
@@ -424,7 +423,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getDemoGrenades(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -440,7 +439,7 @@ export class DemoController {
     description: "Not authorized to access this demo",
   })
   async getDemoChatMessages(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.demoAccessService.assertCanAccessDemo(id, user);
@@ -493,7 +492,7 @@ export class DemoController {
     description: "Not authorized to delete this demo",
   })
   async deleteDemo(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.demoService.deleteDemo(id, user.id);

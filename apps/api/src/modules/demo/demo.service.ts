@@ -1417,6 +1417,21 @@ export class DemoService {
       this.logger.log(
         `Demo ${id} marked as completed with ${data.events?.length || 0} events, ${data.rounds?.length || 0} rounds, ${data.players?.length || 0} players, ${data.grenades?.length || 0} grenades, ${data.chat_messages?.length || 0} chat messages, ${data.ticks?.length || 0} ticks`,
       );
+
+      // Update linked SteamMatch status to COMPLETED (for Steam import gamification flow)
+      const linkedSteamMatch = await this.prisma.steamMatch.findUnique({
+        where: { demoId: id },
+      });
+      if (linkedSteamMatch) {
+        await this.prisma.steamMatch.update({
+          where: { id: linkedSteamMatch.id },
+          data: {
+            downloadStatus: "COMPLETED",
+            currentStep: null,
+          },
+        });
+        this.logger.log(`SteamMatch ${linkedSteamMatch.id} marked as COMPLETED`);
+      }
     } catch (error) {
       this.logger.error(`Failed to save demo ${id} data: ${error}`);
       throw error;

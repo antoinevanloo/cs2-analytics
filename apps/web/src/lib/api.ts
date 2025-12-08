@@ -772,6 +772,184 @@ export const userApi = {
     }),
 };
 
+// ============================================================================
+// Steam Import Types
+// ============================================================================
+
+export type SteamSyncStatus =
+  | "INACTIVE"
+  | "ACTIVE"
+  | "SYNCING"
+  | "ERROR"
+  | "RATE_LIMITED";
+
+export type MatchDownloadStatus =
+  | "PENDING"
+  | "URL_FETCHED"
+  | "DOWNLOADING"
+  | "DOWNLOADED"
+  | "PARSING"
+  | "COMPLETED"
+  | "FAILED"
+  | "EXPIRED"
+  | "UNAVAILABLE";
+
+export type MatchResult = "WIN" | "LOSS" | "TIE";
+
+export type GameMode =
+  | "COMPETITIVE"
+  | "PREMIER"
+  | "WINGMAN"
+  | "CASUAL"
+  | "DEATHMATCH"
+  | "CUSTOM"
+  | "UNKNOWN";
+
+export interface SteamSyncConfig {
+  id: string;
+  steamId: string;
+  status: SteamSyncStatus;
+  lastSyncAt: string | null;
+  lastSyncError: string | null;
+  totalMatchesSynced: number;
+  importPremier: boolean;
+  importCompetitive: boolean;
+  autoDownloadDemos: boolean;
+  createdAt: string;
+}
+
+export interface SteamMatch {
+  id: string;
+  shareCode: string;
+  mapName: string | null;
+  matchTime: string | null;
+  matchDuration: number | null;
+  gameMode: GameMode;
+  team1Score: number | null;
+  team2Score: number | null;
+  matchResult: MatchResult | null;
+  downloadStatus: MatchDownloadStatus;
+  demoId: string | null;
+  createdAt: string;
+  // Progress tracking for gamification UX
+  downloadProgress: number;        // 0-100 percentage
+  downloadedBytes: string | null;  // BigInt as string
+  totalBytes: string | null;       // BigInt as string
+  currentStep: string | null;      // FETCHING_URL, DOWNLOADING, DECOMPRESSING, PARSING
+}
+
+export interface SteamMatchListResponse {
+  matches: SteamMatch[];
+  pagination: PaginationInfo;
+}
+
+export interface SyncStatusResponse {
+  config: SteamSyncConfig | null;
+  isConfigured: boolean;
+  canSync: boolean;
+  recentMatches: SteamMatch[];
+}
+
+export interface SetupImportDto {
+  authCode: string;
+  initialShareCode: string;
+  importPremier?: boolean;
+  importCompetitive?: boolean;
+  autoDownloadDemos?: boolean;
+}
+
+export interface UpdateImportConfigDto {
+  authCode?: string;
+  importPremier?: boolean;
+  importCompetitive?: boolean;
+  autoDownloadDemos?: boolean;
+}
+
+// Steam Import endpoints
+export const steamImportApi = {
+  // Setup Steam import
+  setup: (dto: SetupImportDto): Promise<SteamSyncConfig> =>
+    fetchApi<SteamSyncConfig>("/v1/steam-import/setup", {
+      method: "POST",
+      body: JSON.stringify(dto),
+    }),
+
+  // Update configuration
+  updateConfig: (dto: UpdateImportConfigDto): Promise<SteamSyncConfig> =>
+    fetchApi<SteamSyncConfig>("/v1/steam-import/config", {
+      method: "POST",
+      body: JSON.stringify(dto),
+    }),
+
+  // Get sync status
+  getStatus: (): Promise<SyncStatusResponse> =>
+    fetchApi<SyncStatusResponse>("/v1/steam-import/status"),
+
+  // Disconnect Steam import
+  disconnect: (): Promise<{ success: boolean }> =>
+    fetchApi<{ success: boolean }>("/v1/steam-import/config", {
+      method: "DELETE",
+    }),
+
+  // Trigger manual sync
+  triggerSync: (): Promise<{ jobId: string; status: string }> =>
+    fetchApi<{ jobId: string; status: string }>("/v1/steam-import/sync", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  // List imported matches
+  listMatches: (params?: {
+    page?: number;
+    limit?: number;
+    status?: MatchDownloadStatus;
+    gameMode?: GameMode;
+  }): Promise<SteamMatchListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set("page", params.page.toString());
+    if (params?.limit) searchParams.set("limit", params.limit.toString());
+    if (params?.status) searchParams.set("status", params.status);
+    if (params?.gameMode) searchParams.set("gameMode", params.gameMode);
+
+    return fetchApi<SteamMatchListResponse>(
+      `/v1/steam-import/matches?${searchParams}`,
+    );
+  },
+
+  // Trigger download for a specific match
+  triggerDownload: (matchId: string): Promise<{ jobId: string }> =>
+    fetchApi<{ jobId: string }>(`/v1/steam-import/matches/${matchId}/download`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  // Remove an imported match
+  removeMatch: (matchId: string): Promise<{ success: boolean }> =>
+    fetchApi<{ success: boolean }>(`/v1/steam-import/matches/${matchId}`, {
+      method: "DELETE",
+    }),
+
+  // Refresh match info from GC for a single match
+  refreshMatchInfo: (
+    matchId: string,
+  ): Promise<{ success: boolean; updated: boolean; error?: string }> =>
+    fetchApi<{ success: boolean; updated: boolean; error?: string }>(
+      `/v1/steam-import/matches/${matchId}/refresh-info`,
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+
+  // Refresh info for all PENDING matches
+  refreshAllPendingInfo: (): Promise<{
+    total: number;
+    updated: number;
+    failed: number;
+  }> =>
+    fetchApi<{ total: number; updated: number; failed: number }>(
+      "/v1/steam-import/refresh-all-info",
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+};
+
 // Rating endpoints
 export const ratingsApi = {
   // Get all player ratings for a demo
