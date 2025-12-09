@@ -1,0 +1,290 @@
+/**
+ * Replay Event Generator - Creates ReplayEvents for 2D visualization
+ *
+ * Responsibility: Transform game events into ReplayEvent records
+ * optimized for frontend rendering (kill lines, bomb events, etc.)
+ *
+ * These events are separate from GameEvent for:
+ * - Performance: Only visualization-relevant events
+ * - Structure: Pre-processed coordinates and metadata
+ * - Frontend: Direct consumption without transformation
+ *
+ * Quality Checklist:
+ * ✅ Extensibility: Easy to add new event types
+ * ✅ Scalability: Batch inserts
+ * ✅ Exhaustivité: All visual event types
+ * ✅ Performance: Single pass, batch operations
+ * ✅ Stabilité: Full error handling
+ * ✅ Résilience: Handles missing coordinates
+ * ✅ Concurrence: Idempotent (deletes before insert)
+ * ✅ Paramétrable: Batch size configurable
+ */
+
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../../../common/prisma";
+import { ReplayEventType, Prisma } from "@prisma/client";
+import type {
+  Transformer,
+  TransformContext,
+  TransformResult,
+  DemoEvent,
+  RoundInfo,
+} from "../transformer.interface";
+
+@Injectable()
+export class ReplayEventGenerator implements Transformer {
+  readonly name = "ReplayEventGenerator";
+  readonly priority = 30; // After other extractors
+  readonly description = "Generates ReplayEvents for 2D visualization overlay";
+
+  private readonly logger = new Logger(ReplayEventGenerator.name);
+
+  /** Event type mapping from parser to database */
+  private readonly EVENT_TYPE_MAP: Record<string, ReplayEventType | null> = {
+    player_death: ReplayEventType.KILL,
+    bomb_planted: ReplayEventType.BOMB_PLANT,
+    bomb_defused: ReplayEventType.BOMB_DEFUSE,
+    bomb_exploded: ReplayEventType.BOMB_EXPLODE,
+    // player_hurt generates too many events, skip
+  };
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async shouldRun(ctx: TransformContext): Promise<boolean> {
+    // Check if we have events to process
+    const relevantEvents = ctx.events.filter(
+      (e) => e.event_name && this.EVENT_TYPE_MAP[e.event_name] !== undefined,
+    );
+
+    if (relevantEvents.length === 0) {
+      this.logger.debug(`No relevant events for demo ${ctx.demoId}`);
+      return false;
+    }
+
+    return true;
+  }
+
+  async transform(ctx: TransformContext): Promise<TransformResult> {
+    const startTime = Date.now();
+    const { demoId, events, rounds, options } = ctx;
+    const batchSize = options?.batchSize ?? 500;
+
+    try {
+      // Delete existing replay events for idempotency
+      const deleted = await this.prisma.replayEvent.deleteMany({
+        where: { demoId },
+      });
+
+      if (deleted.count > 0) {
+        this.logger.debug(
+          `Deleted ${deleted.count} existing ReplayEvents for demo ${demoId}`,
+        );
+      }
+
+      // Build round lookup
+      const findRoundForTick = (tick: number): RoundInfo | null => {
+        return rounds.find((r) => tick >= r.startTick && tick <= r.endTick) ?? null;
+      };
+
+      // Transform events
+      const replayEvents: Prisma.ReplayEventCreateManyInput[] = [];
+      const metrics = {
+        kills: 0,
+        bombPlants: 0,
+        bombDefuses: 0,
+        bombExplodes: 0,
+        skipped: 0,
+      };
+
+      for (const event of events) {
+        const eventType = this.EVENT_TYPE_MAP[event.event_name || ""];
+        if (!eventType) continue;
+
+        const round = findRoundForTick(event.tick ?? 0);
+        if (!round) {
+          metrics.skipped++;
+          continue;
+        }
+
+        const replayEvent = this.transformEvent(demoId, round.id, event, eventType);
+        if (replayEvent) {
+          replayEvents.push(replayEvent);
+
+          // Track metrics
+          switch (eventType) {
+            case ReplayEventType.KILL:
+              metrics.kills++;
+              break;
+            case ReplayEventType.BOMB_PLANT:
+              metrics.bombPlants++;
+              break;
+            case ReplayEventType.BOMB_DEFUSE:
+              metrics.bombDefuses++;
+              break;
+            case ReplayEventType.BOMB_EXPLODE:
+              metrics.bombExplodes++;
+              break;
+          }
+        }
+      }
+
+      // Batch insert
+      let inserted = 0;
+      for (let i = 0; i < replayEvents.length; i += batchSize) {
+        const batch = replayEvents.slice(i, i + batchSize);
+        await this.prisma.replayEvent.createMany({
+          data: batch,
+          skipDuplicates: true,
+        });
+        inserted += batch.length;
+      }
+
+      this.logger.log(
+        `Generated ${inserted} ReplayEvents for demo ${demoId} ` +
+          `(${metrics.kills} kills, ${metrics.bombPlants} plants, ${metrics.bombDefuses} defuses)`,
+      );
+
+      return {
+        transformer: this.name,
+        success: true,
+        recordsCreated: inserted,
+        processingTimeMs: Date.now() - startTime,
+        metrics,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to generate replay events for demo ${demoId}`, error);
+      return {
+        transformer: this.name,
+        success: false,
+        recordsCreated: 0,
+        processingTimeMs: Date.now() - startTime,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async rollback(ctx: TransformContext): Promise<void> {
+    await this.prisma.replayEvent.deleteMany({
+      where: { demoId: ctx.demoId },
+    });
+    this.logger.warn(`Rolled back ReplayEvents for demo ${ctx.demoId}`);
+  }
+
+  // ===========================================================================
+  // PRIVATE HELPERS
+  // ===========================================================================
+
+  /**
+   * Transform a game event into a replay event
+   */
+  private transformEvent(
+    demoId: string,
+    roundId: string,
+    event: DemoEvent,
+    eventType: ReplayEventType,
+  ): Prisma.ReplayEventCreateManyInput | null {
+    const baseEvent = {
+      demoId,
+      roundId,
+      type: eventType,
+      tick: event.tick ?? 0,
+    };
+
+    switch (eventType) {
+      case ReplayEventType.KILL:
+        return this.transformKillEvent(baseEvent, event);
+
+      case ReplayEventType.BOMB_PLANT:
+      case ReplayEventType.BOMB_DEFUSE:
+      case ReplayEventType.BOMB_EXPLODE:
+        return this.transformBombEvent(baseEvent, event);
+
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Transform a kill event for visualization
+   * Includes attacker position (start) and victim position (end) for kill line
+   */
+  private transformKillEvent(
+    base: { demoId: string; roundId: string; type: ReplayEventType; tick: number },
+    event: DemoEvent,
+  ): Prisma.ReplayEventCreateManyInput {
+    // Extract coordinates with fallback patterns
+    const attackerX = this.extractCoord(event, "attacker_X", "attacker_x", "attackerX");
+    const attackerY = this.extractCoord(event, "attacker_Y", "attacker_y", "attackerY");
+    const attackerZ = this.extractCoord(event, "attacker_Z", "attacker_z", "attackerZ");
+    const victimX = this.extractCoord(event, "user_X", "user_x", "victim_x", "victimX");
+    const victimY = this.extractCoord(event, "user_Y", "user_y", "victim_y", "victimY");
+    const victimZ = this.extractCoord(event, "user_Z", "user_z", "victim_z", "victimZ");
+
+    return {
+      ...base,
+      x: attackerX ?? 0,
+      y: attackerY ?? 0,
+      z: attackerZ ?? 0,
+      endX: victimX,
+      endY: victimY,
+      endZ: victimZ,
+      data: {
+        attackerSteamId: String(event.attacker_steamid ?? ""),
+        attackerName: String(event.attacker_name ?? ""),
+        victimSteamId: String(event.user_steamid ?? event.victim_steamid ?? ""),
+        victimName: String(event.user_name ?? event.victim_name ?? ""),
+        weapon: String(event.weapon ?? ""),
+        headshot: Boolean(event.headshot),
+        penetrated: Boolean(event.penetrated),
+        noscope: Boolean(event.noscope),
+        throughsmoke: Boolean(event.thrusmoke ?? event.throughsmoke),
+        attackerblind: Boolean(event.attackerblind),
+      },
+    };
+  }
+
+  /**
+   * Transform a bomb event for visualization
+   */
+  private transformBombEvent(
+    base: { demoId: string; roundId: string; type: ReplayEventType; tick: number },
+    event: DemoEvent,
+  ): Prisma.ReplayEventCreateManyInput {
+    // Bomb events use player position (the person planting/defusing)
+    const playerX = this.extractCoord(event, "user_X", "x", "player_x");
+    const playerY = this.extractCoord(event, "user_Y", "y", "player_y");
+    const playerZ = this.extractCoord(event, "user_Z", "z", "player_z");
+
+    return {
+      ...base,
+      x: playerX ?? 0,
+      y: playerY ?? 0,
+      z: playerZ ?? 0,
+      data: {
+        playerSteamId: String(
+          event.player_steamid ??
+            event.userid_steamid ??
+            event.user_steamid ??
+            "",
+        ),
+        playerName: String(
+          event.player_name ?? event.userid_name ?? event.user_name ?? "",
+        ),
+        site: String(event.site ?? ""),
+      },
+    };
+  }
+
+  /**
+   * Extract coordinate from event with multiple fallback field names
+   */
+  private extractCoord(event: DemoEvent, ...keys: string[]): number | null {
+    for (const key of keys) {
+      const value = event[key];
+      if (typeof value === "number" && !isNaN(value)) {
+        return value;
+      }
+    }
+    return null;
+  }
+}

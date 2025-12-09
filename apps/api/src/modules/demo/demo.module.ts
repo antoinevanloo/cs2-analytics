@@ -25,6 +25,7 @@ import { ArchivalService } from "./archival.service";
 import { PlayerTickService } from "./services/player-tick.service";
 import { AnalysisModule } from "../analysis/analysis.module";
 import { ParsingConfigService } from "../../common/config";
+import { TransformerModule } from "./transformers";
 
 @Module({
   imports: [
@@ -52,6 +53,8 @@ import { ParsingConfigService } from "../../common/config";
     }),
     // Import AnalysisModule to access the analysis queue
     forwardRef(() => AnalysisModule),
+    // Import TransformerModule for modular data transformations
+    TransformerModule,
   ],
   controllers: [DemoController],
   providers: [

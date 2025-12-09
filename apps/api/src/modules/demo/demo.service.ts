@@ -30,7 +30,6 @@ import {
   GameMode,
   GrenadeType,
   Prisma,
-  ReplayEventType,
 } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
@@ -44,6 +43,10 @@ import {
   PARSER_VERSION,
 } from "../../common/config";
 import { PlayerTickService } from "./services/player-tick.service";
+import { TransformerOrchestrator, type DemoEvent } from "./transformers";
+
+// Re-export DemoEvent for backwards compatibility with demo.processor
+export type { DemoEvent } from "./transformers";
 
 // Interfaces for parser data
 export interface DemoGrenade {
@@ -109,12 +112,7 @@ export interface DemoRound {
   bomb_exploded?: boolean;
 }
 
-export interface DemoEvent {
-  event_name?: string;
-  tick?: number;
-  round?: number;
-  [key: string]: unknown;
-}
+// Note: DemoEvent is imported from './transformers' module
 
 /**
  * Tick data from parser - supports both grouped and flat formats
@@ -193,6 +191,7 @@ export class DemoService {
     private prisma: PrismaService,
     private parsingConfig: ParsingConfigService,
     private playerTickService: PlayerTickService,
+    private transformerOrchestrator: TransformerOrchestrator,
   ) {
     this.demoStoragePath = this.configService.get(
       "DEMO_STORAGE_PATH",
@@ -1084,7 +1083,7 @@ export class DemoService {
         }
       }
 
-      // Get rounds for tick-to-round mapping (used by kills and grenades)
+      // Get rounds for tick-to-round mapping (used by grenades)
       const rounds = await this.prisma.round.findMany({
         where: { demoId: id },
         select: {
@@ -1099,149 +1098,6 @@ export class DemoService {
       const findRoundForTick = (tick: number) => {
         return rounds.find((r) => tick >= r.startTick && tick <= r.endTick);
       };
-
-      // Insert kills from player_death events
-      if (data.events?.length) {
-        const killEvents = data.events.filter(
-          (e) => e.event_name === "player_death",
-        );
-
-        if (killEvents.length > 0) {
-          // Track first kills per round for isFirstKill computation
-          const firstKillByRound = new Map<string, number>();
-
-          // Type for player_death event data
-          interface PlayerDeathData {
-            attacker_steamid?: string;
-            attacker_name?: string;
-            attacker_team?: number;
-            // Attacker position (from demoparser2 other=["X","Y","Z"])
-            attacker_X?: number;
-            attacker_Y?: number;
-            attacker_Z?: number;
-            attackerX?: number;  // Alternative format
-            attackerY?: number;
-            attackerZ?: number;
-            user_steamid?: string;
-            user_name?: string;
-            user_team?: number;
-            // Victim position (from demoparser2 player=["X","Y","Z"])
-            user_X?: number;
-            user_Y?: number;
-            user_Z?: number;
-            victimX?: number;  // Alternative format
-            victimY?: number;
-            victimZ?: number;
-            assister_steamid?: string;
-            assister_name?: string;
-            weapon?: string;
-            headshot?: boolean;
-            penetrated?: number;
-            noscope?: boolean;
-            thrusmoke?: boolean;
-            attackerblind?: boolean;
-            assistedflash?: boolean;
-            distance?: number;
-          }
-
-          // Prepare kill data with all fields
-          const killsData = killEvents
-            .map((e) => {
-              const round = findRoundForTick(e.tick || 0);
-              if (!round) return null;
-
-              // Cast event to typed structure - parser puts fields directly on event, not in nested data
-              const d = e as unknown as PlayerDeathData;
-
-              // Determine if this is first kill of the round
-              const existingFirstKill = firstKillByRound.get(round.id);
-              const isFirstKill = existingFirstKill === undefined;
-              if (isFirstKill) {
-                firstKillByRound.set(round.id, e.tick || 0);
-              }
-
-              // Extract attacker/victim from event data
-              const attackerSteamId = d.attacker_steamid || null;
-              const victimSteamId = d.user_steamid || "";
-              const attackerTeam = d.attacker_team;
-              const victimTeam = d.user_team ?? 0;
-
-              // Compute derived fields
-              const isSuicide =
-                !attackerSteamId || attackerSteamId === victimSteamId;
-              const isTeamkill =
-                !isSuicide &&
-                attackerTeam !== undefined &&
-                attackerTeam === victimTeam;
-
-              // Extract positions from demoparser2 format
-              // attacker_X/Y/Z for attacker, user_X/Y/Z for victim
-              const attackerX = d.attacker_X ?? d.attackerX ?? null;
-              const attackerY = d.attacker_Y ?? d.attackerY ?? null;
-              const attackerZ = d.attacker_Z ?? d.attackerZ ?? null;
-              const victimX = d.user_X ?? d.victimX ?? 0;
-              const victimY = d.user_Y ?? d.victimY ?? 0;
-              const victimZ = d.user_Z ?? d.victimZ ?? 0;
-
-              return {
-                demoId: id,
-                roundId: round.id,
-                tick: e.tick || 0,
-                // Attacker
-                attackerSteamId,
-                attackerName: d.attacker_name || null,
-                attackerTeam: attackerTeam ?? null,
-                attackerX: typeof attackerX === "number" ? attackerX : null,
-                attackerY: typeof attackerY === "number" ? attackerY : null,
-                attackerZ: typeof attackerZ === "number" ? attackerZ : null,
-                // Victim
-                victimSteamId,
-                victimName: d.user_name || "",
-                victimTeam,
-                victimX: typeof victimX === "number" ? victimX : 0,
-                victimY: typeof victimY === "number" ? victimY : 0,
-                victimZ: typeof victimZ === "number" ? victimZ : 0,
-                // Assister
-                assisterSteamId: d.assister_steamid || null,
-                assisterName: d.assister_name || null,
-                // Kill details
-                weapon: d.weapon || "unknown",
-                headshot: d.headshot ?? false,
-                penetrated: d.penetrated ?? 0,
-                noscope: d.noscope ?? false,
-                thrusmoke: d.thrusmoke ?? false,
-                attackerblind: d.attackerblind ?? false,
-                assistedflash: d.assistedflash ?? false,
-                // Computed
-                distance: d.distance ?? null,
-                isSuicide,
-                isTeamkill,
-                isFirstKill,
-                isTradeKill: false, // Will be computed in analysis phase
-                tradedWithin: null as number | null,
-              };
-            })
-            .filter((k): k is NonNullable<typeof k> => k !== null);
-
-          // Batch insert kills for performance
-          const killBatchSize = 500;
-          for (let i = 0; i < killsData.length; i += killBatchSize) {
-            const batch = killsData.slice(i, i + killBatchSize);
-            await this.prisma.kill.createMany({ data: batch });
-          }
-
-          this.logger.log(
-            `Inserted ${killsData.length} kills for demo ${id}`,
-          );
-        }
-      }
-
-      // =========================================================================
-      // COMPUTE AND INSERT ROUND PLAYER STATS
-      // =========================================================================
-      // This is critical for analytics - stats per player per round
-      // Computed from events (player_death, player_hurt) and round data
-      await this.computeAndInsertRoundPlayerStats(id, data.events || [], rounds);
 
       // Insert grenades
       if (data.grenades?.length) {
@@ -1300,118 +1156,29 @@ export class DemoService {
         }
       }
 
-      // Create ReplayEvents from game events for 2D visualization overlays
-      if (data.events?.length) {
-        // Get rounds for event-to-round mapping (reuse if already fetched)
-        const roundsForEvents = await this.prisma.round.findMany({
-          where: { demoId: id },
-          select: {
-            id: true,
-            startTick: true,
-            endTick: true,
-            roundNumber: true,
-          },
-          orderBy: { roundNumber: "asc" },
-        });
+      // =========================================================================
+      // RUN TRANSFORMERS (modular data transformations)
+      // =========================================================================
+      // Transformers handle: Kill extraction, RoundPlayerStats, Trades, Clutches, ReplayEvents
+      // Each transformer is isolated, testable, and extensible
+      const transformResult = await this.transformerOrchestrator.execute(
+        id,
+        data.events || [],
+      );
 
-        const findRoundForEvent = (tick: number) => {
-          return roundsForEvents.find(
-            (r) => tick >= r.startTick && tick <= r.endTick,
-          );
-        };
-
-        // Event type mapping
-        const eventTypeMap: Record<string, ReplayEventType | null> = {
-          player_death: ReplayEventType.KILL,
-          bomb_planted: ReplayEventType.BOMB_PLANT,
-          bomb_defused: ReplayEventType.BOMB_DEFUSE,
-          bomb_exploded: ReplayEventType.BOMB_EXPLODE,
-          // player_hurt creates too many events, skip for now
-        };
-
-        const replayEvents: Prisma.ReplayEventCreateManyInput[] = [];
-
-        for (const event of data.events) {
-          const eventType = eventTypeMap[event.event_name || ""];
-          if (!eventType) continue;
-
-          const round = findRoundForEvent(event.tick || 0);
-          if (!round) continue;
-
-          // Build replay event data based on event type
-          const baseEvent = {
-            demoId: id,
-            roundId: round.id,
-            type: eventType,
-            tick: event.tick || 0,
-          };
-
-          if (eventType === ReplayEventType.KILL) {
-            // Kill event - attacker position for visual overlay
-            replayEvents.push({
-              ...baseEvent,
-              x: (event.attacker_x as number) || 0,
-              y: (event.attacker_y as number) || 0,
-              z: (event.attacker_z as number) || 0,
-              endX: (event.victim_x as number) || null,
-              endY: (event.victim_y as number) || null,
-              endZ: (event.victim_z as number) || null,
-              data: {
-                attackerSteamId: String(event.attacker_steamid || ""),
-                attackerName: String(event.attacker_name || ""),
-                victimSteamId: String(event.victim_steamid || ""),
-                victimName: String(event.victim_name || ""),
-                weapon: String(event.weapon || ""),
-                headshot: Boolean(event.headshot),
-                penetrated: Boolean(event.penetrated),
-                noscope: Boolean(event.noscope),
-                throughsmoke: Boolean(event.throughsmoke),
-                attackerblind: Boolean(event.attackerblind),
-              },
-            });
-          } else if (
-            eventType === ReplayEventType.BOMB_PLANT ||
-            eventType === ReplayEventType.BOMB_DEFUSE ||
-            eventType === ReplayEventType.BOMB_EXPLODE
-          ) {
-            // Bomb events - player position comes from user_X/user_Y/user_Z (demoparser2 format)
-            // or x/y/z for backward compatibility
-            const playerX = (event.user_X as number) ?? (event.x as number) ?? 0;
-            const playerY = (event.user_Y as number) ?? (event.y as number) ?? 0;
-            const playerZ = (event.user_Z as number) ?? (event.z as number) ?? 0;
-
-            replayEvents.push({
-              ...baseEvent,
-              x: playerX,
-              y: playerY,
-              z: playerZ,
-              data: {
-                playerSteamId: String(
-                  event.player_steamid || event.userid_steamid || event.user_steamid || "",
-                ),
-                playerName: String(
-                  event.player_name || event.userid_name || event.user_name || "",
-                ),
-                site: String(event.site || ""),
-              },
-            });
-          }
-        }
-
-        // Batch insert replay events
-        if (replayEvents.length > 0) {
-          const replayEventBatchSize = 500;
-          for (let i = 0; i < replayEvents.length; i += replayEventBatchSize) {
-            const batch = replayEvents.slice(i, i + replayEventBatchSize);
-            await this.prisma.replayEvent.createMany({
-              data: batch,
-            });
-          }
-
-          this.logger.log(
-            `Created ${replayEvents.length} replay events for demo ${id}`,
-          );
-        }
+      if (!transformResult.success) {
+        this.logger.warn(
+          `Some transformers failed for demo ${id}: ` +
+            transformResult.results
+              .filter((r) => !r.success)
+              .map((r) => `${r.transformer}: ${r.error}`)
+              .join(", "),
+        );
+      } else {
+        this.logger.log(
+          `Transformers completed for demo ${id}: ` +
+            `${transformResult.summary.recordsCreated} records in ${transformResult.totalTimeMs}ms`,
+        );
       }
 
       this.logger.log(
@@ -1451,324 +1218,24 @@ export class DemoService {
   }
 
   // ===========================================================================
-  // ROUND PLAYER STATS COMPUTATION
+  // ROUND PLAYER STATS RECOMPUTATION
   // ===========================================================================
 
   /**
-   * Compute and insert RoundPlayerStats from game events
+   * Recompute stats for an existing demo using transformer orchestrator
    *
-   * This is critical for analytics accuracy. Stats per player per round enable:
-   * - HLTV Rating 2.0 calculation (requires per-round KDA)
-   * - KAST % (Kill/Assist/Survived/Traded per round)
-   * - ADR (Average Damage per Round)
-   * - Economy analysis (spending per round)
-   * - Clutch detection
+   * Use this to fix demos that were parsed before transformer system
+   * was implemented or to re-run specific transformers after algorithm updates.
    *
-   * Data sources:
-   * - player_death events → kills, deaths, assists, first kill/death
-   * - player_hurt events → damage dealt
-   * - round_freeze_end events → economy (equipValue, moneySpent)
+   * Delegates to TransformerOrchestrator.rerun() for modular, testable execution.
    *
-   * Design for extensibility:
-   * - Aggregates all stats in memory first (Map-based for O(1) lookups)
-   * - Single batch insert at the end (performance)
-   * - Graceful degradation if events are missing
+   * @param demoId - Demo ID to recompute
+   * @param transformerNames - Optional specific transformers to rerun (defaults to all stats transformers)
    */
-  private async computeAndInsertRoundPlayerStats(
+  async recomputeRoundPlayerStats(
     demoId: string,
-    events: DemoEvent[],
-    rounds: Array<{
-      id: string;
-      roundNumber: number;
-      startTick: number;
-      endTick: number;
-    }>,
-  ): Promise<void> {
-    if (rounds.length === 0) {
-      this.logger.warn(
-        `No rounds found for demo ${demoId}, skipping RoundPlayerStats`,
-      );
-      return;
-    }
-
-    const startTime = Date.now();
-
-    // Get players for this demo (we need steamId and teamNum)
-    const players = await this.prisma.matchPlayerStats.findMany({
-      where: { demoId },
-      select: { steamId: true, teamNum: true, playerName: true },
-    });
-
-    if (players.length === 0) {
-      this.logger.warn(
-        `No players found for demo ${demoId}, skipping RoundPlayerStats`,
-      );
-      return;
-    }
-
-    // Build player lookup: steamId -> { teamNum, name }
-    const playerLookup = new Map(
-      players.map((p) => [p.steamId, { teamNum: p.teamNum, name: p.playerName }]),
-    );
-
-    // Build round lookup: tick -> round
-    const findRoundForTick = (tick: number) => {
-      return rounds.find((r) => tick >= r.startTick && tick <= r.endTick);
-    };
-
-    // Initialize stats accumulator: Map<roundId, Map<steamId, stats>>
-    type PlayerRoundStats = {
-      steamId: string;
-      teamNum: number;
-      kills: number;
-      deaths: number;
-      assists: number;
-      damage: number;
-      equipValue: number;
-      moneySpent: number;
-      startBalance: number;
-      survived: boolean;
-      firstKill: boolean;
-      firstDeath: boolean;
-      clutchVs: number | null;
-      clutchWon: boolean | null;
-    };
-
-    const statsMap = new Map<string, Map<string, PlayerRoundStats>>();
-
-    // Initialize all player slots for all rounds
-    for (const round of rounds) {
-      const roundStats = new Map<string, PlayerRoundStats>();
-      for (const [steamId, playerInfo] of playerLookup) {
-        roundStats.set(steamId, {
-          steamId,
-          teamNum: playerInfo.teamNum,
-          kills: 0,
-          deaths: 0,
-          assists: 0,
-          damage: 0,
-          equipValue: 0,
-          moneySpent: 0,
-          startBalance: 0,
-          survived: true, // Assume survived until death event
-          firstKill: false,
-          firstDeath: false,
-          clutchVs: null,
-          clutchWon: null,
-        });
-      }
-      statsMap.set(round.id, roundStats);
-    }
-
-    // Track first kill/death per round
-    const firstKillByRound = new Map<string, boolean>();
-    const firstDeathByRound = new Map<string, boolean>();
-
-    // Process events in tick order for accurate first kill/death detection
-    const sortedEvents = [...events].sort(
-      (a, b) => (a.tick || 0) - (b.tick || 0),
-    );
-
-    for (const event of sortedEvents) {
-      const round = findRoundForTick(event.tick || 0);
-      if (!round) continue;
-
-      const roundStats = statsMap.get(round.id);
-      if (!roundStats) continue;
-
-      switch (event.event_name) {
-        case "player_death": {
-          const attackerSteamId = event.attacker_steamid as string | undefined;
-          const victimSteamId = event.user_steamid as string | undefined;
-          const assisterSteamId = event.assister_steamid as string | undefined;
-          const attackerTeam = event.attacker_team as number | undefined;
-          const victimTeam = event.user_team as number | undefined;
-
-          // Increment attacker kills (if not suicide/teamkill)
-          if (attackerSteamId && victimSteamId) {
-            const isSuicide = attackerSteamId === victimSteamId;
-            const isTeamkill =
-              !isSuicide &&
-              attackerTeam !== undefined &&
-              victimTeam !== undefined &&
-              attackerTeam === victimTeam;
-
-            if (!isSuicide && !isTeamkill) {
-              const attackerStats = roundStats.get(attackerSteamId);
-              if (attackerStats) {
-                attackerStats.kills++;
-
-                // Check first kill
-                if (!firstKillByRound.has(round.id)) {
-                  firstKillByRound.set(round.id, true);
-                  attackerStats.firstKill = true;
-                }
-              }
-            }
-          }
-
-          // Increment victim deaths
-          if (victimSteamId) {
-            const victimStats = roundStats.get(victimSteamId);
-            if (victimStats) {
-              victimStats.deaths++;
-              victimStats.survived = false;
-
-              // Check first death
-              if (!firstDeathByRound.has(round.id)) {
-                firstDeathByRound.set(round.id, true);
-                victimStats.firstDeath = true;
-              }
-            }
-          }
-
-          // Increment assister assists
-          if (assisterSteamId) {
-            const assisterStats = roundStats.get(assisterSteamId);
-            if (assisterStats) {
-              assisterStats.assists++;
-            }
-          }
-          break;
-        }
-
-        case "player_hurt": {
-          const attackerSteamId = event.attacker_steamid as string | undefined;
-          const damage = (event.dmg_health as number) || 0;
-
-          // Add damage (only from actual attackers, not world damage)
-          if (attackerSteamId && damage > 0) {
-            const attackerStats = roundStats.get(attackerSteamId);
-            if (attackerStats) {
-              attackerStats.damage += damage;
-            }
-          }
-          break;
-        }
-
-        case "round_freeze_end": {
-          // Economy data at freeze end (round start)
-          // This event contains player equipment values
-          // Note: demoparser2 may not expose per-player economy in events
-          // We'll extract from tick data if available in future enhancement
-          break;
-        }
-      }
-    }
-
-    // Detect clutches: player alone vs N enemies
-    // A clutch is when a player is the last alive on their team facing multiple enemies
-    for (const round of rounds) {
-      const roundStats = statsMap.get(round.id);
-      if (!roundStats) continue;
-
-      // Group players by team and count survivors
-      const team2Survivors: string[] = [];
-      const team3Survivors: string[] = [];
-
-      for (const [steamId, stats] of roundStats) {
-        if (stats.survived) {
-          if (stats.teamNum === 2) {
-            team2Survivors.push(steamId);
-          } else if (stats.teamNum === 3) {
-            team3Survivors.push(steamId);
-          }
-        }
-      }
-
-      // Check for clutch situations (1vN where N >= 1)
-      // We detect this from kill patterns: if a player got kills when alone
-      // For now, we mark based on round end survivors
-      // More accurate detection would require tracking alive counts during round
-
-      // Simple heuristic: if one team has 1 survivor and they got kills this round
-      // while the other team had more players at some point
-      const team2SurvivorId = team2Survivors[0];
-      if (team2Survivors.length === 1 && team2SurvivorId) {
-        const clutchPlayer = roundStats.get(team2SurvivorId);
-        if (clutchPlayer && clutchPlayer.kills > 0) {
-          // Count how many enemies died this round
-          let enemyDeaths = 0;
-          for (const [, stats] of roundStats) {
-            if (stats.teamNum === 3 && stats.deaths > 0) {
-              enemyDeaths++;
-            }
-          }
-          if (enemyDeaths >= 1) {
-            clutchPlayer.clutchVs = enemyDeaths;
-            clutchPlayer.clutchWon = team3Survivors.length === 0;
-          }
-        }
-      }
-
-      const team3SurvivorId = team3Survivors[0];
-      if (team3Survivors.length === 1 && team3SurvivorId) {
-        const clutchPlayer = roundStats.get(team3SurvivorId);
-        if (clutchPlayer && clutchPlayer.kills > 0) {
-          let enemyDeaths = 0;
-          for (const [, stats] of roundStats) {
-            if (stats.teamNum === 2 && stats.deaths > 0) {
-              enemyDeaths++;
-            }
-          }
-          if (enemyDeaths >= 1) {
-            clutchPlayer.clutchVs = enemyDeaths;
-            clutchPlayer.clutchWon = team2Survivors.length === 0;
-          }
-        }
-      }
-    }
-
-    // Convert to array for batch insert
-    const roundPlayerStatsData: Prisma.RoundPlayerStatsCreateManyInput[] = [];
-
-    for (const [roundId, playerStats] of statsMap) {
-      for (const [, stats] of playerStats) {
-        roundPlayerStatsData.push({
-          roundId,
-          steamId: stats.steamId,
-          teamNum: stats.teamNum,
-          kills: stats.kills,
-          deaths: stats.deaths,
-          assists: stats.assists,
-          damage: stats.damage,
-          equipValue: stats.equipValue,
-          moneySpent: stats.moneySpent,
-          startBalance: stats.startBalance,
-          survived: stats.survived,
-          firstKill: stats.firstKill,
-          firstDeath: stats.firstDeath,
-          clutchVs: stats.clutchVs,
-          clutchWon: stats.clutchWon,
-        });
-      }
-    }
-
-    // Batch insert for performance
-    if (roundPlayerStatsData.length > 0) {
-      const batchSize = 500;
-      for (let i = 0; i < roundPlayerStatsData.length; i += batchSize) {
-        const batch = roundPlayerStatsData.slice(i, i + batchSize);
-        await this.prisma.roundPlayerStats.createMany({
-          data: batch,
-          skipDuplicates: true,
-        });
-      }
-    }
-
-    const duration = Date.now() - startTime;
-    this.logger.log(
-      `Computed and inserted ${roundPlayerStatsData.length} RoundPlayerStats for demo ${demoId} in ${duration}ms`,
-    );
-  }
-
-  /**
-   * Recompute RoundPlayerStats for an existing demo
-   *
-   * Use this to fix demos that were parsed before RoundPlayerStats computation
-   * was implemented. Idempotent: deletes existing stats before recomputing.
-   */
-  async recomputeRoundPlayerStats(demoId: string): Promise<{
+    transformerNames?: string[],
+  ): Promise<{
     success: boolean;
     recordsCreated: number;
     durationMs: number;
@@ -1791,51 +1258,34 @@ export class DemoService {
       );
     }
 
-    // Get rounds
-    const rounds = await this.prisma.round.findMany({
-      where: { demoId },
-      select: { id: true, roundNumber: true, startTick: true, endTick: true },
-      orderBy: { roundNumber: "asc" },
-    });
+    // Default to stats-related transformers if none specified
+    const transformersToRun = transformerNames ?? [
+      "RoundStatsComputer",
+      "TradeDetector",
+      "ClutchDetector",
+    ];
 
-    // Get events from GameEvent table
-    const gameEvents = await this.prisma.gameEvent.findMany({
-      where: {
-        demoId,
-        eventName: { in: ["player_death", "player_hurt", "round_freeze_end"] },
-      },
-      select: { eventName: true, tick: true, data: true },
-    });
+    this.logger.log(
+      `Recomputing stats for demo ${demoId} with transformers: ${transformersToRun.join(", ")}`,
+    );
 
-    // Transform to DemoEvent format
-    const events: DemoEvent[] = gameEvents.map((e) => ({
-      event_name: e.eventName,
-      tick: e.tick,
-      ...(e.data as Record<string, unknown>),
-    }));
-
-    // Delete existing RoundPlayerStats for this demo
-    const deleteResult = await this.prisma.roundPlayerStats.deleteMany({
-      where: {
-        round: { demoId },
-      },
-    });
-
-    if (deleteResult.count > 0) {
-      this.logger.log(
-        `Deleted ${deleteResult.count} existing RoundPlayerStats for demo ${demoId}`,
-      );
-    }
-
-    // Recompute
-    await this.computeAndInsertRoundPlayerStats(demoId, events, rounds);
-
-    // Count new records
-    const newCount = await this.prisma.roundPlayerStats.count({
-      where: { round: { demoId } },
-    });
+    // Use orchestrator rerun - it fetches events from DB and runs specified transformers
+    const result = await this.transformerOrchestrator.rerun(
+      demoId,
+      transformersToRun,
+    );
 
     const duration = Date.now() - startTime;
+
+    if (!result.success) {
+      this.logger.warn(
+        `Recompute failed for demo ${demoId}: ` +
+          result.results
+            .filter((r) => !r.success)
+            .map((r) => `${r.transformer}: ${r.error}`)
+            .join(", "),
+      );
+    }
 
     // Also delete cached analysis so it gets recomputed with fresh data
     await this.prisma.analysis.deleteMany({
@@ -1843,12 +1293,12 @@ export class DemoService {
     });
 
     this.logger.log(
-      `Recomputed RoundPlayerStats for demo ${demoId}: ${newCount} records in ${duration}ms`,
+      `Recomputed stats for demo ${demoId}: ${result.summary.recordsCreated} records in ${duration}ms`,
     );
 
     return {
-      success: true,
-      recordsCreated: newCount,
+      success: result.success,
+      recordsCreated: result.summary.recordsCreated,
       durationMs: duration,
     };
   }
