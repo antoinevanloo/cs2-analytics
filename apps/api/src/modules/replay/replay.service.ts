@@ -611,6 +611,7 @@ export class ReplayService {
       money: number;
       flashDuration: number;
       flashAlpha: number;
+      inventory: string[];
     }>,
   ): Map<number, typeof ticks> {
     const groups = new Map<number, typeof ticks>();
@@ -661,6 +662,7 @@ export class ReplayService {
       money: number;
       flashDuration: number;
       flashAlpha: number;
+      inventory: string[];
     }>,
     startTick: number,
     tickRate: number,
@@ -714,6 +716,10 @@ export class ReplayService {
       // Add optional fields
       if (p.activeWeapon) frame.activeWeapon = p.activeWeapon;
       if (p.weaponAmmo !== null) frame.weaponAmmo = p.weaponAmmo;
+      // Add full inventory if available
+      if (p.inventory && p.inventory.length > 0) {
+        frame.inventory = p.inventory;
+      }
 
       return frame;
     });

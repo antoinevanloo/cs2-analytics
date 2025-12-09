@@ -1,8 +1,6 @@
 # CS2 Analytics - Docker Compose Configuration
 # Development and local testing setup
 
-version: "3.9"
-
 services:
   # ==========================================================================
   # Parser Service (Python)

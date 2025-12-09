@@ -22,12 +22,9 @@ export { KillFeed } from "./kill-feed";
 export { RoundHeader } from "./round-header";
 export { SettingsPanel } from "./settings-panel";
 
-// Weapon icons (professional CS2-style)
+// Weapon icons (Lexogrine pattern)
 export {
   CS2WeaponIcon,
-  TeamWeaponIcon,
-  WeaponLoadout,
   EquipmentBadge,
   normalizeWeaponName,
-  getWeaponDisplayName,
 } from "./cs2-weapon-icons";

@@ -155,7 +155,7 @@ export class DemoController {
   }
 
   @Post(":id/reparse")
-  @Roles("user")
+  // @Roles("user")
   @ApiOperation({
     summary: "Re-parse a demo with tick extraction enabled",
     description:

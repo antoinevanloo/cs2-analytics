@@ -66,6 +66,8 @@ interface RawPlayerState {
   has_defuse_kit?: boolean;
   has_bomb?: boolean;
   has_c4?: boolean;
+  // Full inventory (array of weapon names from demoparser2)
+  inventory?: string[] | string;
   // Economy
   balance?: number;
   money?: number;
@@ -124,6 +126,8 @@ interface NormalizedPlayerTick {
   hasDefuseKit: boolean;
   hasBomb: boolean;
   money: number;
+  // Full inventory for 2D replay display
+  inventory: string[];
   // Flash state
   flashDuration: number;
   flashAlpha: number; // new
@@ -196,6 +200,25 @@ function clamp(value: number, min: number, max: number): number {
  */
 function normalizeAngle(angle: number): number {
   return ((angle % 360) + 360) % 360;
+}
+
+/**
+ * Parse inventory from parser output
+ * Can be array or comma-separated string
+ */
+function parseInventory(inventory: string[] | string | undefined): string[] {
+  if (!inventory) return [];
+  if (Array.isArray(inventory)) {
+    return inventory.filter((w) => typeof w === "string" && w.length > 0);
+  }
+  if (typeof inventory === "string") {
+    // demoparser2 might return as comma-separated string
+    return inventory
+      .split(",")
+      .map((w) => w.trim())
+      .filter((w) => w.length > 0);
+  }
+  return [];
 }
 
 // ============================================================================
@@ -485,6 +508,8 @@ export class PlayerTickService {
         : null,
       hasDefuseKit: player.has_defuser ?? player.has_defuse_kit ?? false,
       hasBomb: player.has_bomb ?? player.has_c4 ?? false,
+      // Full inventory - can come as array or comma-separated string from parser
+      inventory: parseInventory(player.inventory),
 
       // Economy
       money: isValidNumber(player.balance)

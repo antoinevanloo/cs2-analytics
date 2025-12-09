@@ -797,6 +797,10 @@ model PlayerTick {
   hasBomb         Boolean  @default(false)
   money           Int      @default(0)
 
+  // Full inventory (array of weapon names for 2D replay display)
+  // e.g. ["weapon_ak47", "weapon_deagle", "weapon_flashbang", "weapon_smokegrenade"]
+  inventory       String[] @default([])
+
   // Flash state
   flashDuration   Float    @default(0)
   flashAlpha      Int      @default(0)  // Flash intensity 0-255 (0=none, 255=full blind)

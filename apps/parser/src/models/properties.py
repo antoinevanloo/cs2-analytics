@@ -278,6 +278,8 @@ HIGH_FREQUENCY_PROPS: Final[list[str]] = [
     "flash_alpha",
     "balance",
     "tick",
+    # Inventory for 2D replay full loadout display
+    "inventory",
 ]
 
 # Properties that change less frequently (can be sampled less often)

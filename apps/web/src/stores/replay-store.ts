@@ -50,6 +50,10 @@ export interface PlayerFrame {
   hasBomb: boolean;
   money: number;
 
+  // Full inventory (array of weapon names)
+  // e.g. ["weapon_ak47", "weapon_deagle", "weapon_flashbang", "weapon_smokegrenade"]
+  inventory?: string[];
+
   // Flash effects
   flashDuration: number;    // Remaining flash duration in seconds
   flashAlpha: number;       // Flash intensity 0-255 (0=none, 255=full blind)
