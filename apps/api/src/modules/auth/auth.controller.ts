@@ -338,11 +338,16 @@ export class AuthController {
 
   /**
    * Get current authenticated user profile
+   *
+   * Returns the user profile including onboarding status.
+   * The `onboardingCompleted` field determines post-login redirection:
+   * - true: redirect to dashboard or returnTo URL
+   * - false: redirect to onboarding flow
    */
   @Get("me")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get current user profile" })
-  @ApiResponse({ status: 200, description: "User profile" })
+  @ApiResponse({ status: 200, description: "User profile with onboarding status" })
   @ApiResponse({ status: 401, description: "Unauthorized" })
   async getProfile(@CurrentUser() user: AuthenticatedUser): Promise<{
     id: string;
@@ -352,8 +357,9 @@ export class AuthController {
     faceitId: string | null;
     roles: string[];
     avatar: string | null;
+    onboardingCompleted: boolean;
   }> {
-    // Fetch full user details from database
+    // Fetch full user details from database including onboarding status
     const fullProfile = await this.authService.getUserProfile(user.id);
     return fullProfile;
   }

@@ -24,6 +24,10 @@ import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
+// Feature flag to skip onboarding flow (useful when onboarding is incomplete)
+// Set NEXT_PUBLIC_SKIP_ONBOARDING=true in .env to bypass onboarding
+const SKIP_ONBOARDING = process.env.NEXT_PUBLIC_SKIP_ONBOARDING === "true";
+
 // Animation keyframes for the CS2 theme
 const pulseAnimation = "animate-pulse";
 
@@ -135,7 +139,12 @@ function AuthCallbackContent() {
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         // Redirect based on onboarding status and returnTo
-        if (user.onboardingCompleted) {
+        // Skip onboarding if:
+        // 1. SKIP_ONBOARDING feature flag is enabled, OR
+        // 2. User has completed onboarding (onboardingCompleted = true)
+        const shouldSkipOnboarding = SKIP_ONBOARDING || user.onboardingCompleted;
+
+        if (shouldSkipOnboarding) {
           // Check for stored returnTo path (set before OAuth redirect)
           const returnTo = sessionStorage.getItem("auth_return_to");
           sessionStorage.removeItem("auth_return_to");

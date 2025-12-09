@@ -237,6 +237,10 @@ export class AuthService {
 
   /**
    * Get user profile by ID
+   *
+   * Returns user profile with onboarding status for post-login redirection.
+   * If onboarding is not completed AND the onboarding feature is enabled,
+   * the frontend will redirect to /onboarding.
    */
   async getUserProfile(userId: string): Promise<{
     id: string;
@@ -246,6 +250,7 @@ export class AuthService {
     faceitId: string | null;
     roles: string[];
     avatar: string | null;
+    onboardingCompleted: boolean;
   }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -257,12 +262,25 @@ export class AuthService {
         faceitId: true,
         avatar: true,
         plan: true,
+        preferences: {
+          select: {
+            onboardingCompletedAt: true,
+          },
+        },
       },
     });
 
     if (!user) {
       throw new UnauthorizedException("User not found");
     }
+
+    // Onboarding is considered complete if:
+    // 1. User has preferences with onboardingCompletedAt set, OR
+    // 2. User has no preferences (skip onboarding for legacy users)
+    // This ensures existing users aren't forced into onboarding
+    const onboardingCompleted =
+      user.preferences?.onboardingCompletedAt !== null ||
+      user.preferences === null;
 
     return {
       id: user.id,
@@ -272,6 +290,7 @@ export class AuthService {
       faceitId: user.faceitId,
       roles: this.mapPlanToRoles(user.plan),
       avatar: user.avatar,
+      onboardingCompleted,
     };
   }
 
