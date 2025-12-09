@@ -18,6 +18,7 @@ import {
 } from "@/stores/preferences-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { userApi, type UpdatePreferencesDto } from "@/lib/api";
+import { useShallow } from "zustand/react/shallow";
 
 // Debounce time for preference updates (ms)
 const SAVE_DEBOUNCE_MS = 1000;
@@ -50,7 +51,41 @@ interface UsePreferencesReturn {
 
 export function usePreferences(): UsePreferencesReturn {
   const { isAuthenticated } = useAuthStore();
-  const store = usePreferencesStore();
+
+  // Use useShallow to prevent infinite re-renders - only re-render when values actually change
+  const {
+    preferences,
+    isLoading,
+    isSaving,
+    error,
+    setPreferences,
+    updatePreferences: storeUpdatePreferences,
+    setLoading,
+    setSaving,
+    setError,
+    markSynced,
+    setOnboardingStep,
+    markWelcomeSeen: storeMarkWelcomeSeen,
+    markTourCompleted: storeMarkTourCompleted,
+    completeOnboarding: storeCompleteOnboarding,
+  } = usePreferencesStore(
+    useShallow((state) => ({
+      preferences: state.preferences,
+      isLoading: state.isLoading,
+      isSaving: state.isSaving,
+      error: state.error,
+      setPreferences: state.setPreferences,
+      updatePreferences: state.updatePreferences,
+      setLoading: state.setLoading,
+      setSaving: state.setSaving,
+      setError: state.setError,
+      markSynced: state.markSynced,
+      setOnboardingStep: state.setOnboardingStep,
+      markWelcomeSeen: state.markWelcomeSeen,
+      markTourCompleted: state.markTourCompleted,
+      completeOnboarding: state.completeOnboarding,
+    })),
+  );
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingUpdatesRef = useRef<UpdatePreferencesDto>({});
@@ -59,12 +94,12 @@ export function usePreferences(): UsePreferencesReturn {
   const fetchPreferences = useCallback(async () => {
     if (!isAuthenticated) return;
 
-    store.setLoading(true);
-    store.setError(null);
+    setLoading(true);
+    setError(null);
 
     try {
       const prefs = await userApi.getPreferences();
-      store.setPreferences({
+      setPreferences({
         preferredRole: prefs.preferredRole,
         dashboardLayout:
           prefs.dashboardLayout as UserPreferences["dashboardLayout"],
@@ -84,40 +119,40 @@ export function usePreferences(): UsePreferencesReturn {
         profileVisibility: prefs.profileVisibility,
         shareStats: prefs.shareStats,
       });
-      store.markSynced();
-    } catch (error) {
-      store.setError(
-        error instanceof Error ? error.message : "Failed to fetch preferences",
+      markSynced();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch preferences",
       );
     } finally {
-      store.setLoading(false);
+      setLoading(false);
     }
-  }, [isAuthenticated, store]);
+  }, [isAuthenticated, setLoading, setError, setPreferences, markSynced]);
 
   // Debounced save to API
   const saveToApi = useCallback(async () => {
     if (Object.keys(pendingUpdatesRef.current).length === 0) return;
 
-    store.setSaving(true);
+    setSaving(true);
 
     try {
       await userApi.updatePreferences(pendingUpdatesRef.current);
       pendingUpdatesRef.current = {};
-      store.markSynced();
-    } catch (error) {
-      store.setError(
-        error instanceof Error ? error.message : "Failed to save preferences",
+      markSynced();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to save preferences",
       );
     } finally {
-      store.setSaving(false);
+      setSaving(false);
     }
-  }, [store]);
+  }, [setSaving, markSynced, setError]);
 
   // Update preferences with debounced API sync
   const updatePreferences = useCallback(
     async (updates: UpdatePreferencesDto) => {
       // Optimistic update in store
-      store.updatePreferences(updates as Partial<UserPreferences>);
+      storeUpdatePreferences(updates as Partial<UserPreferences>);
 
       // Accumulate pending updates
       pendingUpdatesRef.current = {
@@ -131,7 +166,7 @@ export function usePreferences(): UsePreferencesReturn {
       }
       saveTimeoutRef.current = setTimeout(saveToApi, SAVE_DEBOUNCE_MS);
     },
-    [store, saveToApi],
+    [storeUpdatePreferences, saveToApi],
   );
 
   // Set preferred role
@@ -145,53 +180,49 @@ export function usePreferences(): UsePreferencesReturn {
   // Complete onboarding step
   const completeOnboardingStep = useCallback(
     async (step: number) => {
-      store.setOnboardingStep(step);
+      setOnboardingStep(step);
       try {
         await userApi.updateOnboarding(step, false);
-      } catch (error) {
-        store.setError(
-          error instanceof Error
-            ? error.message
-            : "Failed to update onboarding",
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to update onboarding",
         );
       }
     },
-    [store],
+    [setOnboardingStep, setError],
   );
 
   // Mark welcome as seen
   const markWelcomeSeen = useCallback(async () => {
-    store.markWelcomeSeen();
+    storeMarkWelcomeSeen();
     try {
       await userApi.markWelcomeSeen();
-    } catch (error) {
-      store.setError(
-        error instanceof Error ? error.message : "Failed to mark welcome seen",
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to mark welcome seen",
       );
     }
-  }, [store]);
+  }, [storeMarkWelcomeSeen, setError]);
 
   // Mark tour as completed
   const markTourCompleted = useCallback(async () => {
-    store.markTourCompleted();
-    store.completeOnboarding();
+    storeMarkTourCompleted();
+    storeCompleteOnboarding();
     try {
       await userApi.markTourCompleted();
-    } catch (error) {
-      store.setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to mark tour completed",
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to mark tour completed",
       );
     }
-  }, [store]);
+  }, [storeMarkTourCompleted, storeCompleteOnboarding, setError]);
 
   // Initial fetch on mount (if authenticated)
   useEffect(() => {
-    if (isAuthenticated && !store.preferences) {
+    if (isAuthenticated && !preferences) {
       fetchPreferences();
     }
-  }, [isAuthenticated, store.preferences, fetchPreferences]);
+  }, [isAuthenticated, preferences, fetchPreferences]);
 
   // Periodic sync
   useEffect(() => {
@@ -216,16 +247,16 @@ export function usePreferences(): UsePreferencesReturn {
   }, [saveToApi]);
 
   return {
-    preferences: store.preferences,
-    preferredRole: store.preferences?.preferredRole ?? "PLAYER",
-    isLoading: store.isLoading,
-    isSaving: store.isSaving,
-    error: store.error,
+    preferences,
+    preferredRole: preferences?.preferredRole ?? "PLAYER",
+    isLoading,
+    isSaving,
+    error,
     fetchPreferences,
     updatePreferences,
     setPreferredRole,
-    isOnboardingComplete: store.preferences?.onboardingCompletedAt !== null,
-    onboardingStep: store.preferences?.onboardingStep ?? 0,
+    isOnboardingComplete: preferences?.onboardingCompletedAt !== null,
+    onboardingStep: preferences?.onboardingStep ?? 0,
     completeOnboardingStep,
     markWelcomeSeen,
     markTourCompleted,

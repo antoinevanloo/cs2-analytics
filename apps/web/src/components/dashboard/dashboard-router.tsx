@@ -102,12 +102,12 @@ export function DashboardRouter({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync with preferences when they change
+  // Sync with preferences when they change (only when not using initialRole)
   useEffect(() => {
-    if (!initialRole && preferredRole !== activeRole) {
+    if (!initialRole) {
       setActiveRole(preferredRole);
     }
-  }, [preferredRole, initialRole, activeRole]);
+  }, [preferredRole, initialRole]);
 
   // Fetch dashboard data
   const fetchDashboard = useCallback(async () => {
