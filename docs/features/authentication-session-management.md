@@ -474,9 +474,9 @@ Le refresh proactif maintient toujours un token valide, éliminant ce délai.
 ### Pourquoi un heartbeat en plus du refresh ?
 
 - **Refresh** : Maintient le token à jour (toutes les 4 min)
-- **Heartbeat** : Détecte les déconnexions réseau/serveur (toutes les 30s)
+- **Heartbeat** : Détecte les déconnexions réseau/serveur (toutes les 3 min)
 
-Le heartbeat permet de détecter rapidement si la connexion au serveur est perdue, même si le token est techniquement valide.
+Le heartbeat permet de détecter si la connexion au serveur est perdue, même si le token est techniquement valide. L'intervalle de 3 minutes est optimisé pour la scalabilité (33k req/min pour 100k users).
 
 ### Que se passe-t-il si l'utilisateur a plusieurs onglets ?
 
@@ -493,6 +493,83 @@ await fetch("/v1/auth/logout", {
 });
 // Le backend appelle revokeAllUserTokens()
 ```
+
+---
+
+## Troubleshooting
+
+### Erreur "Invalid refresh token" après mise à jour v2.0.1
+
+**Symptôme** : Après déploiement du fix v2.0.1, les utilisateurs existants reçoivent `401 Invalid refresh token`.
+
+**Cause** : Les sessions créées AVANT le fix contiennent un refresh token qui a été révoqué lors d'un précédent refresh (token rotation), mais le nouveau token n'a jamais été envoyé au client (bug corrigé).
+
+**Solution utilisateur** :
+```
+1. Se déconnecter (logout)
+2. Effacer les cookies si nécessaire :
+   Chrome DevTools → Application → Cookies → [domaine] → Supprimer "refresh_token"
+3. Se reconnecter (login)
+```
+
+**Solution admin (forcer re-login de tous les users)** :
+```bash
+# Vider tous les refresh tokens de Redis (force re-login)
+redis-cli KEYS "refresh_token:*" | xargs redis-cli DEL
+redis-cli KEYS "user_tokens:*" | xargs redis-cli DEL
+```
+
+### Token expire trop rapidement
+
+**Symptôme** : Le token semble expirer en quelques secondes/minutes au lieu de 1 heure.
+
+**Causes possibles** :
+1. **Désynchronisation d'horloge** : Vérifier que serveur et client ont la même heure
+2. **localStorage corrompu** : `expiresAt` mal calculé
+3. **Bug closure** (v2.0.0) : AuthManager utilisait l'ancien token après refresh
+
+**Diagnostic** :
+```typescript
+// Dans la console navigateur
+const store = JSON.parse(localStorage.getItem('cs2-auth-storage'));
+console.log('Token expires at:', new Date(store.state.tokens.expiresAt));
+console.log('Time remaining:', Math.round((store.state.tokens.expiresAt - Date.now()) / 1000), 'seconds');
+```
+
+### Déconnexion lors du changement d'onglet
+
+**Symptôme** : L'utilisateur est déconnecté quand il revient sur l'onglet après un moment.
+
+**Cause** : Le heartbeat était en pause (tab hidden) et le token a expiré sans refresh proactif.
+
+**Solution** : Le fix v2.0.1 vérifie immédiatement le token quand le tab redevient visible et déclenche un refresh si nécessaire.
+
+### Requêtes API échouent avec 401 mais pas de logout
+
+**Symptôme** : Les requêtes API retournent 401 mais l'utilisateur reste "connecté" dans l'UI.
+
+**Cause** : Le refresh automatique échoue silencieusement ou le state n'est pas synchronisé.
+
+**Diagnostic** :
+```typescript
+// Vérifier l'état de l'AuthManager
+import { authManager } from '@/stores/auth-store';
+console.log(authManager.getStatus());
+// {
+//   initialized: true,
+//   refreshTimerActive: true,
+//   metrics: { successRate: 95, ... }
+// }
+```
+
+### Logs serveur à surveiller
+
+| Pattern | Signification | Action |
+|---------|---------------|--------|
+| `Token has expired` | Access token expiré | Normal, doit être suivi d'un refresh |
+| `Invalid refresh token` | Token révoqué ou inexistant | User doit se reconnecter |
+| `Refresh token expired` | Token > 7 jours | User doit se reconnecter |
+| `User not found` | User supprimé de la DB | Nettoyer les tokens orphelins |
 
 ---
 
@@ -534,6 +611,18 @@ await fetch("/v1/auth/logout", {
 
 | Version | Date | Changements |
 |---------|------|-------------|
-| 2.0.1 | 2024-12-08 | Fix token rotation cookie + closure getTokens |
+| 2.0.1 | 2024-12-09 | **Breaking** : Fix token rotation cookie + closure getTokens. Sessions existantes invalides → re-login requis |
 | 2.0.0 | 2024-12 | Refonte complète : AuthManager, proactive refresh, heartbeat |
 | 1.0.0 | 2024-09 | Version initiale avec refresh réactif |
+
+### Notes de migration v2.0.1
+
+**Impact** : Les utilisateurs connectés avant cette version devront se reconnecter une fois.
+
+**Raison** : Le bug empêchait la mise à jour du cookie `refresh_token` lors du token rotation. Les tokens en circulation sont donc révoqués côté serveur mais toujours présents côté client.
+
+**Actions post-déploiement** :
+1. Redémarrer l'API pour charger le fix
+2. Optionnel : Notifier les utilisateurs qu'ils devront se reconnecter
+3. Monitorer les logs pour `Invalid refresh token` (attendu temporairement)
+4. Après 24-48h, le taux devrait revenir à ~0%
