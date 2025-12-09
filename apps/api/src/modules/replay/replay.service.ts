@@ -825,7 +825,12 @@ export class ReplayService {
     }
 
     // Add replay events (bomb plants, defuses, etc.)
+    // NOTE: KILL events are skipped here - they come from the Kill table above
+    // This filter handles legacy data where KILL was also stored in ReplayEvent
     for (const event of replayEvents) {
+      // Skip KILL events to avoid duplicates (Kill table is source of truth)
+      if (event.type === "KILL") continue;
+
       const coords = this.convertToRadarCoords(
         event.x,
         event.y,

@@ -8,10 +8,21 @@
  * - Frame stepping (forward/backward)
  * - Skip forward/backward (5s, 10s)
  * - Playback speed selector
- * - Overlay toggles
+ * - Overlay toggles (hidden on small screens - use Settings popover instead)
+ *
+ * Responsive behavior:
+ * - sm (<640px): Play controls + speed only
+ * - md+ (640px+): Full controls with overlay toggles
+ *
+ * Keyboard shortcuts handled here:
+ * - Space: Play/Pause
+ * - Arrow keys: Frame stepping
+ * - Shift+Arrow: 10s skip
+ * - 1-5: Speed presets
+ * - K/G/N/H/R: Overlay toggles
  */
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Play,
   Pause,
@@ -20,12 +31,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  EyeOff,
   Target,
   Skull,
   MessageSquare,
   Heart,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   useReplayStore,
   useIsPlaying,
@@ -47,8 +58,25 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function ReplayControls() {
+interface ReplayControlsProps {
+  className?: string;
+}
+
+export function ReplayControls({ className }: ReplayControlsProps) {
   const isPlaying = useIsPlaying();
+  const [showOverlayToggles, setShowOverlayToggles] = useState(true);
+
+  // Auto-detect if we should show overlay toggles based on screen width
+  useEffect(() => {
+    const updateShowOverlays = () => {
+      setShowOverlayToggles(window.innerWidth >= 640);
+    };
+
+    updateShowOverlays();
+    window.addEventListener("resize", updateShowOverlays);
+    return () => window.removeEventListener("resize", updateShowOverlays);
+  }, []);
+
   const {
     playbackState,
     playbackSpeed,
@@ -176,9 +204,12 @@ export function ReplayControls() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-4 p-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border rounded-lg">
+      <div className={cn(
+        "flex items-center gap-2 sm:gap-4 p-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border rounded-lg",
+        className
+      )}>
         {/* Playback controls */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -278,81 +309,85 @@ export function ReplayControls() {
           </Select>
         </div>
 
-        {/* Divider */}
-        <div className="h-6 w-px bg-border" />
+        {/* Overlay toggles - hidden on small screens (use Settings popover) */}
+        {showOverlayToggles && (
+          <>
+            {/* Divider */}
+            <div className="h-6 w-px bg-border" />
 
-        {/* Overlay toggles */}
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showKillLines ? "secondary" : "ghost"}
-                size="icon"
-                onClick={toggleKillLines}
-                disabled={isDisabled}
-              >
-                <Skull className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Toggle kill lines (K)</TooltipContent>
-          </Tooltip>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showKillLines ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={toggleKillLines}
+                    disabled={isDisabled}
+                  >
+                    <Skull className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Toggle kill lines (K)</TooltipContent>
+              </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showGrenades ? "secondary" : "ghost"}
-                size="icon"
-                onClick={toggleGrenades}
-                disabled={isDisabled}
-              >
-                <Target className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Toggle grenades (G)</TooltipContent>
-          </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showGrenades ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={toggleGrenades}
+                    disabled={isDisabled}
+                  >
+                    <Target className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Toggle grenades (G)</TooltipContent>
+              </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showPlayerNames ? "secondary" : "ghost"}
-                size="icon"
-                onClick={togglePlayerNames}
-                disabled={isDisabled}
-              >
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Toggle player names (N)</TooltipContent>
-          </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showPlayerNames ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={togglePlayerNames}
+                    disabled={isDisabled}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Toggle player names (N)</TooltipContent>
+              </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showHealthBars ? "secondary" : "ghost"}
-                size="icon"
-                onClick={toggleHealthBars}
-                disabled={isDisabled}
-              >
-                <Heart className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Toggle health bars (H)</TooltipContent>
-          </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showHealthBars ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={toggleHealthBars}
+                    disabled={isDisabled}
+                  >
+                    <Heart className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Toggle health bars (H)</TooltipContent>
+              </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={resetViewport}
-                disabled={isDisabled}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Reset zoom (R)</TooltipContent>
-          </Tooltip>
-        </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={resetViewport}
+                    disabled={isDisabled}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reset zoom (R)</TooltipContent>
+              </Tooltip>
+            </div>
+          </>
+        )}
       </div>
     </TooltipProvider>
   );

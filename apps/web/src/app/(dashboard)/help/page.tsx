@@ -173,16 +173,52 @@ const features = [
   },
 ];
 
-// Keyboard shortcuts
-const shortcuts = [
-  { keys: ["Space"], action: "Play/Pause replay" },
-  { keys: ["Left"], action: "Previous frame" },
-  { keys: ["Right"], action: "Next frame" },
-  { keys: ["["], action: "Previous round" },
-  { keys: ["]"], action: "Next round" },
-  { keys: ["F"], action: "Toggle fullscreen" },
-  { keys: ["1-9"], action: "Set playback speed" },
+// Keyboard shortcuts - organized by category
+const shortcutCategories = [
+  {
+    category: "Playback",
+    shortcuts: [
+      { keys: ["Space"], action: "Play/Pause replay" },
+      { keys: ["←"], action: "Previous frame" },
+      { keys: ["→"], action: "Next frame" },
+      { keys: ["Shift", "←"], action: "Skip back 10 seconds" },
+      { keys: ["Shift", "→"], action: "Skip forward 10 seconds" },
+      { keys: ["Ctrl", "←"], action: "Skip back 5 seconds" },
+      { keys: ["Ctrl", "→"], action: "Skip forward 5 seconds" },
+    ],
+  },
+  {
+    category: "Speed",
+    shortcuts: [
+      { keys: ["1"], action: "Speed 0.25x" },
+      { keys: ["2"], action: "Speed 0.5x" },
+      { keys: ["3"], action: "Speed 1x (normal)" },
+      { keys: ["4"], action: "Speed 2x" },
+      { keys: ["5"], action: "Speed 4x" },
+    ],
+  },
+  {
+    category: "Overlays",
+    shortcuts: [
+      { keys: ["K"], action: "Toggle kill lines" },
+      { keys: ["G"], action: "Toggle grenades" },
+      { keys: ["N"], action: "Toggle player names" },
+      { keys: ["H"], action: "Toggle health bars" },
+      { keys: ["R"], action: "Reset zoom/viewport" },
+    ],
+  },
+  {
+    category: "Navigation",
+    shortcuts: [
+      { keys: ["["], action: "Previous round" },
+      { keys: ["]"], action: "Next round" },
+      { keys: ["F"], action: "Toggle fullscreen" },
+    ],
+  },
 ];
+
+// Flat shortcuts for backward compatibility
+const shortcuts = shortcutCategories.flatMap((cat) => cat.shortcuts);
 
 export default function HelpPage() {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
@@ -319,26 +355,37 @@ export default function HelpPage() {
             Keyboard Shortcuts
           </CardTitle>
           <CardDescription>
-            Master the replay viewer with these shortcuts
+            Master the 2D replay viewer with these shortcuts
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {shortcuts.map((shortcut, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <div className="flex gap-1">
-                  {shortcut.keys.map((key) => (
-                    <kbd
-                      key={key}
-                      className="px-2 py-1 bg-muted border rounded text-xs font-mono"
-                    >
-                      {key}
-                    </kbd>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {shortcutCategories.map((category) => (
+              <div key={category.category} className="space-y-3">
+                <h4 className="text-sm font-semibold text-primary border-b pb-1">
+                  {category.category}
+                </h4>
+                <div className="space-y-2">
+                  {category.shortcuts.map((shortcut, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-muted-foreground">
+                        {shortcut.action}
+                      </span>
+                      <div className="flex gap-1 flex-shrink-0">
+                        {shortcut.keys.map((key, keyIdx) => (
+                          <span key={key} className="flex items-center gap-1">
+                            <kbd className="px-2 py-1 bg-muted border rounded text-xs font-mono min-w-[28px] text-center">
+                              {key}
+                            </kbd>
+                            {keyIdx < shortcut.keys.length - 1 && (
+                              <span className="text-muted-foreground text-xs">+</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  {shortcut.action}
-                </span>
               </div>
             ))}
           </div>

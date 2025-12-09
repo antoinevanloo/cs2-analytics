@@ -79,18 +79,62 @@ export type ReplayEventType =
   | "DECOY_START"
   | "GRENADE_THROW";
 
-// Replay event overlay
-export interface ReplayEvent {
+// Base replay event with common fields
+export interface ReplayEventBase {
   id: string;
   type: ReplayEventType;
   tick: number;
+  time: number;
   x: number;
   y: number;
   z: number;
-  data: Record<string, unknown>;
   endX?: number;
   endY?: number;
   endZ?: number;
+}
+
+// Kill event with all kill-specific fields
+export interface KillEvent extends ReplayEventBase {
+  type: "KILL";
+  attackerSteamId?: string;
+  attackerName?: string;
+  victimSteamId: string;
+  victimName: string;
+  weapon: string;
+  headshot: boolean;
+  noscope: boolean;
+  thrusmoke: boolean;
+  wallbang: boolean;
+}
+
+// Bomb events
+export interface BombEvent extends ReplayEventBase {
+  type: "BOMB_PLANT" | "BOMB_DEFUSE" | "BOMB_EXPLODE";
+  playerSteamId?: string;
+  playerName?: string;
+  site?: string;
+}
+
+// Grenade events
+export interface GrenadeReplayEvent extends ReplayEventBase {
+  type: "SMOKE_START" | "SMOKE_END" | "MOLOTOV_START" | "MOLOTOV_END" | "HE_EXPLODE" | "FLASH_EFFECT" | "DECOY_START" | "GRENADE_THROW" | "GRENADE";
+  throwerSteamId?: string;
+  grenadeType?: string;
+  radius?: number;
+  duration?: number;
+}
+
+// Union type for all replay events
+export type ReplayEvent = KillEvent | BombEvent | GrenadeReplayEvent | ReplayEventBase;
+
+// Type guard for kill events
+export function isKillEvent(event: ReplayEvent): event is KillEvent {
+  return event.type === "KILL";
+}
+
+// Type guard for bomb events
+export function isBombEvent(event: ReplayEvent): event is BombEvent {
+  return event.type === "BOMB_PLANT" || event.type === "BOMB_DEFUSE" || event.type === "BOMB_EXPLODE";
 }
 
 // Helper to check if an event is a grenade-related event

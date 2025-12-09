@@ -404,9 +404,8 @@ const KillLine = React.memo(function KillLine({
     canvasHeight,
   );
 
-  // Kill properties can be on event directly or in event.data
-  const headshot = (event as { headshot?: boolean }).headshot ??
-    (event.data as { headshot?: boolean })?.headshot ?? false;
+  // Kill properties are directly on event (KillEvent type)
+  const headshot = (event as { headshot?: boolean }).headshot ?? false;
 
   return (
     <Group>
@@ -500,11 +499,10 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
   canvasHeight,
   currentTick,
 }: GrenadeIndicatorProps) {
-  // Grenade type can be on event directly or in event.data
+  // Grenade type is directly on event (GrenadeReplayEvent type)
   const eventGrenadeType = (event as { grenadeType?: string }).grenadeType;
-  const dataGrenadeType = (event.data as { grenadeType?: string })?.grenadeType;
 
-  // Determine grenade type from event type or data
+  // Determine grenade type from event type or grenadeType field
   const getGrenadeType = (): string => {
     // First check event type for granular types
     switch (event.type) {
@@ -521,12 +519,11 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
       case "DECOY_START":
         return "decoy";
       case "GRENADE_THROW":
-        // Fall through to check data
+        // Fall through to check grenadeType field
         break;
     }
-    // Check grenadeType on event or in data
-    const rawType = eventGrenadeType || dataGrenadeType;
-    return rawType?.toLowerCase() || "hegrenade";
+    // Check grenadeType on event
+    return eventGrenadeType?.toLowerCase() || "hegrenade";
   };
 
   const grenadeType = getGrenadeType();
