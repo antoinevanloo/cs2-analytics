@@ -64,12 +64,26 @@ const EVENT_CONFIG: Record<string, EventTypeConfig> = {
     icon: "💣",
     priority: 9,
   },
+  BOMB_BEGIN_PLANT: {
+    color: "#d97706",
+    bgColor: "bg-amber-600",
+    label: "Planting...",
+    icon: "⏳",
+    priority: 7,
+  },
   BOMB_DEFUSE: {
     color: "#22c55e",
     bgColor: "bg-green-500",
     label: "Bomb Defused",
     icon: "✓",
     priority: 9,
+  },
+  BOMB_BEGIN_DEFUSE: {
+    color: "#16a34a",
+    bgColor: "bg-green-600",
+    label: "Defusing...",
+    icon: "⏳",
+    priority: 7,
   },
   BOMB_EXPLODE: {
     color: "#dc2626",
@@ -85,12 +99,26 @@ const EVENT_CONFIG: Record<string, EventTypeConfig> = {
     icon: "💨",
     priority: 5,
   },
+  SMOKE_END: {
+    color: "#6b7280",
+    bgColor: "bg-gray-500",
+    label: "Smoke Expired",
+    icon: "💨",
+    priority: 3,
+  },
   MOLOTOV_START: {
     color: "#f97316",
     bgColor: "bg-orange-500",
     label: "Molotov",
     icon: "🔥",
     priority: 5,
+  },
+  MOLOTOV_END: {
+    color: "#ea580c",
+    bgColor: "bg-orange-600",
+    label: "Fire Out",
+    icon: "🔥",
+    priority: 3,
   },
   HE_EXPLODE: {
     color: "#ef4444",
@@ -106,6 +134,13 @@ const EVENT_CONFIG: Record<string, EventTypeConfig> = {
     icon: "⚡",
     priority: 5,
   },
+  GRENADE_THROW: {
+    color: "#a3a3a3",
+    bgColor: "bg-neutral-400",
+    label: "Grenade Thrown",
+    icon: "🎯",
+    priority: 4,
+  },
   GRENADE: {
     color: "#f97316",
     bgColor: "bg-orange-500",
@@ -113,7 +148,79 @@ const EVENT_CONFIG: Record<string, EventTypeConfig> = {
     icon: "○",
     priority: 4,
   },
+  DECOY_START: {
+    color: "#22c55e",
+    bgColor: "bg-green-500",
+    label: "Decoy",
+    icon: "📢",
+    priority: 3,
+  },
 };
+
+// Weapon category icons for kill events
+const WEAPON_CATEGORY_ICONS: Record<string, string> = {
+  // Pistols
+  glock: "🔫",
+  usp_silencer: "🔫",
+  hkp2000: "🔫",
+  p250: "🔫",
+  elite: "🔫",
+  fiveseven: "🔫",
+  tec9: "🔫",
+  cz75a: "🔫",
+  deagle: "🦅",
+  revolver: "🎰",
+
+  // SMGs
+  mac10: "⚡",
+  mp9: "⚡",
+  mp7: "⚡",
+  mp5sd: "⚡",
+  ump45: "⚡",
+  p90: "⚡",
+  bizon: "⚡",
+
+  // Rifles
+  famas: "🎯",
+  galilar: "🎯",
+  ak47: "💀",
+  m4a1: "🎯",
+  m4a1_silencer: "🎯",
+  sg556: "🔭",
+  aug: "🔭",
+
+  // Snipers
+  ssg08: "🎯",
+  awp: "⚡",
+  g3sg1: "🔭",
+  scar20: "🔭",
+
+  // Shotguns
+  nova: "💨",
+  xm1014: "💨",
+  sawedoff: "💨",
+  mag7: "💨",
+
+  // Machine guns
+  m249: "🔥",
+  negev: "🔥",
+
+  // Other
+  knife: "🔪",
+  taser: "⚡",
+  hegrenade: "💥",
+  molotov: "🔥",
+  incgrenade: "🔥",
+  inferno: "🔥",
+};
+
+/**
+ * Get weapon icon from weapon name
+ */
+function getWeaponIcon(weapon: string): string {
+  const normalized = weapon.replace("weapon_", "").toLowerCase();
+  return WEAPON_CATEGORY_ICONS[normalized] || "☠";
+}
 
 // Get config for event type with fallback
 function getEventConfig(type: ReplayEventType | string): EventTypeConfig {
@@ -141,23 +248,54 @@ const TimelineMarker = React.memo(function TimelineMarker({
 }: TimelineMarkerProps) {
   const config = getEventConfig(event.type);
 
+  // Determine if this is a kill event for special rendering
+  const killEvent = isKillEvent(event) ? event : null;
+  const isHeadshot = killEvent?.headshot ?? false;
+  const isSpecialKill = killEvent?.noscope || killEvent?.thrusmoke || killEvent?.wallbang;
+
   // Get event details for tooltip
-  const getEventDetails = (): string => {
-    if (isKillEvent(event)) {
-      const attacker = event.attackerName || "Unknown";
-      const victim = event.victimName || "Unknown";
-      const weapon = (event.weapon || "").replace("weapon_", "");
-      const headshot = event.headshot ? " (HS)" : "";
-      return `${attacker} → ${victim} [${weapon}]${headshot}`;
+  const getEventDetails = (): React.ReactNode => {
+    if (killEvent) {
+      const attacker = killEvent.attackerName || "Unknown";
+      const victim = killEvent.victimName || "Unknown";
+      const weapon = (killEvent.weapon || "").replace("weapon_", "");
+      const badges: string[] = [];
+      if (killEvent.headshot) badges.push("🎯 HS");
+      if (killEvent.noscope) badges.push("🚫 Noscope");
+      if (killEvent.thrusmoke) badges.push("💨 Thru smoke");
+      if (killEvent.wallbang) badges.push("🧱 Wallbang");
+
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="text-red-400">{attacker}</span>
+            <span className="text-muted-foreground">→</span>
+            <span className="text-blue-400">{victim}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="px-1.5 py-0.5 bg-muted rounded">{weapon}</span>
+            {badges.map((badge, i) => (
+              <span key={i} className="text-yellow-400">{badge}</span>
+            ))}
+          </div>
+        </div>
+      );
     }
 
     if (isBombEvent(event)) {
       const player = event.playerName || "Unknown";
+      const site = event.site ? ` at ${event.site}` : "";
       if (event.type === "BOMB_PLANT") {
-        return `${player} planted the bomb`;
+        return `${player} planted the bomb${site}`;
       }
       if (event.type === "BOMB_DEFUSE") {
         return `${player} defused the bomb`;
+      }
+      if (event.type === "BOMB_BEGIN_PLANT") {
+        return `${player} started planting${site}`;
+      }
+      if (event.type === "BOMB_BEGIN_DEFUSE") {
+        return `${player} started defusing`;
       }
       return "Bomb exploded";
     }
@@ -165,37 +303,64 @@ const TimelineMarker = React.memo(function TimelineMarker({
     return config.label;
   };
 
+  // Determine marker style based on event type
+  const getMarkerStyle = (): { width: string; height: string; borderRadius: string } => {
+    if (killEvent) {
+      // Kills are larger, headshots even larger
+      return {
+        width: isHeadshot ? "10px" : "8px",
+        height: isHeadshot ? "10px" : "8px",
+        borderRadius: "50%",
+      };
+    }
+    if (event.type.startsWith("BOMB")) {
+      // Bomb events are square-ish
+      return { width: "8px", height: "8px", borderRadius: "2px" };
+    }
+    // Default: small circle
+    return { width: "6px", height: "6px", borderRadius: "50%" };
+  };
+
+  const markerStyle = getMarkerStyle();
+
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             className={cn(
-              "absolute top-0 h-full w-2 -translate-x-1/2 cursor-pointer",
-              "transition-all duration-150 hover:scale-150 hover:z-10",
-              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1"
+              "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer",
+              "transition-all duration-150 hover:scale-150 hover:z-20",
+              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
+              // Headshot kills get a pulsing animation
+              isHeadshot && "animate-pulse"
             )}
             style={{
               left: `${position}%`,
-              zIndex: config.priority,
+              zIndex: config.priority + (isHeadshot ? 5 : 0) + (isSpecialKill ? 3 : 0),
             }}
             onClick={() => onSeek(event.tick)}
           >
             <div
               className={cn(
-                "w-full h-full rounded-full opacity-80 hover:opacity-100",
-                config.bgColor
+                "opacity-90 hover:opacity-100",
+                config.bgColor,
+                // Special kills get a ring
+                isSpecialKill && "ring-2 ring-yellow-400 ring-offset-1 ring-offset-background"
               )}
+              style={markerStyle}
             />
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{config.icon}</span>
+              <span className="text-lg">
+                {killEvent ? getWeaponIcon(killEvent.weapon || "") : config.icon}
+              </span>
               <span className="font-medium">{config.label}</span>
             </div>
-            <p className="text-xs text-muted-foreground">{getEventDetails()}</p>
+            <div className="text-xs text-muted-foreground">{getEventDetails()}</div>
           </div>
         </TooltipContent>
       </Tooltip>

@@ -671,7 +671,13 @@ export class ReplayService {
     mapConfig: MapRadarConfig | null,
     playerNames?: Map<string, string>,
   ): TickFrame {
-    const playerFrames: PlayerFrame[] = players.map((p) => {
+    // Deduplicate players by steamId (keep last occurrence - most recent data)
+    const uniquePlayers = new Map<string, (typeof players)[number]>();
+    for (const player of players) {
+      uniquePlayers.set(player.steamId, player);
+    }
+
+    const playerFrames: PlayerFrame[] = Array.from(uniquePlayers.values()).map((p) => {
       const coords = this.convertToRadarCoords(p.x, p.y, p.z, mapConfig);
 
       const frame: PlayerFrame = {

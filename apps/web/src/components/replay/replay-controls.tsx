@@ -84,6 +84,7 @@ export function ReplayControls({ className }: ReplayControlsProps) {
     showGrenades,
     showPlayerNames,
     showHealthBars,
+    showTrails,
     togglePlay,
     nextFrame,
     previousFrame,
@@ -92,8 +93,10 @@ export function ReplayControls({ className }: ReplayControlsProps) {
     setPlaybackSpeed,
     toggleKillLines,
     toggleGrenades,
+    toggleTrajectories,
     togglePlayerNames,
     toggleHealthBars,
+    toggleTrails,
     resetViewport,
   } = useReplayStore();
 
@@ -171,6 +174,10 @@ export function ReplayControls({ className }: ReplayControlsProps) {
           e.preventDefault();
           toggleGrenades();
           break;
+        case "KeyJ":
+          e.preventDefault();
+          toggleTrajectories();
+          break;
         case "KeyN":
           e.preventDefault();
           togglePlayerNames();
@@ -178,6 +185,10 @@ export function ReplayControls({ className }: ReplayControlsProps) {
         case "KeyH":
           e.preventDefault();
           toggleHealthBars();
+          break;
+        case "KeyT":
+          e.preventDefault();
+          toggleTrails();
           break;
         case "KeyR":
           e.preventDefault();
@@ -197,8 +208,10 @@ export function ReplayControls({ className }: ReplayControlsProps) {
     setPlaybackSpeed,
     toggleKillLines,
     toggleGrenades,
+    toggleTrajectories,
     togglePlayerNames,
     toggleHealthBars,
+    toggleTrails,
     resetViewport,
   ]);
 

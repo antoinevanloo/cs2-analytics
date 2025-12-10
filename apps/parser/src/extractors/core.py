@@ -573,36 +573,52 @@ class DemoParser:
             return []
 
     def _extract_grenades(self, parser: DP2) -> list[dict[str, Any]]:
-        """Extract grenade trajectories."""
-        grenades = []
+        """Extract grenade trajectories using the full GrenadeExtractor.
 
-        grenade_events = [
-            "smokegrenade_detonate",
-            "flashbang_detonate",
-            "hegrenade_detonate",
-            "molotov_detonate",
-            "decoy_started",
-        ]
+        This includes:
+        - Throw events (weapon_fire) with position and angles
+        - Detonate events with entity_id for trajectory linking
+        - Expired events for smoke/molotov end times
+        - Flash blind data with entity-based linking
+        """
+        from src.extractors.grenades import GrenadeExtractor
 
-        for event_name in grenade_events:
-            try:
-                event_df = parser.parse_event(event_name)
-                if len(event_df) > 0:
-                    for _, row in event_df.iterrows():
-                        grenade_data = {
-                            "type": event_name.replace("_detonate", "").replace("_started", ""),
-                            "tick": int(row.get("tick", 0)),
-                            "X": float(row.get("x", 0)),
-                            "Y": float(row.get("y", 0)),
-                            "Z": float(row.get("z", 0)),
-                            "thrower_steamid": str(row.get("user_steamid", "")),
-                            "thrower_name": str(row.get("user_name", "")),
-                        }
-                        grenades.append(grenade_data)
-            except Exception:
-                pass
+        try:
+            extractor = GrenadeExtractor(parser)
+            return extractor.extract_all_grenades()
+        except Exception as e:
+            self.logger.warning("Failed to extract grenades with full extractor", error=str(e))
+            # Fallback to basic extraction
+            grenades = []
+            grenade_events = [
+                "smokegrenade_detonate",
+                "flashbang_detonate",
+                "hegrenade_detonate",
+                "molotov_detonate",
+                "decoy_started",
+            ]
 
-        return grenades
+            for event_name in grenade_events:
+                try:
+                    event_df = parser.parse_event(event_name)
+                    if len(event_df) > 0:
+                        for _, row in event_df.iterrows():
+                            grenade_data = {
+                                "type": event_name.replace("_detonate", "").replace("_started", ""),
+                                "event": "detonate" if "detonate" in event_name else "start",
+                                "tick": int(row.get("tick", 0)),
+                                "X": float(row.get("x", 0)),
+                                "Y": float(row.get("y", 0)),
+                                "Z": float(row.get("z", 0)),
+                                "thrower_steamid": str(row.get("user_steamid", "")),
+                                "thrower_name": str(row.get("user_name", "")),
+                                "entity_id": int(row.get("entityid", 0)),
+                            }
+                            grenades.append(grenade_data)
+                except Exception:
+                    pass
+
+            return grenades
 
     def _extract_chat(self, parser: DP2) -> list[dict[str, Any]]:
         """Extract chat messages."""

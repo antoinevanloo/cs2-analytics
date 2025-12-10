@@ -70,9 +70,12 @@ export interface TickFrame {
 // Replay event types - synchronized with API types
 export type ReplayEventType =
   | "KILL"
+  // Bomb events (including BEGIN for duration tracking)
   | "BOMB_PLANT"
   | "BOMB_DEFUSE"
   | "BOMB_EXPLODE"
+  | "BOMB_BEGIN_PLANT"
+  | "BOMB_BEGIN_DEFUSE"
   | "GRENADE"
   // Granular grenade types from API
   | "SMOKE_START"
@@ -112,12 +115,13 @@ export interface KillEvent extends ReplayEventBase {
   wallbang: boolean;
 }
 
-// Bomb events
+// Bomb events (including BEGIN events for duration tracking)
 export interface BombEvent extends ReplayEventBase {
-  type: "BOMB_PLANT" | "BOMB_DEFUSE" | "BOMB_EXPLODE";
+  type: "BOMB_PLANT" | "BOMB_DEFUSE" | "BOMB_EXPLODE" | "BOMB_BEGIN_PLANT" | "BOMB_BEGIN_DEFUSE";
   playerSteamId?: string;
   playerName?: string;
   site?: string;
+  hasKit?: boolean; // For defuse events: whether player has defuse kit
 }
 
 // Grenade events
@@ -139,7 +143,13 @@ export function isKillEvent(event: ReplayEvent): event is KillEvent {
 
 // Type guard for bomb events
 export function isBombEvent(event: ReplayEvent): event is BombEvent {
-  return event.type === "BOMB_PLANT" || event.type === "BOMB_DEFUSE" || event.type === "BOMB_EXPLODE";
+  return (
+    event.type === "BOMB_PLANT" ||
+    event.type === "BOMB_DEFUSE" ||
+    event.type === "BOMB_EXPLODE" ||
+    event.type === "BOMB_BEGIN_PLANT" ||
+    event.type === "BOMB_BEGIN_DEFUSE"
+  );
 }
 
 // Helper to check if an event is a grenade-related event
@@ -253,8 +263,13 @@ interface ReplayState {
   // Show/hide overlays
   showKillLines: boolean;
   showGrenades: boolean;
+  showTrajectories: boolean; // Grenade throw→detonate trajectories (separate from effects)
   showPlayerNames: boolean;
   showHealthBars: boolean;
+  showTrails: boolean;
+
+  // Trail settings
+  trailLength: number; // Number of frames to show in trail (default: 30 = ~4 seconds)
 
   // Error state
   error: string | null;
@@ -286,8 +301,11 @@ interface ReplayState {
 
   toggleKillLines: () => void;
   toggleGrenades: () => void;
+  toggleTrajectories: () => void;
   togglePlayerNames: () => void;
   toggleHealthBars: () => void;
+  toggleTrails: () => void;
+  setTrailLength: (length: number) => void;
 
   reset: () => void;
   setError: (error: string | null) => void;
@@ -313,8 +331,11 @@ const initialState = {
   viewportOffsetY: 0,
   showKillLines: true,
   showGrenades: true,
+  showTrajectories: true, // Grenade throw→detonate arc lines
   showPlayerNames: true,
   showHealthBars: true,
+  showTrails: false, // Off by default - can be performance intensive
+  trailLength: 30, // ~4 seconds at 8 tick sample interval (30 * 8 / 64 = 3.75s)
   error: null,
 };
 
@@ -535,12 +556,26 @@ export const useReplayStore = create<ReplayState>()(
       set((state) => ({ showGrenades: !state.showGrenades }));
     },
 
+    toggleTrajectories: () => {
+      set((state) => ({ showTrajectories: !state.showTrajectories }));
+    },
+
     togglePlayerNames: () => {
       set((state) => ({ showPlayerNames: !state.showPlayerNames }));
     },
 
     toggleHealthBars: () => {
       set((state) => ({ showHealthBars: !state.showHealthBars }));
+    },
+
+    toggleTrails: () => {
+      set((state) => ({ showTrails: !state.showTrails }));
+    },
+
+    setTrailLength: (length: number) => {
+      // Clamp between 10 (~1.25s) and 80 (~10s)
+      const clampedLength = Math.max(10, Math.min(80, length));
+      set({ trailLength: clampedLength });
     },
 
     reset: () => {

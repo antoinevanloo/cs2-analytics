@@ -82,14 +82,20 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
     playbackSpeed,
     showKillLines,
     showGrenades,
+    showTrajectories,
     showPlayerNames,
     showHealthBars,
+    showTrails,
+    trailLength,
     viewportScale,
     setPlaybackSpeed,
     toggleKillLines,
     toggleGrenades,
+    toggleTrajectories,
     togglePlayerNames,
     toggleHealthBars,
+    toggleTrails,
+    setTrailLength,
     setViewport,
     resetViewport,
   } = useReplayStore();
@@ -106,8 +112,12 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
             <Switch checked={showKillLines} onCheckedChange={toggleKillLines} />
           </SettingRow>
 
-          <SettingRow label="Grenades" shortcut="G" description="Show grenade effects">
+          <SettingRow label="Grenades" shortcut="G" description="Show grenade detonation effects">
             <Switch checked={showGrenades} onCheckedChange={toggleGrenades} />
+          </SettingRow>
+
+          <SettingRow label="Trajectories" shortcut="J" description="Show grenade throw arcs">
+            <Switch checked={showTrajectories} onCheckedChange={toggleTrajectories} />
           </SettingRow>
 
           <SettingRow label="Player Names" shortcut="N" description="Show names above players">
@@ -117,7 +127,32 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
           <SettingRow label="Health Bars" shortcut="H" description="Show health above players">
             <Switch checked={showHealthBars} onCheckedChange={toggleHealthBars} />
           </SettingRow>
+
+          <SettingRow label="Movement Trails" shortcut="T" description="Show player movement history">
+            <Switch checked={showTrails} onCheckedChange={toggleTrails} />
+          </SettingRow>
         </div>
+
+        {/* Trail length slider - only shown when trails are enabled */}
+        {showTrails && (
+          <div className="pt-2">
+            <SettingRow
+              label="Trail Length"
+              description={`${Math.round(trailLength * 8 / 64)}s of movement history`}
+            >
+              <div className="w-24">
+                <Slider
+                  value={[trailLength]}
+                  onValueChange={([value]) => setTrailLength(value)}
+                  min={10}
+                  max={80}
+                  step={5}
+                  className="w-full"
+                />
+              </div>
+            </SettingRow>
+          </div>
+        )}
       </div>
 
       {/* Playback section */}

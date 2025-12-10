@@ -1120,29 +1120,53 @@ export class DemoService {
         const throwEvents = data.grenades.filter(g => g.event === "throw");
         const detonateEvents = data.grenades.filter(g => g.event !== "throw");
 
-        // Index throw events by type + steamId + approximate tick for linking
-        const throwIndex = new Map<string, typeof throwEvents[number]>();
+        // Index ALL throw events by type + steamId, keeping array of throws sorted by tick
+        const throwIndex = new Map<string, Array<typeof throwEvents[number]>>();
         for (const t of throwEvents) {
-          // Key: type_steamId (will find closest tick)
           const key = `${t.type}_${t.thrower_steamid}`;
-          const existing = throwIndex.get(key);
-          // Keep most recent throw for each type/player combo
-          if (!existing || (t.tick || 0) > (existing.tick || 0)) {
-            throwIndex.set(key, t);
-          }
+          const existing = throwIndex.get(key) || [];
+          existing.push(t);
+          throwIndex.set(key, existing);
+        }
+        // Sort each array by tick (ascending)
+        for (const throws of throwIndex.values()) {
+          throws.sort((a, b) => (a.tick || 0) - (b.tick || 0));
         }
 
-        // Find matching throw for a detonate event (within ~5 seconds = 320 ticks at 64 tick)
+        // Track used throws to prevent double-matching
+        const usedThrows = new Set<number>();
+
+        // Find matching throw for a detonate event
+        // Finds the closest unused throw BEFORE the detonate (within 400 ticks)
         const findMatchingThrow = (g: typeof detonateEvents[number]) => {
           const key = `${g.type}_${g.thrower_steamid}`;
-          const throwEvent = throwIndex.get(key);
-          if (!throwEvent) return null;
-          const tickDiff = (g.tick || 0) - (throwEvent.tick || 0);
-          // Grenade flight time: typically 1-5 seconds
-          if (tickDiff > 0 && tickDiff < 400) {
-            return throwEvent;
+          const throws = throwIndex.get(key);
+          if (!throws || throws.length === 0) return null;
+
+          const detonateTick = g.tick || 0;
+          let bestMatch: typeof throwEvents[number] | null = null;
+          let bestDiff = Infinity;
+
+          // Find closest unused throw before detonate
+          for (const t of throws) {
+            const throwTick = t.tick || 0;
+            const tickDiff = detonateTick - throwTick;
+
+            // Must be before detonate and within 400 ticks (~6 seconds)
+            if (tickDiff > 0 && tickDiff < 400 && !usedThrows.has(throwTick)) {
+              if (tickDiff < bestDiff) {
+                bestDiff = tickDiff;
+                bestMatch = t;
+              }
+            }
           }
-          return null;
+
+          // Mark as used
+          if (bestMatch) {
+            usedThrows.add(bestMatch.tick || 0);
+          }
+
+          return bestMatch;
         };
 
         // Insert detonate/expired events with trajectory data

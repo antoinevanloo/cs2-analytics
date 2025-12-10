@@ -38,6 +38,7 @@ import {
   useCurrentFrame,
   isGrenadeEvent,
   type PlayerFrame,
+  type TickFrame,
   type ReplayEvent,
   type MapConfig,
   type ReplayEventType,
@@ -59,7 +60,7 @@ const GRENADE_CONFIG: Record<string, { color: string; icon: string; label: strin
   flashbang: { color: "#ffee00", icon: "⚡", label: "FLASH", glowColor: "#ffffaa" },
   hegrenade: { color: "#ff3333", icon: "💥", label: "HE", glowColor: "#ff6666" },
   molotov: { color: "#ff6600", icon: "🔥", label: "MOLLY", glowColor: "#ffaa00" },
-  incgrenade: { color: "#ff6600", icon: "🔥", label: "INCEN", glowColor: "#ffaa00" },
+  incendiary: { color: "#ff6600", icon: "🔥", label: "INCEN", glowColor: "#ffaa00" },
   decoy: { color: "#44ff44", icon: "📢", label: "DECOY", glowColor: "#88ff88" },
 };
 
@@ -83,6 +84,11 @@ const SPEED_RUNNING_MIN = 200; // Minimum running speed
 // Movement indicator constants
 const MOVEMENT_INDICATOR_LENGTH = 12; // Arrow length for movement direction
 const MOVEMENT_INDICATOR_MIN_SPEED = 50; // Minimum speed to show indicator
+
+// Trail constants
+const TRAIL_MIN_DISTANCE = 2; // Minimum pixel distance between trail points (reduces clutter)
+const TRAIL_POINT_RADIUS = 2; // Size of trail dots
+const TRAIL_LINE_WIDTH = 2; // Width of trail lines
 
 /**
  * Convert radar coordinates to canvas coordinates
@@ -348,6 +354,146 @@ const PlayerMarker = React.memo(function PlayerMarker({
   );
 });
 
+// =============================================================================
+// PLAYER TRAIL COMPONENT
+// =============================================================================
+
+/**
+ * Trail position point with opacity based on age
+ */
+interface TrailPoint {
+  x: number;
+  y: number;
+  opacity: number;
+}
+
+/**
+ * PlayerTrail - Renders movement history as a fading trail
+ *
+ * Features:
+ * - Gradient opacity (recent = bright, old = faded)
+ * - Team-colored trail
+ * - Minimum distance filter to reduce visual clutter
+ * - Optimized for performance with memoization
+ *
+ * @quality
+ * - Extensibilité: Easy to add trail styles (dotted, solid, gradient)
+ * - Scalabilité: O(n) where n = trailLength, memoized
+ * - Performance: <1ms render per player
+ */
+interface PlayerTrailProps {
+  steamId: string;
+  team: number;
+  frames: TickFrame[];
+  currentFrameIndex: number;
+  trailLength: number;
+  mapConfig: MapConfig;
+  canvasWidth: number;
+  canvasHeight: number;
+  isFocused: boolean;
+}
+
+const PlayerTrail = React.memo(function PlayerTrail({
+  steamId,
+  team,
+  frames,
+  currentFrameIndex,
+  trailLength,
+  mapConfig,
+  canvasWidth,
+  canvasHeight,
+  isFocused,
+}: PlayerTrailProps) {
+  // Calculate trail points from recent frames
+  const trailPoints = useMemo(() => {
+    const points: TrailPoint[] = [];
+    const startIndex = Math.max(0, currentFrameIndex - trailLength);
+
+    let lastX = -999;
+    let lastY = -999;
+
+    for (let i = startIndex; i <= currentFrameIndex; i++) {
+      const frame = frames[i];
+      if (!frame) continue;
+
+      const player = frame.players.find((p) => p.steamId === steamId);
+      if (!player || !player.isAlive) continue;
+
+      const pos = radarToCanvas(
+        player.x,
+        player.y,
+        mapConfig,
+        canvasWidth,
+        canvasHeight,
+      );
+
+      // Filter out points that are too close together (reduces clutter)
+      const dist = Math.sqrt(
+        (pos.x - lastX) ** 2 + (pos.y - lastY) ** 2
+      );
+      if (dist < TRAIL_MIN_DISTANCE && i !== currentFrameIndex) continue;
+
+      // Calculate opacity based on age (0 = oldest, 1 = newest)
+      const age = (i - startIndex) / Math.max(1, currentFrameIndex - startIndex);
+      const opacity = 0.1 + age * 0.6; // Range: 0.1 to 0.7
+
+      points.push({ x: pos.x, y: pos.y, opacity });
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    return points;
+  }, [steamId, frames, currentFrameIndex, trailLength, mapConfig, canvasWidth, canvasHeight]);
+
+  // Need at least 2 points for a trail
+  if (trailPoints.length < 2) return null;
+
+  // Team color with reduced saturation for trail
+  const isCT = team === 3;
+  const trailColor = isCT ? "#4a6a9e" : "#c88a2a";
+  const focusedColor = isCT ? "#7a9ace" : "#e8ba5a";
+  const color = isFocused ? focusedColor : trailColor;
+
+  // Convert to line points for Konva
+  const linePoints = trailPoints.flatMap((p) => [p.x, p.y]);
+
+  // Average opacity for the line
+  const avgOpacity = trailPoints.reduce((sum, p) => sum + p.opacity, 0) / trailPoints.length;
+
+  return (
+    <Group>
+      {/* Trail line with gradient effect via opacity */}
+      <Line
+        points={linePoints}
+        stroke={color}
+        strokeWidth={isFocused ? TRAIL_LINE_WIDTH + 1 : TRAIL_LINE_WIDTH}
+        opacity={avgOpacity * (isFocused ? 1.2 : 1)}
+        lineCap="round"
+        lineJoin="round"
+        tension={0.3} // Smooth curves
+      />
+
+      {/* Trail dots at key positions (every 5th point) for visual interest */}
+      {trailPoints
+        .filter((_, idx) => idx % 5 === 0 || idx === trailPoints.length - 1)
+        .map((point, idx) => (
+          <Circle
+            key={idx}
+            x={point.x}
+            y={point.y}
+            radius={TRAIL_POINT_RADIUS}
+            fill={color}
+            opacity={point.opacity}
+          />
+        ))}
+    </Group>
+  );
+});
+
+// =============================================================================
+// KILL LINE COMPONENT
+// =============================================================================
+
 // Kill line component
 interface KillLineProps {
   event: ReplayEvent;
@@ -482,6 +628,171 @@ const BombIndicator = React.memo(function BombIndicator({
     </Group>
   );
 });
+
+// =============================================================================
+// GRENADE TRAJECTORY COMPONENT
+// =============================================================================
+
+/**
+ * GrenadeTrajectory - Animated arc from throw position to detonation
+ *
+ * Features:
+ * - Bezier curve trajectory (realistic arc)
+ * - Animated projectile along path
+ * - Team-colored with grenade type indicator
+ * - Fades out after detonation
+ *
+ * @quality
+ * - Extensibilité: Easy to add different trajectory styles
+ * - Performance: <1ms render, uses Konva Line with tension
+ * - Gamification: Satisfying visual feedback for grenade throws
+ */
+interface GrenadeTrajectoryProps {
+  event: ReplayEvent;
+  mapConfig: MapConfig;
+  canvasWidth: number;
+  canvasHeight: number;
+  currentTick: number;
+}
+
+const GrenadeTrajectory = React.memo(function GrenadeTrajectory({
+  event,
+  mapConfig,
+  canvasWidth,
+  canvasHeight,
+  currentTick,
+}: GrenadeTrajectoryProps) {
+  // Only render if we have both throw (x,y) and detonation (endX,endY) positions
+  if (event.endX === undefined || event.endY === undefined) {
+    return null;
+  }
+
+  // Throw position (start)
+  const throwPos = radarToCanvas(event.x, event.y, mapConfig, canvasWidth, canvasHeight);
+  // Detonation position (end)
+  const detonatePos = radarToCanvas(event.endX, event.endY, mapConfig, canvasWidth, canvasHeight);
+
+  // Skip if positions are too close (< 10px)
+  const distance = Math.sqrt(
+    (detonatePos.x - throwPos.x) ** 2 + (detonatePos.y - throwPos.y) ** 2
+  );
+  if (distance < 10) return null;
+
+  // Grenade type for coloring
+  const eventGrenadeType = (event as { grenadeType?: string }).grenadeType;
+  const grenadeType = eventGrenadeType?.toLowerCase() || "hegrenade";
+  const config = GRENADE_CONFIG[grenadeType] || GRENADE_CONFIG.hegrenade;
+
+  // Calculate flight progress (0 to 1, then >1 for post-detonation fade)
+  // Flight time ~1.5 seconds (~96 ticks at 64 tick) - realistic grenade flight
+  const FLIGHT_TICKS = 96;
+  const FADE_TICKS = 32; // 0.5 second fade after detonation (faster cleanup)
+
+  const ticksSinceThrow = currentTick - event.tick;
+  const flightProgress = Math.min(ticksSinceThrow / FLIGHT_TICKS, 1);
+  const fadeProgress = Math.max(0, (ticksSinceThrow - FLIGHT_TICKS) / FADE_TICKS);
+  // Fade completely to 0 (not 0.2) so trajectories disappear
+  const opacity = 1 - fadeProgress;
+
+  // Don't render if flight hasn't started yet (negative ticks) or fully faded
+  if (ticksSinceThrow < 0 || fadeProgress >= 1) return null;
+
+  // Calculate control point for bezier curve (arc height based on distance)
+  const midX = (throwPos.x + detonatePos.x) / 2;
+  const midY = (throwPos.y + detonatePos.y) / 2;
+  // Arc height - higher for longer throws
+  const arcHeight = Math.min(distance * 0.3, 50);
+
+  // Perpendicular offset for arc (creates the curve)
+  const dx = detonatePos.x - throwPos.x;
+  const dy = detonatePos.y - throwPos.y;
+  const perpX = -dy / distance;
+  const perpY = dx / distance;
+
+  const controlX = midX + perpX * arcHeight;
+  const controlY = midY - arcHeight; // Always arc upward visually
+
+  // Create points along the bezier curve for the trajectory line
+  const trajectoryPoints: number[] = [];
+  const numPoints = 20;
+  for (let i = 0; i <= numPoints; i++) {
+    const t = i / numPoints;
+    // Quadratic bezier: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+    const x = (1 - t) ** 2 * throwPos.x + 2 * (1 - t) * t * controlX + t ** 2 * detonatePos.x;
+    const y = (1 - t) ** 2 * throwPos.y + 2 * (1 - t) * t * controlY + t ** 2 * detonatePos.y;
+    trajectoryPoints.push(x, y);
+  }
+
+  // Calculate current projectile position along the curve (if still in flight)
+  let projectileX = detonatePos.x;
+  let projectileY = detonatePos.y;
+  if (flightProgress < 1) {
+    const t = flightProgress;
+    projectileX = (1 - t) ** 2 * throwPos.x + 2 * (1 - t) * t * controlX + t ** 2 * detonatePos.x;
+    projectileY = (1 - t) ** 2 * throwPos.y + 2 * (1 - t) * t * controlY + t ** 2 * detonatePos.y;
+  }
+
+  return (
+    <Group opacity={opacity}>
+      {/* Trajectory arc (dashed line) */}
+      <Line
+        points={trajectoryPoints}
+        stroke={config.color}
+        strokeWidth={2}
+        dash={[4, 4]}
+        opacity={0.6}
+        lineCap="round"
+      />
+
+      {/* Throw origin marker */}
+      <Circle
+        x={throwPos.x}
+        y={throwPos.y}
+        radius={4}
+        fill={config.color}
+        opacity={0.5}
+      />
+
+      {/* Animated projectile (only during flight) */}
+      {flightProgress < 1 && (
+        <Group>
+          {/* Glow effect */}
+          <Circle
+            x={projectileX}
+            y={projectileY}
+            radius={8}
+            fill={config.glowColor}
+            opacity={0.4}
+          />
+          {/* Projectile */}
+          <Circle
+            x={projectileX}
+            y={projectileY}
+            radius={5}
+            fill={config.color}
+            stroke="#ffffff"
+            strokeWidth={1}
+          />
+        </Group>
+      )}
+
+      {/* Detonation point marker */}
+      <Circle
+        x={detonatePos.x}
+        y={detonatePos.y}
+        radius={flightProgress >= 1 ? 6 : 3}
+        fill={flightProgress >= 1 ? config.color : "transparent"}
+        stroke={config.color}
+        strokeWidth={2}
+        opacity={flightProgress >= 1 ? 0.8 : 0.4}
+      />
+    </Group>
+  );
+});
+
+// =============================================================================
+// GRENADE INDICATOR COMPONENT
+// =============================================================================
 
 // Grenade indicator component
 interface GrenadeIndicatorProps {
@@ -768,6 +1079,8 @@ export function ReplayCanvas({
   const {
     mapConfig,
     events,
+    frames,
+    currentFrameIndex,
     currentTick,
     focusedPlayerSteamId,
     hoveredPlayerSteamId,
@@ -776,8 +1089,11 @@ export function ReplayCanvas({
     viewportOffsetY,
     showKillLines,
     showGrenades,
+    showTrajectories,
     showPlayerNames,
     showHealthBars,
+    showTrails,
+    trailLength,
     focusPlayer,
     hoverPlayer,
     setViewport,
@@ -932,9 +1248,44 @@ export function ReplayCanvas({
         )}
       </Layer>
 
+      {/* Trails layer - rendered below events for visual hierarchy */}
+      {showTrails && (
+        <Layer>
+          {currentFrame.players.map((player) => (
+            <PlayerTrail
+              key={`trail-${player.steamId}`}
+              steamId={player.steamId}
+              team={player.team}
+              frames={frames}
+              currentFrameIndex={currentFrameIndex}
+              trailLength={trailLength}
+              mapConfig={mapConfig}
+              canvasWidth={width}
+              canvasHeight={height}
+              isFocused={focusedPlayerSteamId === player.steamId}
+            />
+          ))}
+        </Layer>
+      )}
+
       {/* Events layer - grenades, bombs, kills */}
       <Layer>
-        {/* Grenade indicators (rendered first, below other events) */}
+        {/* Grenade trajectories (rendered first, below detonation effects) */}
+        {showTrajectories &&
+          activeEvents
+            .filter((e) => isGrenadeEvent(e.type) && e.endX !== undefined && e.endY !== undefined)
+            .map((event) => (
+              <GrenadeTrajectory
+                key={`traj-${event.id}`}
+                event={event}
+                mapConfig={mapConfig}
+                canvasWidth={width}
+                canvasHeight={height}
+                currentTick={currentTick}
+              />
+            ))}
+
+        {/* Grenade detonation effects (rendered on top of trajectories) */}
         {activeEvents
           .filter((e) => isGrenadeEvent(e.type))
           .map((event) => (

@@ -59,13 +59,12 @@ class GrenadeExtractor:
         """Extract grenade throw events for trajectory visualization.
 
         These events capture the moment a grenade is thrown, providing:
-        - Start position for trajectory
+        - Start position for trajectory (from player tick data)
         - Thrower info
-        - Entity ID to link with detonation event
+        - View angles for trajectory calculation
         """
         throws = []
 
-        # Try weapon_fire first (more reliable for throw position)
         try:
             fire_df = self.parser.parse_event("weapon_fire")
             grenade_weapons = [
@@ -79,22 +78,59 @@ class GrenadeExtractor:
 
             grenade_fires = fire_df[fire_df["weapon"].isin(grenade_weapons)]
 
+            if len(grenade_fires) == 0:
+                return throws
+
+            # Get unique throw ticks to batch fetch player positions
+            throw_ticks = grenade_fires["tick"].unique().tolist()
+
+            # Fetch player positions at throw ticks
+            # Include view angles (pitch/yaw) for trajectory direction
+            props = ["X", "Y", "Z", "steamid", "pitch", "yaw"]
+            try:
+                ticks_df = self.parser.parse_ticks(props, ticks=throw_ticks)
+                # Convert steamid to string for matching
+                ticks_df["steamid_str"] = ticks_df["steamid"].astype(str)
+            except Exception as e:
+                self.logger.warning("Failed to fetch tick data for throw positions", error=str(e))
+                ticks_df = None
+
             for _, row in grenade_fires.iterrows():
                 weapon = str(row.get("weapon", ""))
                 grenade_type = self._weapon_to_grenade_type(weapon)
+                tick = int(row.get("tick", 0))
+                thrower_steamid = str(row.get("user_steamid", ""))
+
+                # Get position from tick data
+                x, y, z = 0.0, 0.0, 0.0
+                pitch, yaw = 0.0, 0.0
+
+                if ticks_df is not None and len(ticks_df) > 0:
+                    # Find player position at this tick
+                    player_at_tick = ticks_df[
+                        (ticks_df["tick"] == tick) &
+                        (ticks_df["steamid_str"] == thrower_steamid)
+                    ]
+                    if len(player_at_tick) > 0:
+                        pos = player_at_tick.iloc[0]
+                        x = float(pos.get("X", 0) or 0)
+                        y = float(pos.get("Y", 0) or 0)
+                        z = float(pos.get("Z", 0) or 0)
+                        pitch = float(pos.get("pitch", 0) or 0)
+                        yaw = float(pos.get("yaw", 0) or 0)
 
                 throws.append({
                     "type": grenade_type,
                     "event": "throw",
-                    "tick": int(row.get("tick", 0)),
-                    "X": float(row.get("user_X", row.get("x", 0))),
-                    "Y": float(row.get("user_Y", row.get("y", 0))),
-                    "Z": float(row.get("user_Z", row.get("z", 0))),
-                    "thrower_steamid": str(row.get("user_steamid", "")),
+                    "tick": tick,
+                    "X": x,
+                    "Y": y,
+                    "Z": z,
+                    "thrower_steamid": thrower_steamid,
                     "thrower_name": str(row.get("user_name", "")),
-                    "thrower_team": int(row.get("user_team", 0)),
-                    "yaw": float(row.get("user_yaw", row.get("yaw", 0))),
-                    "pitch": float(row.get("user_pitch", row.get("pitch", 0))),
+                    "thrower_team": 0,  # Team not available in weapon_fire
+                    "yaw": yaw,
+                    "pitch": pitch,
                 })
 
         except Exception as e:
@@ -308,13 +344,17 @@ class GrenadeExtractor:
         return he_grenades
 
     def _extract_molotovs(self) -> list[dict[str, Any]]:
-        """Extract molotov/incendiary events with fire spread data."""
+        """Extract molotov/incendiary events with fire spread data.
+
+        Note: demoparser2 uses inferno_startburn/inferno_expire for molotov events,
+        not molotov_detonate which doesn't exist.
+        """
         molotovs = []
 
         try:
-            detonate_df = self.parser.parse_event("molotov_detonate")
-
-            for _, row in detonate_df.iterrows():
+            # Inferno start = molotov/incendiary detonation (fire starts)
+            start_df = self.parser.parse_event("inferno_startburn")
+            for _, row in start_df.iterrows():
                 molotovs.append({
                     "type": "molotov",
                     "event": "detonate",
@@ -324,32 +364,17 @@ class GrenadeExtractor:
                     "Z": float(row.get("z", 0)),
                     "thrower_steamid": str(row.get("user_steamid", "")),
                     "thrower_name": str(row.get("user_name", "")),
-                    "thrower_team": int(row.get("user_team", 0)),
+                    "thrower_team": 0,
                     "entity_id": int(row.get("entityid", 0)),
                 })
 
-            # Also get inferno start/end events for fire duration
-            try:
-                start_df = self.parser.parse_event("inferno_startburn")
-                for _, row in start_df.iterrows():
-                    molotovs.append({
-                        "type": "inferno",
-                        "event": "start",
-                        "tick": int(row.get("tick", 0)),
-                        "X": float(row.get("x", 0)),
-                        "Y": float(row.get("y", 0)),
-                        "Z": float(row.get("z", 0)),
-                        "entity_id": int(row.get("entityid", 0)),
-                    })
-            except Exception:
-                pass
-
+            # Inferno expire = fire ends
             try:
                 expire_df = self.parser.parse_event("inferno_expire")
                 for _, row in expire_df.iterrows():
                     molotovs.append({
-                        "type": "inferno",
-                        "event": "expire",
+                        "type": "molotov",
+                        "event": "expired",
                         "tick": int(row.get("tick", 0)),
                         "X": float(row.get("x", 0)),
                         "Y": float(row.get("y", 0)),
