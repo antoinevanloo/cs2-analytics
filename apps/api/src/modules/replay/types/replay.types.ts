@@ -152,6 +152,8 @@ export interface GrenadeEvent extends ReplayEventBase {
   duration?: number;
   endX?: number;
   endY?: number;
+  // Entity ID from demoparser2 - links start → end events
+  entityId?: number;
 }
 
 export type ReplayEvent =

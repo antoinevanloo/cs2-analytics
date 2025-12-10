@@ -54,10 +54,19 @@ export class ReplayEventGenerator implements Transformer {
    * - KILL → handled by KillExtractor → Kill table
    * - GRENADE → handled by GrenadeExtractor → Grenade table
    * - player_hurt → too many events, not stored
+   *
+   * Bomb lifecycle events enable duration tracking:
+   * - BOMB_BEGIN_PLANT → BOMB_PLANT (or abort)
+   * - BOMB_BEGIN_DEFUSE → BOMB_DEFUSE (or abort)
    */
   private readonly EVENT_TYPE_MAP: Record<string, ReplayEventType | null> = {
+    // Plant lifecycle
+    bomb_beginplant: ReplayEventType.BOMB_BEGIN_PLANT,
     bomb_planted: ReplayEventType.BOMB_PLANT,
+    // Defuse lifecycle
+    bomb_begindefuse: ReplayEventType.BOMB_BEGIN_DEFUSE,
     bomb_defused: ReplayEventType.BOMB_DEFUSE,
+    // Explosion
     bomb_exploded: ReplayEventType.BOMB_EXPLODE,
   };
 
@@ -102,7 +111,9 @@ export class ReplayEventGenerator implements Transformer {
       // Transform events
       const replayEvents: Prisma.ReplayEventCreateManyInput[] = [];
       const metrics = {
+        bombBeginPlants: 0,
         bombPlants: 0,
+        bombBeginDefuses: 0,
         bombDefuses: 0,
         bombExplodes: 0,
         skipped: 0,
@@ -124,8 +135,14 @@ export class ReplayEventGenerator implements Transformer {
 
           // Track metrics
           switch (eventType) {
+            case ReplayEventType.BOMB_BEGIN_PLANT:
+              metrics.bombBeginPlants++;
+              break;
             case ReplayEventType.BOMB_PLANT:
               metrics.bombPlants++;
+              break;
+            case ReplayEventType.BOMB_BEGIN_DEFUSE:
+              metrics.bombBeginDefuses++;
               break;
             case ReplayEventType.BOMB_DEFUSE:
               metrics.bombDefuses++;
@@ -150,7 +167,9 @@ export class ReplayEventGenerator implements Transformer {
 
       this.logger.log(
         `Generated ${inserted} ReplayEvents for demo ${demoId} ` +
-          `(${metrics.bombPlants} plants, ${metrics.bombDefuses} defuses, ${metrics.bombExplodes} explodes)`,
+          `(${metrics.bombBeginPlants} begin plants, ${metrics.bombPlants} plants, ` +
+          `${metrics.bombBeginDefuses} begin defuses, ${metrics.bombDefuses} defuses, ` +
+          `${metrics.bombExplodes} explodes)`,
       );
 
       return {
@@ -201,10 +220,12 @@ export class ReplayEventGenerator implements Transformer {
     };
 
     switch (eventType) {
+      case ReplayEventType.BOMB_BEGIN_PLANT:
       case ReplayEventType.BOMB_PLANT:
+      case ReplayEventType.BOMB_BEGIN_DEFUSE:
       case ReplayEventType.BOMB_DEFUSE:
       case ReplayEventType.BOMB_EXPLODE:
-        return this.transformBombEvent(baseEvent, event);
+        return this.transformBombEvent(baseEvent, event, eventType);
 
       default:
         return null;
@@ -213,33 +234,53 @@ export class ReplayEventGenerator implements Transformer {
 
   /**
    * Transform a bomb event for visualization
+   *
+   * BEGIN events (BOMB_BEGIN_PLANT, BOMB_BEGIN_DEFUSE) mark the start of
+   * plant/defuse actions. Frontend can calculate duration by finding
+   * the matching completion event (BOMB_PLANT, BOMB_DEFUSE) or detect
+   * abort if no completion follows.
+   *
+   * Data includes:
+   * - playerSteamId: who is planting/defusing
+   * - site: bomb site (A/B)
+   * - hasKit: (defuse only) whether player has defuse kit
    */
   private transformBombEvent(
     base: { demoId: string; roundId: string; type: ReplayEventType; tick: number },
     event: DemoEvent,
+    eventType: ReplayEventType,
   ): Prisma.ReplayEventCreateManyInput {
     // Bomb events use player position (the person planting/defusing)
     const playerX = this.extractCoord(event, "user_X", "x", "player_x");
     const playerY = this.extractCoord(event, "user_Y", "y", "player_y");
     const playerZ = this.extractCoord(event, "user_Z", "z", "player_z");
 
+    const baseData = {
+      playerSteamId: String(
+        event.player_steamid ??
+          event.userid_steamid ??
+          event.user_steamid ??
+          "",
+      ),
+      playerName: String(
+        event.player_name ?? event.userid_name ?? event.user_name ?? "",
+      ),
+      site: String(event.site ?? ""),
+    };
+
+    // Add defuse-specific info (hasKit)
+    const data =
+      eventType === ReplayEventType.BOMB_BEGIN_DEFUSE ||
+      eventType === ReplayEventType.BOMB_DEFUSE
+        ? { ...baseData, hasKit: Boolean(event.haskit ?? event.has_kit ?? false) }
+        : baseData;
+
     return {
       ...base,
       x: playerX ?? 0,
       y: playerY ?? 0,
       z: playerZ ?? 0,
-      data: {
-        playerSteamId: String(
-          event.player_steamid ??
-            event.userid_steamid ??
-            event.user_steamid ??
-            "",
-        ),
-        playerName: String(
-          event.player_name ?? event.userid_name ?? event.user_name ?? "",
-        ),
-        site: String(event.site ?? ""),
-      },
+      data,
     };
   }
 

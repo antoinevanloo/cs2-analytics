@@ -808,7 +808,7 @@ export class ReplayService {
       });
     }
 
-    // Convert grenades
+    // Convert grenades (throw, start/detonate, and end events)
     for (const nade of grenades) {
       const coords = this.convertToRadarCoords(
         nade.x,
@@ -817,9 +817,11 @@ export class ReplayService {
         mapConfig,
       );
 
-      const eventType = this.mapGrenadeType(nade.type);
+      // Pass event lifecycle ("throw", "start", or "end") to map correctly
+      const eventType = this.mapGrenadeType(nade.type, nade.event);
       if (eventType) {
-        events.push({
+        // Build grenade event with trajectory data if available
+        const grenadeEvent: ReplayEvent = {
           id: `nade-${eventIndex++}`,
           type: eventType,
           tick: nade.tick,
@@ -827,9 +829,27 @@ export class ReplayService {
           x: coords.x,
           y: coords.y,
           z: nade.z,
-          throwerSteamId: nade.throwerSteamId,
+          throwerSteamId: nade.throwerSteamId ?? undefined,
           grenadeType: nade.type,
-        });
+          entityId: nade.entityId ?? undefined, // For linking throw → start → end
+        };
+
+        // Add trajectory data for detonation events (links to throw position)
+        if (nade.throwX !== null && nade.throwY !== null && eventType !== "GRENADE_THROW") {
+          const throwCoords = this.convertToRadarCoords(
+            nade.throwX,
+            nade.throwY,
+            nade.throwZ ?? nade.z,
+            mapConfig,
+          );
+          // endX/endY = detonation position, x/y = throw position (trajectory line)
+          grenadeEvent.endX = coords.x;
+          grenadeEvent.endY = coords.y;
+          grenadeEvent.x = throwCoords.x;
+          grenadeEvent.y = throwCoords.y;
+        }
+
+        events.push(grenadeEvent);
       }
     }
 
@@ -864,11 +884,35 @@ export class ReplayService {
   }
 
   /**
-   * Map grenade type to replay event type
+   * Map grenade type and event lifecycle to replay event type
+   *
+   * Handles throw, start (detonate), and end (expired/extinguished) events
+   * for proper 2D replay visualization with trajectory support.
    */
   private mapGrenadeType(
     type: string,
-  ): "SMOKE_START" | "FLASH_EFFECT" | "HE_EXPLODE" | "MOLOTOV_START" | "DECOY_START" | null {
+    event: string = "start",
+  ): "GRENADE_THROW" | "SMOKE_START" | "SMOKE_END" | "FLASH_EFFECT" | "HE_EXPLODE" | "MOLOTOV_START" | "MOLOTOV_END" | "DECOY_START" | null {
+    // Handle THROW events (trajectory start)
+    if (event === "throw") {
+      return "GRENADE_THROW";
+    }
+
+    // Handle END events
+    if (event === "end" || event === "expired" || event === "expire") {
+      switch (type) {
+        case "SMOKE":
+          return "SMOKE_END";
+        case "MOLOTOV":
+        case "INCENDIARY":
+        case "INFERNO": // inferno_expire event type
+          return "MOLOTOV_END";
+        default:
+          return null; // Other grenade types don't have END events
+      }
+    }
+
+    // Handle START/DETONATE events (default)
     switch (type) {
       case "SMOKE":
         return "SMOKE_START";

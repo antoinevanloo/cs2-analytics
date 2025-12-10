@@ -57,6 +57,21 @@ export interface DemoGrenade {
   Z?: number;
   thrower_steamid?: string;
   thrower_name?: string;
+  thrower_team?: number;
+  // Event lifecycle: "throw", "start"/"detonate", "end"/"expired"
+  event?: string;
+  // Entity ID for linking events
+  entity_id?: number;
+  // Throw direction (for GRENADE_THROW events)
+  yaw?: number;
+  pitch?: number;
+  // Effectiveness stats (flash)
+  enemies_blinded?: number;
+  teammates_blinded?: number;
+  total_blind_duration?: number;
+  // Effectiveness stats (HE/molotov)
+  total_damage?: number;
+  enemies_damaged?: number;
 }
 
 export interface DemoChatMessage {
@@ -1099,9 +1114,82 @@ export class DemoService {
         return rounds.find((r) => tick >= r.startTick && tick <= r.endTick);
       };
 
-      // Insert grenades
+      // Insert grenades with trajectory linking
       if (data.grenades?.length) {
-        for (const g of data.grenades) {
+        // Separate throw events from detonate events for trajectory linking
+        const throwEvents = data.grenades.filter(g => g.event === "throw");
+        const detonateEvents = data.grenades.filter(g => g.event !== "throw");
+
+        // Index throw events by type + steamId + approximate tick for linking
+        const throwIndex = new Map<string, typeof throwEvents[number]>();
+        for (const t of throwEvents) {
+          // Key: type_steamId (will find closest tick)
+          const key = `${t.type}_${t.thrower_steamid}`;
+          const existing = throwIndex.get(key);
+          // Keep most recent throw for each type/player combo
+          if (!existing || (t.tick || 0) > (existing.tick || 0)) {
+            throwIndex.set(key, t);
+          }
+        }
+
+        // Find matching throw for a detonate event (within ~5 seconds = 320 ticks at 64 tick)
+        const findMatchingThrow = (g: typeof detonateEvents[number]) => {
+          const key = `${g.type}_${g.thrower_steamid}`;
+          const throwEvent = throwIndex.get(key);
+          if (!throwEvent) return null;
+          const tickDiff = (g.tick || 0) - (throwEvent.tick || 0);
+          // Grenade flight time: typically 1-5 seconds
+          if (tickDiff > 0 && tickDiff < 400) {
+            return throwEvent;
+          }
+          return null;
+        };
+
+        // Insert detonate/expired events with trajectory data
+        for (const g of detonateEvents) {
+          const round = findRoundForTick(g.tick || 0);
+          const roundId = round?.id;
+          if (roundId) {
+            // Find matching throw event for trajectory
+            const throwEvent = g.event === "start" || g.event === "detonate" || !g.event
+              ? findMatchingThrow(g)
+              : null;
+
+            await this.prisma.grenade.create({
+              data: {
+                demoId: id,
+                roundId,
+                type: this.mapGrenadeType(g.type || "smoke"),
+                event: g.event || "start",
+                entityId: g.entity_id || null,
+                tick: g.tick || 0,
+                x: g.X || 0,
+                y: g.Y || 0,
+                z: g.Z || 0,
+                // Trajectory data (from linked throw event)
+                throwX: throwEvent?.X ?? null,
+                throwY: throwEvent?.Y ?? null,
+                throwZ: throwEvent?.Z ?? null,
+                throwTick: throwEvent?.tick ?? null,
+                throwYaw: throwEvent?.yaw ?? null,
+                throwPitch: throwEvent?.pitch ?? null,
+                // Thrower info (null for end events)
+                throwerSteamId: g.thrower_steamid || null,
+                throwerName: g.thrower_name || null,
+                throwerTeam: g.thrower_team || null,
+                // Effectiveness stats
+                enemiesBlinded: g.enemies_blinded || 0,
+                teammatesBlinded: g.teammates_blinded || 0,
+                totalBlindDuration: g.total_blind_duration || 0,
+                damageDealt: g.total_damage || 0,
+                enemiesDamaged: g.enemies_damaged || 0,
+              },
+            });
+          }
+        }
+
+        // Also insert throw events for standalone trajectory visualization
+        for (const g of throwEvents) {
           const round = findRoundForTick(g.tick || 0);
           const roundId = round?.id;
           if (roundId) {
@@ -1110,13 +1198,16 @@ export class DemoService {
                 demoId: id,
                 roundId,
                 type: this.mapGrenadeType(g.type || "smoke"),
+                event: "throw",
                 tick: g.tick || 0,
                 x: g.X || 0,
                 y: g.Y || 0,
                 z: g.Z || 0,
-                throwerSteamId: g.thrower_steamid || "",
-                throwerName: g.thrower_name || "",
-                throwerTeam: 0,
+                throwYaw: g.yaw ?? null,
+                throwPitch: g.pitch ?? null,
+                throwerSteamId: g.thrower_steamid || null,
+                throwerName: g.thrower_name || null,
+                throwerTeam: g.thrower_team || null,
               },
             });
           }

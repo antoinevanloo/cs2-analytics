@@ -629,13 +629,15 @@ export class MetricsDataService {
       x: number;
       y: number;
       z: number;
-      throwerSteamId: string;
-      throwerTeam: number;
+      throwerSteamId: string | null;
+      throwerTeam: number | null;
       enemiesBlinded: number;
       teammatesBlinded: number;
       totalBlindDuration: number;
       damageDealt: number;
       enemiesDamaged: number;
+      event?: string;
+      entityId?: number | null;
     }>,
     roundNumById: Map<string, number>,
   ): GrenadeInput[] {
@@ -653,6 +655,8 @@ export class MetricsDataService {
       totalBlindDuration: g.totalBlindDuration,
       damageDealt: g.damageDealt,
       enemiesDamaged: g.enemiesDamaged,
+      event: g.event,
+      entityId: g.entityId,
     }));
   }
 

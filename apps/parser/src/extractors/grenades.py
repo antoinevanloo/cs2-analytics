@@ -32,6 +32,9 @@ class GrenadeExtractor:
         """Extract all grenade events."""
         grenades = []
 
+        # Grenade throws (for trajectory start points)
+        grenades.extend(self._extract_grenade_throws())
+
         # Smoke grenades
         grenades.extend(self._extract_smokes())
 
@@ -51,6 +54,65 @@ class GrenadeExtractor:
         grenades.sort(key=lambda x: x.get("tick", 0))
 
         return grenades
+
+    def _extract_grenade_throws(self) -> list[dict[str, Any]]:
+        """Extract grenade throw events for trajectory visualization.
+
+        These events capture the moment a grenade is thrown, providing:
+        - Start position for trajectory
+        - Thrower info
+        - Entity ID to link with detonation event
+        """
+        throws = []
+
+        # Try weapon_fire first (more reliable for throw position)
+        try:
+            fire_df = self.parser.parse_event("weapon_fire")
+            grenade_weapons = [
+                "weapon_smokegrenade",
+                "weapon_flashbang",
+                "weapon_hegrenade",
+                "weapon_molotov",
+                "weapon_incgrenade",
+                "weapon_decoy",
+            ]
+
+            grenade_fires = fire_df[fire_df["weapon"].isin(grenade_weapons)]
+
+            for _, row in grenade_fires.iterrows():
+                weapon = str(row.get("weapon", ""))
+                grenade_type = self._weapon_to_grenade_type(weapon)
+
+                throws.append({
+                    "type": grenade_type,
+                    "event": "throw",
+                    "tick": int(row.get("tick", 0)),
+                    "X": float(row.get("user_X", row.get("x", 0))),
+                    "Y": float(row.get("user_Y", row.get("y", 0))),
+                    "Z": float(row.get("user_Z", row.get("z", 0))),
+                    "thrower_steamid": str(row.get("user_steamid", "")),
+                    "thrower_name": str(row.get("user_name", "")),
+                    "thrower_team": int(row.get("user_team", 0)),
+                    "yaw": float(row.get("user_yaw", row.get("yaw", 0))),
+                    "pitch": float(row.get("user_pitch", row.get("pitch", 0))),
+                })
+
+        except Exception as e:
+            self.logger.debug("Failed to extract grenade throws from weapon_fire", error=str(e))
+
+        return throws
+
+    def _weapon_to_grenade_type(self, weapon: str) -> str:
+        """Convert weapon name to grenade type."""
+        mapping = {
+            "weapon_smokegrenade": "smoke",
+            "weapon_flashbang": "flashbang",
+            "weapon_hegrenade": "hegrenade",
+            "weapon_molotov": "molotov",
+            "weapon_incgrenade": "molotov",  # Incendiary = CT molotov
+            "weapon_decoy": "decoy",
+        }
+        return mapping.get(weapon, "unknown")
 
     def _extract_smokes(self) -> list[dict[str, Any]]:
         """Extract smoke grenade events."""
@@ -96,30 +158,51 @@ class GrenadeExtractor:
         return smokes
 
     def _extract_flashbangs(self) -> list[dict[str, Any]]:
-        """Extract flashbang events with blind data."""
+        """Extract flashbang events with blind data.
+
+        Uses entity_id for precise flash-blind linking when available.
+        Falls back to 10-tick temporal window for compatibility with older demos.
+        """
         flashes = []
 
         try:
             detonate_df = self.parser.parse_event("flashbang_detonate")
             blind_df = self.parser.parse_event("player_blind")
 
+            # Check if entity-based linking is available
+            has_entity_linking = (
+                "attacker_entity_id" in blind_df.columns
+                if not blind_df.empty
+                else False
+            )
+
             for _, row in detonate_df.iterrows():
                 flash_tick = int(row.get("tick", 0))
+                flash_entity_id = int(row.get("entityid", 0))
                 thrower_steamid = str(row.get("user_steamid", ""))
                 thrower_team = int(row.get("user_team", 0))
 
                 # Find players blinded by this flash
-                nearby_blinds = blind_df[
-                    (blind_df["tick"] >= flash_tick)
-                    & (blind_df["tick"] <= flash_tick + 10)
-                ]
+                # Priority 1: Use entity_id for precise linking (recommended)
+                # Priority 2: Fall back to temporal window (legacy compatibility)
+                if has_entity_linking and flash_entity_id > 0:
+                    # Precise linking via entity_id
+                    matching_blinds = blind_df[
+                        blind_df["attacker_entity_id"] == flash_entity_id
+                    ]
+                else:
+                    # Fallback: temporal window (10 ticks ~156ms at 64 tick)
+                    matching_blinds = blind_df[
+                        (blind_df["tick"] >= flash_tick)
+                        & (blind_df["tick"] <= flash_tick + 10)
+                    ]
 
                 blinded = []
                 enemies_blinded = 0
                 teammates_blinded = 0
                 total_blind_duration = 0.0
 
-                for _, blind_row in nearby_blinds.iterrows():
+                for _, blind_row in matching_blinds.iterrows():
                     victim_team = int(blind_row.get("user_team", 0))
                     duration = float(blind_row.get("blind_duration", 0))
 

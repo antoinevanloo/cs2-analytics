@@ -170,6 +170,9 @@ interface ProcessingMetrics {
   clampedArmor: number;
   clampedPitch: number;
   clampedFlashAlpha: number;
+  // Duplicate tracking (requires @@unique constraint on [demoId, tick, steamId])
+  duplicatesSkipped: number;
+  actuallyInserted: number;
 }
 
 // ============================================================================
@@ -286,8 +289,13 @@ export class PlayerTickService {
         );
       }
 
-      // Insert in batches with transaction for atomicity
-      result.totalInserted = await this.batchInsert(normalizedTicks.valid);
+      // Insert in batches with duplicate tracking
+      const insertResult = await this.batchInsert(normalizedTicks.valid);
+      result.totalInserted = insertResult.inserted;
+
+      // Update metrics with duplicate info
+      normalizedTicks.metrics.duplicatesSkipped = insertResult.duplicatesSkipped;
+      normalizedTicks.metrics.actuallyInserted = insertResult.inserted;
 
       result.success = true;
       result.processingTimeMs = Date.now() - startTime;
@@ -334,6 +342,8 @@ export class PlayerTickService {
       clampedArmor: 0,
       clampedPitch: 0,
       clampedFlashAlpha: 0,
+      duplicatesSkipped: 0,
+      actuallyInserted: 0,
     };
 
     // Build efficient round lookup
@@ -573,27 +583,57 @@ export class PlayerTickService {
   }
 
   /**
-   * Batch insert normalized ticks
+   * Batch insert normalized ticks with duplicate tracking
    *
-   * Uses chunked inserts for optimal PostgreSQL performance
+   * Uses chunked inserts for optimal PostgreSQL performance.
+   * Tracks duplicates by comparing count before/after insert.
+   *
+   * Note: Requires @@unique([demoId, tick, steamId]) constraint for
+   * skipDuplicates to work correctly.
    */
-  private async batchInsert(ticks: NormalizedPlayerTick[]): Promise<number> {
-    if (ticks.length === 0) return 0;
+  private async batchInsert(
+    ticks: NormalizedPlayerTick[],
+  ): Promise<{ attempted: number; inserted: number; duplicatesSkipped: number }> {
+    if (ticks.length === 0) {
+      return { attempted: 0, inserted: 0, duplicatesSkipped: 0 };
+    }
 
-    let inserted = 0;
+    let totalAttempted = 0;
+    let totalInserted = 0;
+    const demoId = ticks[0]!.demoId; // Safe: we checked ticks.length > 0 above
+
+    // Get initial count for this demo
+    const countBefore = await this.prisma.playerTick.count({
+      where: { demoId },
+    });
 
     for (let i = 0; i < ticks.length; i += BATCH_SIZE) {
       const batch = ticks.slice(i, i + BATCH_SIZE);
+      totalAttempted += batch.length;
 
       await this.prisma.playerTick.createMany({
         data: batch,
         skipDuplicates: true, // Handle re-parsing gracefully
       });
-
-      inserted += batch.length;
     }
 
-    return inserted;
+    // Get final count to determine actual inserts
+    const countAfter = await this.prisma.playerTick.count({
+      where: { demoId },
+    });
+
+    totalInserted = countAfter - countBefore;
+    const duplicatesSkipped = totalAttempted - totalInserted;
+
+    // Log warning if duplicates were skipped
+    if (duplicatesSkipped > 0) {
+      const pct = ((duplicatesSkipped / totalAttempted) * 100).toFixed(1);
+      this.logger.warn(
+        `Skipped ${duplicatesSkipped} duplicate PlayerTicks (${pct}% of ${totalAttempted} attempted)`,
+      );
+    }
+
+    return { attempted: totalAttempted, inserted: totalInserted, duplicatesSkipped };
   }
 
   /**

@@ -538,15 +538,36 @@ model Grenade {
   type            GrenadeType
   tick            Int
 
-  // Position
+  // Event lifecycle: "throw", "start"/"detonate", "end"/"expired"
+  // - "throw": grenade thrown (trajectory start)
+  // - "start"/"detonate": grenade activated (trajectory end)
+  // - "end"/"expired": grenade expired/extinguished
+  event           String       @default("start")
+
+  // Entity ID from demoparser2 - links start → end events
+  // Used for precise grenade-blind linking and lifecycle tracking
+  entityId        Int?
+
+  // Position (detonation position for start/end events, throw position for throw events)
   x               Float
   y               Float
   z               Float
 
-  // Thrower
-  throwerSteamId  String
-  throwerName     String
-  throwerTeam     Int
+  // Throw position (for trajectory visualization)
+  // Only populated for detonation events when throw event is linked
+  throwX          Float?
+  throwY          Float?
+  throwZ          Float?
+  throwTick       Int?         // Tick when thrown (for flight time calculation)
+
+  // Thrower direction at throw time (for trajectory visualization)
+  throwYaw        Float?
+  throwPitch      Float?
+
+  // Thrower (null for "end" events - look up via entityId)
+  throwerSteamId  String?
+  throwerName     String?
+  throwerTeam     Int?
 
   // Effectiveness (flash)
   enemiesBlinded  Int          @default(0)
@@ -567,6 +588,8 @@ model Grenade {
   @@index([roundId])
   @@index([type])
   @@index([throwerSteamId])
+  @@index([entityId])         // For linking start → end
+  @@index([demoId, type, event]) // For filtering by event lifecycle
 }
 
 enum GrenadeType {
@@ -817,7 +840,10 @@ model PlayerTick {
   @@index([demoId, roundId, tick])                     // Round-specific replay
   @@index([roundId, tick])                             // Round timeline
   @@index([demoId, steamId])                           // Player-specific replay
-  @@index([demoId, tick, steamId])                     // Individual player frame
+
+  // Unique constraint: one state per player per tick per demo
+  // Enables skipDuplicates to work correctly for re-parsing
+  @@unique([demoId, tick, steamId])
 }
 
 // ============================================================================
@@ -899,18 +925,23 @@ model ReplayEvent {
 enum ReplayEventType {
   KILL
   DAMAGE
-  BOMB_PLANT
-  BOMB_DEFUSE
-  BOMB_EXPLODE
+  // Bomb lifecycle: BEGIN → complete (PLANT/DEFUSE) or abort
+  BOMB_BEGIN_PLANT   // Player started planting
+  BOMB_PLANT         // Plant completed
+  BOMB_BEGIN_DEFUSE  // Player started defusing
+  BOMB_DEFUSE        // Defuse completed
+  BOMB_EXPLODE       // Bomb exploded
+  // Grenade events
   FLASH_EFFECT
   SMOKE_START
   SMOKE_END
   MOLOTOV_START
   MOLOTOV_END
   HE_EXPLODE
+  GRENADE_THROW
+  // Future: detailed replay
   FOOTSTEP
   SHOT_FIRED
-  GRENADE_THROW
 }
 
 // ============================================================================

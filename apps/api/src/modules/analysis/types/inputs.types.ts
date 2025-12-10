@@ -211,20 +211,40 @@ export interface RoundContext {
 
 /**
  * Grenade event from database
+ *
+ * Note: throwerSteamId/throwerTeam can be null for "end" events
+ * (smoke expired, molotov extinguished) - use entityId to link to start event
  */
 export interface GrenadeInput {
   readonly tick: number;
   readonly type: string;
   readonly roundNumber: number;
 
-  // Position
+  // Event lifecycle: "throw", "start" (detonate), or "end" (expired)
+  readonly event?: string | undefined;
+
+  // Entity ID for linking throw → start → end events
+  readonly entityId?: number | null | undefined;
+
+  // Position (detonation for start/end, throw position for throw events)
   readonly x: number;
   readonly y: number;
   readonly z: number;
 
-  // Thrower
-  readonly throwerSteamId: string;
-  readonly throwerTeam: number;
+  // Throw position (for trajectory visualization)
+  // Only populated for detonation events when throw event is linked
+  readonly throwX?: number | null | undefined;
+  readonly throwY?: number | null | undefined;
+  readonly throwZ?: number | null | undefined;
+  readonly throwTick?: number | null | undefined;
+
+  // Thrower direction at throw time (for trajectory visualization)
+  readonly throwYaw?: number | null | undefined;
+  readonly throwPitch?: number | null | undefined;
+
+  // Thrower (null for "end" events)
+  readonly throwerSteamId: string | null;
+  readonly throwerTeam: number | null;
 
   // Effectiveness (flash)
   readonly enemiesBlinded: number;
