@@ -2,12 +2,11 @@
  * Round Controller - REST API endpoints for round data
  */
 
-import { Controller, Get, Param, Query, ParseIntPipe } from "@nestjs/common";
+import { Controller, Get, Param, ParseIntPipe } from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiBearerAuth,
 } from "@nestjs/swagger";
 import { RoundService } from "./round.service";
@@ -51,19 +50,6 @@ export class RoundController {
     @Param("roundNumber", ParseIntPipe) roundNumber: number,
   ) {
     return this.roundService.getRoundEconomy(demoId, roundNumber);
-  }
-
-  @Get(":demoId/:roundNumber/replay")
-  @ApiOperation({ summary: "Get round replay data (tick-by-tick positions)" })
-  @ApiParam({ name: "demoId", description: "Demo UUID" })
-  @ApiParam({ name: "roundNumber", description: "Round number" })
-  @ApiQuery({ name: "interval", required: false, description: "Tick interval" })
-  async getRoundReplay(
-    @Param("demoId") demoId: string,
-    @Param("roundNumber", ParseIntPipe) roundNumber: number,
-    @Query("interval", new ParseIntPipe({ optional: true })) interval?: number,
-  ) {
-    return this.roundService.getRoundReplay(demoId, roundNumber, interval);
   }
 
   @Get(":demoId/:roundNumber/killfeed")

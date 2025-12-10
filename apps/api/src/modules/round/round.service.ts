@@ -51,19 +51,6 @@ export class RoundService {
     };
   }
 
-  async getRoundReplay(
-    demoId: string,
-    roundNumber: number,
-    interval: number = 1,
-  ) {
-    return {
-      demoId,
-      roundNumber,
-      interval,
-      frames: [],
-    };
-  }
-
   async getRoundKillfeed(demoId: string, roundNumber: number) {
     return {
       demoId,

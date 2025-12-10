@@ -503,10 +503,10 @@ export const roundsApi = {
 
   getReplay: (demoId: string, roundNumber: number, interval?: number) => {
     const searchParams = new URLSearchParams();
-    if (interval) searchParams.set("interval", interval.toString());
+    if (interval) searchParams.set("sampleInterval", interval.toString());
 
     return fetchApi(
-      `/v1/rounds/${demoId}/${roundNumber}/replay?${searchParams}`,
+      `/v1/replay/${demoId}/round/${roundNumber}?${searchParams}`,
     );
   },
 

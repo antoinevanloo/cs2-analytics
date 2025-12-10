@@ -48,6 +48,23 @@ import { TransformerOrchestrator, type DemoEvent } from "./transformers";
 // Re-export DemoEvent for backwards compatibility with demo.processor
 export type { DemoEvent } from "./transformers";
 
+// ============================================================================
+// Grenade Trajectory Linking Configuration
+// ============================================================================
+/**
+ * Maximum tick difference between a throw event and its corresponding detonate event.
+ * Used to link grenade throws to their detonations for trajectory visualization.
+ *
+ * 400 ticks @ 64 tick/s = 6.25 seconds - covers all grenade flight times:
+ * - Flash: ~1.5s max flight
+ * - Smoke: ~2s max flight
+ * - HE: ~2s max flight
+ * - Molotov: ~2s max flight (including bounces)
+ *
+ * Override via GRENADE_TRAJECTORY_LINK_THRESHOLD_TICKS env var for edge cases.
+ */
+const DEFAULT_GRENADE_TRAJECTORY_LINK_THRESHOLD_TICKS = 400;
+
 // Interfaces for parser data
 export interface DemoGrenade {
   type?: string;
@@ -199,6 +216,7 @@ export interface DemoTick {
 export class DemoService {
   private readonly logger = new Logger(DemoService.name);
   private readonly demoStoragePath: string;
+  private readonly grenadeTrajectoryLinkThreshold: number;
 
   constructor(
     @InjectQueue("demo-parsing") private parsingQueue: Queue,
@@ -211,6 +229,12 @@ export class DemoService {
     this.demoStoragePath = this.configService.get(
       "DEMO_STORAGE_PATH",
       "/tmp/demos",
+    );
+
+    // Grenade trajectory linking threshold (configurable for edge cases)
+    this.grenadeTrajectoryLinkThreshold = this.configService.get<number>(
+      "GRENADE_TRAJECTORY_LINK_THRESHOLD_TICKS",
+      DEFAULT_GRENADE_TRAJECTORY_LINK_THRESHOLD_TICKS,
     );
 
     // Ensure storage directory exists
@@ -1152,8 +1176,8 @@ export class DemoService {
             const throwTick = t.tick || 0;
             const tickDiff = detonateTick - throwTick;
 
-            // Must be before detonate and within 400 ticks (~6 seconds)
-            if (tickDiff > 0 && tickDiff < 400 && !usedThrows.has(throwTick)) {
+            // Must be before detonate and within threshold (default 400 ticks ~6 seconds)
+            if (tickDiff > 0 && tickDiff < this.grenadeTrajectoryLinkThreshold && !usedThrows.has(throwTick)) {
               if (tickDiff < bestDiff) {
                 bestDiff = tickDiff;
                 bestMatch = t;

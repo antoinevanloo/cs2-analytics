@@ -100,10 +100,12 @@ export interface ReplayEventBase {
   x: number;
   y: number;
   z: number;
-  // Optional end position (for kill lines: attacker->victim)
+  // Optional end position (for kill lines: attacker->victim, grenades: detonation point)
   endX?: number;
   endY?: number;
   endZ?: number;
+  // Optional throw tick for grenades (when the grenade was thrown, for trajectory animation)
+  throwTick?: number;
 }
 
 export interface KillEvent extends ReplayEventBase {
@@ -154,6 +156,8 @@ export interface GrenadeEvent extends ReplayEventBase {
   endY?: number;
   // Entity ID from demoparser2 - links start → end events
   entityId?: number;
+  // Tick when grenade was thrown (for trajectory animation timing)
+  throwTick?: number;
 }
 
 export type ReplayEvent =

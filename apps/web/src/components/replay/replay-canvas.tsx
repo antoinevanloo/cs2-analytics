@@ -683,18 +683,23 @@ const GrenadeTrajectory = React.memo(function GrenadeTrajectory({
   const grenadeType = eventGrenadeType?.toLowerCase() || "hegrenade";
   const config = GRENADE_CONFIG[grenadeType] || GRENADE_CONFIG.hegrenade;
 
-  // Calculate flight progress (0 to 1, then >1 for post-detonation fade)
-  // Flight time ~1.5 seconds (~96 ticks at 64 tick) - realistic grenade flight
-  const FLIGHT_TICKS = 96;
-  const FADE_TICKS = 32; // 0.5 second fade after detonation (faster cleanup)
+  // Use throwTick if available (exact moment of throw), fallback to event.tick (detonation)
+  const throwTick = (event as { throwTick?: number }).throwTick ?? event.tick;
+  const detonateTick = event.tick;
 
-  const ticksSinceThrow = currentTick - event.tick;
+  // Calculate actual flight duration from data, or use default
+  const actualFlightTicks = detonateTick - throwTick;
+  const FLIGHT_TICKS = actualFlightTicks > 0 ? actualFlightTicks : 96;
+  const FADE_TICKS = 32; // 0.5 second fade after detonation
+
+  const ticksSinceThrow = currentTick - throwTick;
   const flightProgress = Math.min(ticksSinceThrow / FLIGHT_TICKS, 1);
-  const fadeProgress = Math.max(0, (ticksSinceThrow - FLIGHT_TICKS) / FADE_TICKS);
-  // Fade completely to 0 (not 0.2) so trajectories disappear
+  const ticksSinceDetonate = currentTick - detonateTick;
+  const fadeProgress = ticksSinceDetonate > 0 ? Math.min(ticksSinceDetonate / FADE_TICKS, 1) : 0;
+  // Fade completely to 0 so trajectories disappear after detonation
   const opacity = 1 - fadeProgress;
 
-  // Don't render if flight hasn't started yet (negative ticks) or fully faded
+  // Don't render if flight hasn't started yet or fully faded
   if (ticksSinceThrow < 0 || fadeProgress >= 1) return null;
 
   // Calculate control point for bezier curve (arc height based on distance)
@@ -848,6 +853,10 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
 
   // Time-based opacity fade out
   const ticksSinceEvent = currentTick - event.tick;
+
+  // Don't render if event hasn't happened yet
+  if (ticksSinceEvent < 0) return null;
+
   const fadeProgress = Math.min(ticksSinceEvent / GRENADE_DISPLAY_DURATION, 1);
   const opacity = Math.max(0.3, 1 - fadeProgress * 0.7);
 
@@ -1286,8 +1295,9 @@ export function ReplayCanvas({
             ))}
 
         {/* Grenade detonation effects (rendered on top of trajectories) */}
+        {/* Note: GRENADE_THROW events are trajectory-only, not displayed as detonation effects */}
         {activeEvents
-          .filter((e) => isGrenadeEvent(e.type))
+          .filter((e) => isGrenadeEvent(e.type) && e.type !== "GRENADE_THROW")
           .map((event) => (
             <GrenadeIndicator
               key={event.id}

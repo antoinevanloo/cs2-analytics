@@ -853,6 +853,10 @@ export class ReplayService {
           grenadeEvent.endY = coords.y;
           grenadeEvent.x = throwCoords.x;
           grenadeEvent.y = throwCoords.y;
+          // throwTick = exact tick when grenade was thrown (for trajectory animation)
+          if (nade.throwTick !== null) {
+            grenadeEvent.throwTick = nade.throwTick;
+          }
         }
 
         events.push(grenadeEvent);
