@@ -608,6 +608,7 @@ export class ReplayService {
       weaponAmmo: number | null;
       hasDefuseKit: boolean;
       hasBomb: boolean;
+      hasHelmet?: boolean; // Optional for backwards compat until DB migration
       money: number;
       flashDuration: number;
       flashAlpha: number;
@@ -659,6 +660,7 @@ export class ReplayService {
       weaponAmmo: number | null;
       hasDefuseKit: boolean;
       hasBomb: boolean;
+      hasHelmet?: boolean; // Optional for backwards compat until DB migration
       money: number;
       flashDuration: number;
       flashAlpha: number;
@@ -699,6 +701,7 @@ export class ReplayService {
         team: p.team,
         hasDefuseKit: p.hasDefuseKit,
         hasBomb: p.hasBomb,
+        hasHelmet: p.hasHelmet ?? false,
         money: p.money,
         // Flash state
         flashDuration: p.flashDuration,

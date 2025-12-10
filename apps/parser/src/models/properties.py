@@ -264,6 +264,7 @@ HIGH_FREQUENCY_PROPS: Final[list[str]] = [
     "velocity_Z",
     "health",
     "armor_value",
+    "has_helmet",  # Helmet vs kevlar distinction for 2D replay
     "is_alive",
     "active_weapon_name",
     "active_weapon_ammo",

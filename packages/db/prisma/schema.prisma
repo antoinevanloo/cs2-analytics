@@ -795,6 +795,7 @@ model PlayerTick {
   weaponAmmo      Int?     // Current magazine ammo (null if unknown/melee)
   hasDefuseKit    Boolean  @default(false)
   hasBomb         Boolean  @default(false)
+  hasHelmet       Boolean  @default(false)  // Has helmet (kevlar+helmet vs kevlar only)
   money           Int      @default(0)
 
   // Full inventory (array of weapon names for 2D replay display)

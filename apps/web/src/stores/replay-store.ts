@@ -48,6 +48,7 @@ export interface PlayerFrame {
   weaponAmmo?: number | null; // Current magazine ammo (null if unknown/melee)
   hasDefuseKit: boolean;
   hasBomb: boolean;
+  hasHelmet: boolean; // Kevlar + helmet (vs kevlar only)
   money: number;
 
   // Full inventory (array of weapon names)

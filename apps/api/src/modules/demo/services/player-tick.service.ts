@@ -66,6 +66,7 @@ interface RawPlayerState {
   has_defuse_kit?: boolean;
   has_bomb?: boolean;
   has_c4?: boolean;
+  has_helmet?: boolean;
   // Full inventory (array of weapon names from demoparser2)
   inventory?: string[] | string;
   // Economy
@@ -125,6 +126,7 @@ interface NormalizedPlayerTick {
   weaponAmmo: number | null; // new
   hasDefuseKit: boolean;
   hasBomb: boolean;
+  hasHelmet: boolean; // Kevlar + helmet vs kevlar only
   money: number;
   // Full inventory for 2D replay display
   inventory: string[];
@@ -508,6 +510,7 @@ export class PlayerTickService {
         : null,
       hasDefuseKit: player.has_defuser ?? player.has_defuse_kit ?? false,
       hasBomb: player.has_bomb ?? player.has_c4 ?? false,
+      hasHelmet: player.has_helmet ?? false,
       // Full inventory - can come as array or comma-separated string from parser
       inventory: parseInventory(player.inventory),
 

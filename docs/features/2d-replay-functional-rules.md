@@ -145,6 +145,7 @@ interface PlayerFrame {
   // État de vie
   health: number;               // 0-100
   armor: number;                // 0-100
+  hasHelmet: boolean;           // Kevlar + casque (vs kevlar seul)
   isAlive: boolean;
 
   // État de mouvement
@@ -157,10 +158,13 @@ interface PlayerFrame {
   // Équipe & équipement
   team: number;                 // 2=Terrorist, 3=Counter-Terrorist
   activeWeapon?: string;        // "ak47", "awp", etc.
-  weaponAmmo?: number | null;   // Munitions actuelles
+  weaponAmmo?: number | null;   // Munitions actuelles dans le chargeur
   hasDefuseKit: boolean;        // Kit de désamorçage (CT)
   hasBomb: boolean;             // Porte la bombe (T)
   money: number;                // Argent en poche
+
+  // Inventaire complet (pour affichage loadout)
+  inventory?: string[];         // ["weapon_ak47", "weapon_deagle", "weapon_flashbang", ...]
 
   // Effets de flash
   flashDuration: number;        // Durée restante (secondes)
@@ -1014,16 +1018,30 @@ function sortPlayers(players: PlayerFrame[]): PlayerFrame[] {
 #### Informations affichées par joueur
 ```
 ┌────────────────────────────────────────┐
-│ ▌ PlayerName              💣           │  ← Barre équipe + nom + bombe
-│   ❤️ 100  🛡️ 100  [Kit]               │  ← Vie, armure, kit
-│   AK-47                    $4750       │  ← Arme, argent
+│ ▌ PlayerName              💣 🔧        │  ← Barre équipe + nom + bombe + kit
+│   ❤️ 100  🛡️+🪖 100                    │  ← Vie, armure+casque
+│   [AK-47 30] [Deagle] [🔪]  💥 💨 ⚡②  │  ← Loadout avec munitions + grenades (count)
+│                              $4750     │  ← Argent
 └────────────────────────────────────────┘
 ```
 
+#### Affichage du loadout (CS Demo Manager style)
+
+| Élément | Affichage | Détails |
+|---------|-----------|---------|
+| **Arme principale** | Icône SVG + munitions | Badge munitions si arme active (rouge si 0, jaune si ≤5) |
+| **Arme secondaire** | Icône SVG + munitions | Badge munitions si arme active |
+| **Couteau** | Icône SVG | Variante de skin supportée |
+| **Grenades** | Icône + badge count | Badge "2" si 2 flashs, ordre: flash→HE→smoke→molly→decoy |
+| **Bombe (C4)** | Badge rouge pulsant | Animation `animate-pulse` + ring `animate-ping` |
+| **Kit désamorçage** | Badge vert | Icône wrench/tool |
+| **Armure** | Badge bleu + valeur | Icône bouclier (kevlar) ou bouclier+casque (kevlar+helmet) |
+
 #### États visuels
-- **Joueur mort**: Opacité 50%
-- **Joueur focus**: Background primary + ring
-- **Joueur hover**: Background muted
+- **Joueur mort**: Opacité 50%, texte barré
+- **Joueur focus**: Background primary + ring-2
+- **Joueur hover**: Background muted/30
+- **Arme active**: Background primary/20 + ring-1 primary/50
 
 ### 8.4 Timeline
 
@@ -1468,14 +1486,15 @@ const CACHE_ROUND_REPLAY = 1800000;       // 30 minutes
 
 | Critère | Status | Notes |
 |---------|--------|-------|
-| ✅ Extensibilité | OK | Architecture modulaire, configs séparées |
-| ✅ Scalabilité | OK | Streaming, échantillonnage adaptatif |
-| ✅ Exhaustivité | OK | Toutes les données joueur extraites |
-| ✅ Performance | OK | 60fps, <2s load |
-| ✅ Stabilité | OK | Validation + fallbacks complets |
-| ✅ Résilience | OK | Graceful degradation |
-| ✅ Gamification | OK | Feedback visuel riche |
-| ✅ Mobile-ready | OK | Touch support via Konva |
+| ✅ Extensibilité | OK | Architecture modulaire, configs séparées, catégories armes via Set |
+| ✅ Scalabilité | OK | Streaming, échantillonnage adaptatif, React.memo partout |
+| ✅ Exhaustivité | OK | Toutes les données joueur (inventory complet, hasHelmet, weaponAmmo) |
+| ✅ Performance | OK | 60fps, <2s load, memoization grenades/loadout |
+| ✅ Stabilité | OK | Validation + fallbacks complets, TypeScript strict |
+| ✅ Résilience | OK | Graceful degradation, hasHelmet optionnel pour rétrocompat |
+| ✅ Gamification | OK | Bombe pulsante, badges munitions colorés, grenades avec count |
+| ✅ Mobile-ready | OK | Touch support via Konva, variant compact |
+| ✅ Concurrence | OK | Plus granulaire que CS Demo Manager (ammo, helmet, grenade counts) |
 | ⏳ Paramètrable | Partiel | Toggles OK, config avancée à venir |
 
 ---
