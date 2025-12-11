@@ -35,6 +35,12 @@ export { StandardSidebar } from "./standard-sidebar";
 export { StandardBottomBar } from "./standard-bottom-bar";
 export { ReplayViewerStandard } from "./replay-viewer-standard";
 
+// Analyse mode components (V2 - Analyste)
+export { AnalyseHeader } from "./analyse-header";
+export { AnalysePanel } from "./analyse-panel";
+export { AnalyseTimeline } from "./analyse-timeline";
+export { ReplayViewerAnalyse } from "./replay-viewer-analyse";
+
 // Weapon icons (Lexogrine pattern)
 export {
   CS2WeaponIcon,

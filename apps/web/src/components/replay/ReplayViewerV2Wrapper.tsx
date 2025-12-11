@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useReplayStore, type ViewMode } from "@/stores/replay-store";
 import { ReplayViewerCompact } from "./replay-viewer-compact";
 import { ReplayViewerStandard } from "./replay-viewer-standard";
+import { ReplayViewerAnalyse } from "./replay-viewer-analyse";
 
 interface ReplayViewerV2WrapperProps {
   /** Demo ID to load */
@@ -71,9 +72,8 @@ export function ReplayViewerV2Wrapper({
       );
 
     case "analyse":
-      // TODO: Implement dedicated Analyse viewer
       return (
-        <ReplayViewerStandard
+        <ReplayViewerAnalyse
           key="analyse"
           demoId={demoId}
           initialRoundNumber={initialRoundNumber}
