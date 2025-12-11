@@ -26,11 +26,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  Skull,
-  Target,
-  MessageSquare,
-  Heart,
-  Eye,
   Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,14 +44,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   useReplayStore,
-  useCurrentFrame,
   ViewMode,
   VIEW_MODE_LABELS,
 } from "@/stores/replay-store";
@@ -85,101 +73,6 @@ interface StandardHeaderProps {
   /** Additional class names */
   className?: string;
 }
-
-/**
- * QuickToggles - Inline toggle buttons for overlays
- */
-const QuickToggles = React.memo(function QuickToggles() {
-  const {
-    showKillLines,
-    showGrenades,
-    showPlayerNames,
-    showHealthBars,
-    showTrails,
-    toggleKillLines,
-    toggleGrenades,
-    togglePlayerNames,
-    toggleHealthBars,
-    toggleTrails,
-    resetViewport,
-  } = useReplayStore();
-
-  return (
-    <TooltipProvider>
-      <div className="flex items-center gap-0.5">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={showKillLines ? "secondary" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={toggleKillLines}
-            >
-              <Skull className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Kill lines (K)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={showGrenades ? "secondary" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={toggleGrenades}
-            >
-              <Target className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Grenades (G)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={showPlayerNames ? "secondary" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={togglePlayerNames}
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Names (N)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={showHealthBars ? "secondary" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={toggleHealthBars}
-            >
-              <Heart className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Health (H)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={resetViewport}
-            >
-              <Eye className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Reset view (R)</TooltipContent>
-        </Tooltip>
-      </div>
-    </TooltipProvider>
-  );
-});
 
 /**
  * Settings popover with view mode selector
@@ -415,11 +308,6 @@ export const StandardHeader = React.memo(function StandardHeader({
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* Quick toggles - hidden on small screens */}
-      <div className="hidden lg:flex">
-        <QuickToggles />
-      </div>
 
       {/* Settings */}
       <SettingsPopover />
