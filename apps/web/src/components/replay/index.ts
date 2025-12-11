@@ -41,6 +41,12 @@ export { AnalysePanel } from "./analyse-panel";
 export { AnalyseTimeline } from "./analyse-timeline";
 export { ReplayViewerAnalyse } from "./replay-viewer-analyse";
 
+// Focus mode components (V2 - Recruteur)
+export { FocusHeader } from "./focus-header";
+export { FocusSidebar } from "./focus-sidebar";
+export { FocusBottomBar } from "./focus-bottom-bar";
+export { ReplayViewerFocus } from "./replay-viewer-focus";
+
 // Weapon icons (Lexogrine pattern)
 export {
   CS2WeaponIcon,

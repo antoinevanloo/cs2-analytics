@@ -7,8 +7,8 @@
  * Supports:
  * - compact: Joueur persona (default) - maximized canvas with floating overlays
  * - standard: Coach persona - sidebar with full player cards
- * - analyse: Analyste persona (planned - uses standard for now)
- * - focus: Recruteur persona (planned - uses standard for now)
+ * - analyse: Analyste persona - grid layout with side panel and multi-layer timeline
+ * - focus: Recruteur persona - detailed player stats with visual tracking
  */
 
 import React from "react";
@@ -17,6 +17,7 @@ import { useReplayStore, type ViewMode } from "@/stores/replay-store";
 import { ReplayViewerCompact } from "./replay-viewer-compact";
 import { ReplayViewerStandard } from "./replay-viewer-standard";
 import { ReplayViewerAnalyse } from "./replay-viewer-analyse";
+import { ReplayViewerFocus } from "./replay-viewer-focus";
 
 interface ReplayViewerV2WrapperProps {
   /** Demo ID to load */
@@ -83,9 +84,8 @@ export function ReplayViewerV2Wrapper({
       );
 
     case "focus":
-      // TODO: Implement dedicated Focus/Recruteur viewer
       return (
-        <ReplayViewerStandard
+        <ReplayViewerFocus
           key="focus"
           demoId={demoId}
           initialRoundNumber={initialRoundNumber}
