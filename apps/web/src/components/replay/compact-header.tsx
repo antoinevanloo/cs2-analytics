@@ -106,6 +106,8 @@ const ScoreDisplay = React.memo(function ScoreDisplay({
  * Settings popover with overlay toggles and view mode selector
  */
 const SettingsPopover = React.memo(function SettingsPopover() {
+  const [open, setOpen] = React.useState(false);
+
   const {
     showKillLines,
     showGrenades,
@@ -125,8 +127,15 @@ const SettingsPopover = React.memo(function SettingsPopover() {
 
   const viewModes: ViewMode[] = ["compact", "standard", "analyse", "focus"];
 
+  const handleViewModeChange = useCallback((value: ViewMode) => {
+    console.log("[CompactHeader] handleViewModeChange called with:", value);
+    setViewMode(value);
+    // Close popover after mode change to ensure clean transition
+    setOpen(false);
+  }, [setViewMode]);
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <Settings className="h-4 w-4" />
@@ -142,7 +151,7 @@ const SettingsPopover = React.memo(function SettingsPopover() {
             </Label>
             <Select
               value={viewMode}
-              onValueChange={(value: ViewMode) => setViewMode(value)}
+              onValueChange={handleViewModeChange}
             >
               <SelectTrigger className="h-8">
                 <SelectValue />

@@ -568,6 +568,7 @@ export const useReplayStore = create<ReplayState>()(
     },
 
     setViewMode: (mode: ViewMode) => {
+      console.log("[Store:setViewMode] Setting viewMode to:", mode);
       set({ viewMode: mode });
     },
 
@@ -602,7 +603,9 @@ export const useReplayStore = create<ReplayState>()(
     },
 
     reset: () => {
-      set(initialState);
+      // Preserve viewMode when resetting - it's a UI preference, not replay data
+      const currentViewMode = get().viewMode;
+      set({ ...initialState, viewMode: currentViewMode });
     },
 
     setError: (error: string | null) => {

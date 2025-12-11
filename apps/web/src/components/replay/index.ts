@@ -24,10 +24,16 @@ export { KillFeed } from "./kill-feed";
 export { RoundHeader } from "./round-header";
 export { SettingsPanel } from "./settings-panel";
 
-// Compact mode components (V2)
+// Compact mode components (V2 - Joueur)
 export { CompactHeader } from "./compact-header";
 export { FloatingRoster } from "./floating-roster";
 export { CompactBottomBar } from "./compact-bottom-bar";
+
+// Standard mode components (V2 - Coach)
+export { StandardHeader } from "./standard-header";
+export { StandardSidebar } from "./standard-sidebar";
+export { StandardBottomBar } from "./standard-bottom-bar";
+export { ReplayViewerStandard } from "./replay-viewer-standard";
 
 // Weapon icons (Lexogrine pattern)
 export {
