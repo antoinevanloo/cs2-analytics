@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<!-- saved from url=(0085)file:///Users/avanloo/projets/cs2-analytics/docs/wireframes/replay-2d-wireframes.html -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS2 Analytics - Wireframes Replay 2D</title>
+    <style>
+        :root {
+            --ct-color: #3b82f6;
+            --t-color: #f97316;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-surface: #334155;
+            --text-primary: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #475569;
+            --accent: #8b5cf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 0.5rem;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            margin: 1.5rem 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .wireframe-section {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .wireframe-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .wireframe-title h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+        }
+
+        .persona-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .persona-joueur { background: #10b981; color: white; }
+        .persona-coach { background: #3b82f6; color: white; }
+        .persona-analyste { background: #8b5cf6; color: white; }
+        .persona-recruteur { background: #f59e0b; color: white; }
+
+        .wireframe-desc {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* Wireframe container simulation */
+        .screen-container {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--border);
+        }
+
+        .screen-label {
+            background: var(--bg-surface);
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Current Layout (Problem) */
+        .current-layout {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+            background: var(--bg-dark);
+        }
+
+        .current-header {
+            height: 60px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            flex-shrink: 0;
+        }
+
+        .current-topbar {
+            height: 44px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1rem;
+            flex-shrink: 0;
+        }
+
+        .current-roundheader {
+            height: 56px;
+            background: linear-gradient(180deg, var(--bg-card) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .current-main {
+            flex: 1;
+            display: flex;
+            padding: 1rem;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        .current-sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            overflow-y: auto;
+        }
+
+        .current-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .current-canvas-area {
+            flex: 1;
+            background: var(--bg-surface);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 0;
+        }
+
+        .canvas-box {
+            width: 300px;
+            height: 300px;
+            max-width: 100%;
+            max-height: 100%;
+            background: repeating-linear-gradient(
+                45deg,
+                var(--bg-card),
+                var(--bg-card) 10px,
+                var(--bg-surface) 10px,
+                var(--bg-surface) 20px
+            );
+            border: 2px dashed var(--border);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .current-timeline {
+            height: 110px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 1rem;
+            flex-shrink: 0;
+        }
+
+        .current-controls {
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .team-block {
+            background: var(--bg-card);
+            border-radius: 6px;
+            padding: 0.5rem;
+            border-left: 3px solid;
+        }
+
+        .team-ct { border-color: var(--ct-color); }
+        .team-t { border-color: var(--t-color); }
+
+        .player-row {
+            height: 40px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+            margin-top: 0.25rem;
+        }
+
+        .timeline-bar {
+            height: 24px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+            position: relative;
+            margin: 0.5rem 0;
+        }
+
+        .timeline-progress {
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--ct-color));
+            border-radius: 4px;
+        }
+
+        .controls-bar {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+        }
+
+        .control-btn.play {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
+
+        /* Problem indicators */
+        .problem-indicator {
+            position: absolute;
+            background: #ef4444;
+            color: white;
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ef4444;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        /* ==================== PROPOSED LAYOUTS ==================== */
+
+        /* Layout A: Compact (Joueur) */
+        .layout-compact {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+            background: var(--bg-dark);
+        }
+
+        .compact-header {
+            height: 48px;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .compact-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0.5rem;
+        }
+
+        .compact-canvas {
+            flex: 1;
+            background: var(--bg-surface);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .compact-canvas .canvas-box {
+            width: 90%;
+            height: 90%;
+        }
+
+        .compact-bottom {
+            height: 56px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+        }
+
+        .compact-timeline {
+            flex: 1;
+            height: 40px;
+            background: var(--bg-card);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            padding: 0 0.75rem;
+        }
+
+        .compact-controls {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        /* Floating elements */
+        .floating-roster {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            width: 200px;
+            background: var(--bg-card);
+            border-radius: 6px;
+            padding: 0.5rem;
+            opacity: 0.9;
+        }
+
+        .floating-killfeed {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 180px;
+            background: var(--bg-card);
+            border-radius: 6px;
+            padding: 0.5rem;
+            opacity: 0.9;
+        }
+
+        .mini-player {
+            height: 24px;
+            background: var(--bg-surface);
+            border-radius: 3px;
+            margin-top: 0.25rem;
+        }
+
+        /* Layout B: Standard (Coach) */
+        .layout-standard {
+            display: flex;
+            flex-direction: column;
+            height: 520px;
+            background: var(--bg-dark);
+        }
+
+        .standard-header {
+            height: 52px;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            border-bottom: 1px solid var(--border);
+            gap: 1rem;
+        }
+
+        .header-scores {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: auto;
+        }
+
+        .score-ct {
+            background: var(--ct-color);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .score-t {
+            background: var(--t-color);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .standard-main {
+            flex: 1;
+            display: flex;
+            padding: 0.75rem;
+            gap: 0.75rem;
+        }
+
+        .standard-sidebar {
+            width: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .standard-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .standard-canvas {
+            flex: 1;
+            background: var(--bg-surface);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .standard-canvas .canvas-box {
+            width: 85%;
+            height: 85%;
+        }
+
+        .standard-bottom {
+            height: 64px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            gap: 1rem;
+        }
+
+        .inline-timeline {
+            flex: 1;
+            height: 32px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .inline-controls {
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
+        }
+
+        /* Layout C: Analyse (Analyste) */
+        .layout-analyse {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            grid-template-rows: 48px 1fr auto;
+            height: 520px;
+            background: var(--bg-dark);
+            gap: 0.5rem;
+        }
+
+        .analyse-header {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .analyse-canvas {
+            background: var(--bg-surface);
+            border-radius: 8px;
+            margin: 0.5rem;
+            margin-right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .analyse-canvas .canvas-box {
+            width: 90%;
+            height: 90%;
+        }
+
+        .analyse-panel {
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-tabs {
+            display: flex;
+            background: var(--bg-surface);
+        }
+
+        .panel-tab {
+            flex: 1;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.75rem;
+            border-bottom: 2px solid transparent;
+        }
+
+        .panel-tab.active {
+            border-color: var(--accent);
+            background: var(--bg-card);
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 0.5rem;
+            overflow-y: auto;
+        }
+
+        .analyse-timeline {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin: 0 0.5rem 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .multi-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .timeline-track {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .track-label {
+            width: 60px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .track-bar {
+            flex: 1;
+            height: 16px;
+            background: var(--bg-surface);
+            border-radius: 3px;
+        }
+
+        /* Layout D: Focus Player (Recruteur) */
+        .layout-focus {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 48px 1fr 60px;
+            height: 520px;
+            background: var(--bg-dark);
+        }
+
+        .focus-header {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            border-bottom: 1px solid var(--border);
+            gap: 1rem;
+        }
+
+        .focus-sidebar {
+            background: var(--bg-card);
+            padding: 0.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .focus-player-card {
+            background: var(--bg-surface);
+            border-radius: 6px;
+            padding: 0.5rem;
+            border-left: 3px solid var(--accent);
+        }
+
+        .focus-player-card.highlighted {
+            background: var(--accent);
+            color: white;
+        }
+
+        .player-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+        }
+
+        .stat-box {
+            background: var(--bg-card);
+            padding: 0.25rem;
+            border-radius: 3px;
+            text-align: center;
+            font-size: 0.65rem;
+        }
+
+        .focus-canvas {
+            background: var(--bg-surface);
+            margin: 0.5rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .player-highlight {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+
+        .focus-bottom {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            gap: 1rem;
+        }
+
+        /* Comparison section */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .comparison-item {
+            background: var(--bg-surface);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .comparison-item h4 {
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.8rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .metric-bad {
+            color: #ef4444;
+        }
+
+        .metric-good {
+            color: #10b981;
+        }
+
+        /* Responsive preview */
+        .responsive-demo {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding: 1rem 0;
+        }
+
+        .device-frame {
+            flex-shrink: 0;
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 0.5rem;
+        }
+
+        .device-label {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .device-screen {
+            background: var(--bg-dark);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-surface);
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        .legend-color.canvas { background: repeating-linear-gradient(45deg, var(--bg-card), var(--bg-card) 5px, var(--bg-surface) 5px, var(--bg-surface) 10px); border: 1px dashed var(--border); }
+        .legend-color.sidebar { background: var(--ct-color); }
+        .legend-color.timeline { background: var(--accent); }
+        .legend-color.controls { background: var(--bg-card); }
+
+        /* Annotations */
+        .annotation {
+            background: #fbbf24;
+            color: #000;
+            font-size: 0.65rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+
+        .arrow {
+            color: #fbbf24;
+            font-size: 1.2rem;
+        }
+
+        /* Navigation tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-tab {
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover {
+            background: var(--bg-surface);
+        }
+
+        .nav-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Benefits list */
+        .benefits {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .benefit {
+            background: var(--bg-surface);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .benefit-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .benefit-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wireframes - Refactorisation Replay 2D</h1>
+        <p class="subtitle">CS2 Analytics Platform - Analyse et propositions UX/UI</p>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color canvas"></div>
+                <span>Canvas (carte)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color sidebar"></div>
+                <span>Roster/Sidebar</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color timeline"></div>
+                <span>Timeline</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color controls"></div>
+                <span>Contrôles</span>
+            </div>
+        </div>
+
+        <!-- ==================== CURRENT LAYOUT ==================== -->
+        <h2>1. Layout Actuel - Problèmes identifiés</h2>
+
+        <div class="wireframe-section">
+            <div class="wireframe-title">
+                <h3>Layout actuel sur écran 24" (1920×1080)</h3>
+            </div>
+            <p class="wireframe-desc">
+                Illustration des problèmes de space verticale qui forcent le scroll sur grands écrans.
+            </p>
+
+            <div class="screen-container" style="position: relative;">
+                <div class="screen-label">
+                    <span>1920 × 1080 (Full HD) - Fenêtre navigateur ~900px hauteur</span>
+                    <span>Problème: Scroll nécessaire</span>
+                </div>
+                <div class="current-layout">
+                    <!-- Dashboard Header -->
+                    <div class="current-header" style="position: relative;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="width: 24px; height: 24px; background: var(--bg-surface); border-radius: 4px;"></div>
+                            <span style="font-size: 0.9rem;">2D Replay - de_mirage</span>
+                        </div>
+                        <span class="problem-indicator" style="right: 10px; top: 50%; transform: translateY(-50%);">60px fixe</span>
+                    </div>
+
+                    <!-- Top bar -->
+                    <div class="current-topbar" style="position: relative;">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div style="width: 100px; height: 28px; background: var(--bg-card); border-radius: 4px;"></div>
+                        </div>
+                        <div style="width: 28px; height: 28px; background: var(--bg-card); border-radius: 4px;"></div>
+                        <span class="problem-indicator" style="right: 50px; top: 50%; transform: translateY(-50%);">44px</span>
+                    </div>
+
+                    <!-- Round header -->
+                    <div class="current-roundheader" style="position: relative;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div class="score-ct">8</div>
+                            <span style="font-size: 0.8rem;">vs</span>
+                            <div class="score-t">5</div>
+                        </div>
+                        <span class="problem-indicator" style="right: 10px; top: 50%; transform: translateY(-50%);">56px dupliqué</span>
+                    </div>
+
+                    <!-- Main area -->
+                    <div class="current-main">
+                        <!-- Sidebar -->
+                        <div class="current-sidebar" style="position: relative;">
+                            <div class="team-block team-ct">
+                                <div style="font-size: 0.75rem; padding: 0.25rem;">CT Team</div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                            </div>
+                            <div class="team-block team-t">
+                                <div style="font-size: 0.75rem; padding: 0.25rem;">T Team</div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                                <div class="player-row"></div>
+                            </div>
+                            <span class="problem-indicator" style="top: 10px; right: -5px;">280px fixe</span>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="current-content">
+                            <div class="current-canvas-area">
+                                <div class="canvas-box">
+                                    Canvas 800×800 max<br>
+                                    <span style="font-size: 0.7rem; color: #ef4444;">Cap artificiel!</span>
+                                </div>
+                                <span class="problem-indicator" style="top: 10px; right: 10px;">Cap 800px</span>
+                            </div>
+
+                            <div class="current-timeline" style="position: relative;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;">
+                                    <span>0:00</span>
+                                    <span style="color: var(--text-muted);">Kills • Bomb • Nades</span>
+                                    <span>-1:45</span>
+                                </div>
+                                <div class="timeline-bar">
+                                    <div class="timeline-progress"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted);">
+                                    <span>Frame 245/612</span>
+                                    <span>Round 13 • CT win</span>
+                                    <span>Tick 156432</span>
+                                </div>
+                                <span class="problem-indicator" style="right: 10px; top: 10px;">110px</span>
+                            </div>
+
+                            <div class="current-controls">
+                                <div class="controls-bar">
+                                    <div class="control-btn"></div>
+                                    <div class="control-btn"></div>
+                                    <div class="control-btn play"></div>
+                                    <div class="control-btn"></div>
+                                    <div class="control-btn"></div>
+                                    <div style="width: 1px; height: 24px; background: var(--border); margin: 0 0.5rem;"></div>
+                                    <div style="width: 60px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="scroll-indicator">SCROLL REQUIS ↓</div>
+            </div>
+
+            <!-- Comparison metrics -->
+            <div class="comparison">
+                <div class="comparison-item">
+                    <h4>Espace vertical consommé (hors canvas)</h4>
+                    <div class="metric">
+                        <span>Dashboard padding</span>
+                        <span class="metric-bad">48px</span>
+                    </div>
+                    <div class="metric">
+                        <span>Header page</span>
+                        <span class="metric-bad">60px</span>
+                    </div>
+                    <div class="metric">
+                        <span>Top bar</span>
+                        <span class="metric-bad">44px</span>
+                    </div>
+                    <div class="metric">
+                        <span>Round header</span>
+                        <span class="metric-bad">56px</span>
+                    </div>
+                    <div class="metric">
+                        <span>Timeline</span>
+                        <span class="metric-bad">110px</span>
+                    </div>
+                    <div class="metric">
+                        <span>Controls</span>
+                        <span class="metric-bad">48px</span>
+                    </div>
+                    <div class="metric" style="font-weight: bold; border-top: 2px solid var(--border);">
+                        <span>TOTAL</span>
+                        <span class="metric-bad">~370px</span>
+                    </div>
+                </div>
+                <div class="comparison-item">
+                    <h4>Espace restant pour canvas</h4>
+                    <div class="metric">
+                        <span>Hauteur viewport</span>
+                        <span>900px</span>
+                    </div>
+                    <div class="metric">
+                        <span>- Overhead fixe</span>
+                        <span class="metric-bad">-370px</span>
+                    </div>
+                    <div class="metric">
+                        <span>- Paddings internes</span>
+                        <span class="metric-bad">-48px</span>
+                    </div>
+                    <div class="metric" style="font-weight: bold; border-top: 2px solid var(--border);">
+                        <span>Disponible</span>
+                        <span class="metric-bad">~480px</span>
+                    </div>
+                    <div class="metric">
+                        <span>Mais cap canvas =</span>
+                        <span class="metric-bad">800px max</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== PROPOSED LAYOUTS ==================== -->
+        <h2>2. Layouts Proposés par Persona</h2>
+
+        <!-- Layout A: Compact (Joueur) -->
+        <div class="wireframe-section">
+            <div class="wireframe-title">
+                <h3>Layout A: Mode Compact</h3>
+                <span class="persona-badge persona-joueur">Joueur</span>
+            </div>
+            <p class="wireframe-desc">
+                Canvas maximisé, roster et killfeed en overlay semi-transparent.
+                Timeline et contrôles fusionnés en une barre compacte.
+                Idéal pour analyser son propre gameplay.
+            </p>
+
+            <div class="screen-container">
+                <div class="screen-label">
+                    <span>Mode Compact - Canvas maximisé</span>
+                    <span>Espace économisé: ~200px verticalement</span>
+                </div>
+                <div class="layout-compact">
+                    <div class="compact-header">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 24px; height: 24px; background: var(--bg-surface); border-radius: 4px;"></div>
+                            <span style="font-size: 0.9rem;">R13</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+                                <span class="score-ct" style="padding: 0.15rem 0.5rem; font-size: 0.85rem;">8</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">vs</span>
+                                <span class="score-t" style="padding: 0.15rem 0.5rem; font-size: 0.85rem;">5</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div style="width: 28px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                            <div style="width: 28px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="compact-main">
+                        <div class="compact-canvas">
+                            <div class="canvas-box" style="width: 95%; height: 95%;">
+                                Canvas Maximisé<br>
+                                <span style="font-size: 0.8rem; color: #10b981;">Pas de cap!</span>
+                            </div>
+
+                            <!-- Floating roster -->
+                            <div class="floating-roster">
+                                <div style="font-size: 0.7rem; color: var(--ct-color); margin-bottom: 0.25rem;">CT (3 alive)</div>
+                                <div class="mini-player"></div>
+                                <div class="mini-player" style="opacity: 0.4;"></div>
+                                <div class="mini-player"></div>
+                                <div style="font-size: 0.7rem; color: var(--t-color); margin: 0.5rem 0 0.25rem;">T (2 alive)</div>
+                                <div class="mini-player"></div>
+                                <div class="mini-player" style="opacity: 0.4;"></div>
+                            </div>
+
+                            <!-- Floating killfeed -->
+                            <div class="floating-killfeed">
+                                <div style="font-size: 0.65rem; margin-bottom: 0.25rem;">
+                                    <span style="color: var(--ct-color);">Player1</span>
+                                    <span style="color: var(--text-muted);"> ✕ </span>
+                                    <span style="color: var(--t-color);">Enemy1</span>
+                                </div>
+                                <div style="font-size: 0.65rem;">
+                                    <span style="color: var(--t-color);">Enemy2</span>
+                                    <span style="color: var(--text-muted);"> ✕ </span>
+                                    <span style="color: var(--ct-color);">Player2</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="compact-bottom">
+                            <div class="compact-timeline">
+                                <span style="font-size: 0.75rem; margin-right: 0.5rem;">0:32</span>
+                                <div style="flex: 1; height: 20px; background: var(--bg-surface); border-radius: 3px; position: relative;">
+                                    <div style="width: 40%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--ct-color)); border-radius: 3px;"></div>
+                                    <div style="position: absolute; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; top: 50%; left: 25%; transform: translate(-50%, -50%);"></div>
+                                    <div style="position: absolute; width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; top: 50%; left: 60%; transform: translate(-50%, -50%);"></div>
+                                </div>
+                                <span style="font-size: 0.75rem; margin-left: 0.5rem; color: var(--text-muted);">-1:13</span>
+                            </div>
+                            <div class="compact-controls">
+                                <div class="control-btn" style="width: 28px; height: 28px;"></div>
+                                <div class="control-btn play" style="width: 36px; height: 36px;"></div>
+                                <div class="control-btn" style="width: 28px; height: 28px;"></div>
+                                <div style="width: 50px; height: 24px; background: var(--bg-surface); border-radius: 4px; margin-left: 0.5rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="benefits">
+                <div class="benefit">
+                    <div class="benefit-title">Canvas 40% plus grand</div>
+                    <div class="benefit-desc">Plus de cap artificiel, taille adaptative selon l'écran</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Zero scroll</div>
+                    <div class="benefit-desc">Tout visible en un coup d'oeil sur écran 1080p+</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Roster accessible</div>
+                    <div class="benefit-desc">Overlay semi-transparent, masquable au besoin</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layout B: Standard (Coach) -->
+        <div class="wireframe-section">
+            <div class="wireframe-title">
+                <h3>Layout B: Mode Standard</h3>
+                <span class="persona-badge persona-coach">Coach</span>
+            </div>
+            <p class="wireframe-desc">
+                Layout équilibré avec sidebar fixe mais optimisée. Header fusionné (navigation + scores).
+                Timeline et contrôles combinés. Parfait pour les sessions de coaching et revue d'équipe.
+            </p>
+
+            <div class="screen-container">
+                <div class="screen-label">
+                    <span>Mode Standard - Équilibré</span>
+                    <span>Sidebar optimisée + Timeline compacte</span>
+                </div>
+                <div class="layout-standard">
+                    <div class="standard-header">
+                        <div style="width: 28px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                        <div style="width: 90px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">de_mirage</span>
+                        <div class="header-scores">
+                            <span style="color: var(--ct-color); font-size: 0.8rem;">NAVI</span>
+                            <span class="score-ct" style="padding: 0.2rem 0.6rem;">8</span>
+                            <span style="color: var(--text-muted);">:</span>
+                            <span class="score-t" style="padding: 0.2rem 0.6rem;">5</span>
+                            <span style="color: var(--t-color); font-size: 0.8rem;">G2</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-left: 1rem;">
+                            <div style="width: 28px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="standard-main">
+                        <div class="standard-sidebar">
+                            <div class="team-block team-ct" style="padding: 0.35rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; padding: 0.15rem;">
+                                    <span style="color: var(--ct-color);">NAVI</span>
+                                    <span style="color: var(--text-muted);">$12.4k</span>
+                                </div>
+                                <div class="player-row" style="height: 32px;"></div>
+                                <div class="player-row" style="height: 32px;"></div>
+                                <div class="player-row" style="height: 32px;"></div>
+                                <div class="player-row" style="height: 32px; opacity: 0.4;"></div>
+                                <div class="player-row" style="height: 32px; opacity: 0.4;"></div>
+                            </div>
+                            <div class="team-block team-t" style="padding: 0.35rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; padding: 0.15rem;">
+                                    <span style="color: var(--t-color);">G2</span>
+                                    <span style="color: var(--text-muted);">$8.2k</span>
+                                </div>
+                                <div class="player-row" style="height: 32px;"></div>
+                                <div class="player-row" style="height: 32px;"></div>
+                                <div class="player-row" style="height: 32px; opacity: 0.4;"></div>
+                                <div class="player-row" style="height: 32px; opacity: 0.4;"></div>
+                                <div class="player-row" style="height: 32px; opacity: 0.4;"></div>
+                            </div>
+                        </div>
+
+                        <div class="standard-center">
+                            <div class="standard-canvas">
+                                <div class="canvas-box" style="width: 88%; height: 88%;">
+                                    Canvas Optimisé<br>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);">~700px sur 1080p</span>
+                                </div>
+                            </div>
+
+                            <div class="standard-bottom">
+                                <div class="inline-controls">
+                                    <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                                    <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                                    <div class="control-btn play" style="width: 34px; height: 34px;"></div>
+                                    <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                                    <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                                </div>
+                                <div class="inline-timeline">
+                                    <div style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.7rem;">0:32</div>
+                                    <div style="position: absolute; left: 50px; right: 50px; top: 50%; transform: translateY(-50%); height: 16px; background: var(--bg-card); border-radius: 3px;">
+                                        <div style="width: 40%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--ct-color)); border-radius: 3px;"></div>
+                                    </div>
+                                    <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: var(--text-muted);">-1:13</div>
+                                </div>
+                                <div style="width: 55px; height: 26px; background: var(--bg-surface); border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="benefits">
+                <div class="benefit">
+                    <div class="benefit-title">Header fusionné</div>
+                    <div class="benefit-desc">Navigation + scores + round selector en une ligne</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Sidebar compacte</div>
+                    <div class="benefit-desc">220px au lieu de 280px, player cards condensées</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Controls intégrés</div>
+                    <div class="benefit-desc">Timeline + contrôles dans une seule barre (64px vs 158px)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layout C: Analyse (Analyste) -->
+        <div class="wireframe-section">
+            <div class="wireframe-title">
+                <h3>Layout C: Mode Analyse</h3>
+                <span class="persona-badge persona-analyste">Analyste</span>
+            </div>
+            <p class="wireframe-desc">
+                Focus sur la timeline multi-couches. Panel latéral avec onglets (Events, Stats, Heatmap).
+                Idéal pour l'analyse approfondie des patterns et tendances.
+            </p>
+
+            <div class="screen-container">
+                <div class="screen-label">
+                    <span>Mode Analyse - Timeline enrichie</span>
+                    <span>Multi-track events + Panel contextuel</span>
+                </div>
+                <div class="layout-analyse">
+                    <div class="analyse-header">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 24px; height: 24px; background: var(--bg-surface); border-radius: 4px;"></div>
+                            <div style="width: 90px; height: 26px; background: var(--bg-surface); border-radius: 4px;"></div>
+                            <div style="display: flex; gap: 0.25rem; margin-left: 1rem;">
+                                <span class="score-ct" style="padding: 0.15rem 0.5rem; font-size: 0.8rem;">8</span>
+                                <span style="font-size: 0.7rem; color: var(--text-muted);">:</span>
+                                <span class="score-t" style="padding: 0.15rem 0.5rem; font-size: 0.8rem;">5</span>
+                            </div>
+                        </div>
+                        <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                            <div style="width: 28px; height: 28px; background: var(--accent); border-radius: 4px;"></div>
+                            <div style="width: 28px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="analyse-canvas">
+                        <div class="canvas-box" style="width: 90%; height: 90%;">
+                            Canvas Principal
+                        </div>
+                    </div>
+
+                    <div class="analyse-panel">
+                        <div class="panel-tabs">
+                            <div class="panel-tab active">Events</div>
+                            <div class="panel-tab">Stats</div>
+                            <div class="panel-tab">Heat</div>
+                        </div>
+                        <div class="panel-content">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.5rem;">Timeline Events</div>
+                            <div style="background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.35rem; font-size: 0.7rem;">
+                                <span style="color: #ef4444;">0:15</span> - Kill (HS)
+                            </div>
+                            <div style="background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.35rem; font-size: 0.7rem;">
+                                <span style="color: #f59e0b;">0:32</span> - Smoke A
+                            </div>
+                            <div style="background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.35rem; font-size: 0.7rem;">
+                                <span style="color: #ef4444;">0:45</span> - Kill
+                            </div>
+                            <div style="background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.35rem; font-size: 0.7rem;">
+                                <span style="color: #fbbf24;">1:02</span> - Bomb Plant
+                            </div>
+                            <div style="background: var(--bg-surface); padding: 0.5rem; border-radius: 4px; font-size: 0.7rem;">
+                                <span style="color: #ef4444;">1:18</span> - 2 Kills
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="analyse-timeline">
+                        <div class="multi-timeline">
+                            <div class="timeline-track">
+                                <div class="track-label">Kills</div>
+                                <div class="track-bar" style="position: relative;">
+                                    <div style="position: absolute; width: 6px; height: 6px; background: #ef4444; border-radius: 50%; top: 50%; left: 15%; transform: translate(-50%, -50%);"></div>
+                                    <div style="position: absolute; width: 6px; height: 6px; background: #ef4444; border-radius: 50%; top: 50%; left: 45%; transform: translate(-50%, -50%);"></div>
+                                    <div style="position: absolute; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; top: 50%; left: 78%; transform: translate(-50%, -50%);"></div>
+                                </div>
+                            </div>
+                            <div class="timeline-track">
+                                <div class="track-label">Utility</div>
+                                <div class="track-bar" style="position: relative;">
+                                    <div style="position: absolute; width: 6px; height: 6px; background: #9ca3af; border-radius: 50%; top: 50%; left: 32%; transform: translate(-50%, -50%);"></div>
+                                    <div style="position: absolute; width: 6px; height: 6px; background: #f97316; border-radius: 50%; top: 50%; left: 38%; transform: translate(-50%, -50%);"></div>
+                                    <div style="position: absolute; width: 6px; height: 6px; background: #fde047; border-radius: 50%; top: 50%; left: 55%; transform: translate(-50%, -50%);"></div>
+                                </div>
+                            </div>
+                            <div class="timeline-track">
+                                <div class="track-label">Bomb</div>
+                                <div class="track-bar" style="position: relative;">
+                                    <div style="position: absolute; width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; top: 50%; left: 60%; transform: translate(-50%, -50%);"></div>
+                                    <div style="position: absolute; left: 60%; right: 10%; top: 50%; height: 4px; background: rgba(245, 158, 11, 0.3); transform: translateY(-50%);"></div>
+                                </div>
+                            </div>
+                            <div class="timeline-track">
+                                <div class="track-label" style="visibility: hidden;">-</div>
+                                <div style="flex: 1; height: 20px; background: var(--bg-surface); border-radius: 3px; position: relative;">
+                                    <div style="width: 65%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--ct-color)); border-radius: 3px;"></div>
+                                    <div style="position: absolute; width: 12px; height: 12px; background: white; border-radius: 50%; top: 50%; left: 65%; transform: translate(-50%, -50%); border: 2px solid var(--accent);"></div>
+                                </div>
+                                <div style="display: flex; gap: 0.25rem; margin-left: 0.5rem;">
+                                    <div class="control-btn" style="width: 20px; height: 20px;"></div>
+                                    <div class="control-btn play" style="width: 24px; height: 24px;"></div>
+                                    <div class="control-btn" style="width: 20px; height: 20px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="benefits">
+                <div class="benefit">
+                    <div class="benefit-title">Timeline multi-couches</div>
+                    <div class="benefit-desc">Kills, Utility, Bomb events sur tracks séparées</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Panel contextuel</div>
+                    <div class="benefit-desc">Events détaillés, stats en temps réel, heatmaps</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Navigation rapide</div>
+                    <div class="benefit-desc">Clic sur event = jump direct au moment</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Layout D: Focus Player (Recruteur) -->
+        <div class="wireframe-section">
+            <div class="wireframe-title">
+                <h3>Layout D: Mode Focus Joueur</h3>
+                <span class="persona-badge persona-recruteur">Recruteur</span>
+            </div>
+            <p class="wireframe-desc">
+                Sidebar élargie avec stats détaillées par joueur. Highlight visuel du joueur sélectionné sur le canvas.
+                Parfait pour évaluer les performances individuelles.
+            </p>
+
+            <div class="screen-container">
+                <div class="screen-label">
+                    <span>Mode Focus - Évaluation individuelle</span>
+                    <span>Stats complètes + Tracking joueur</span>
+                </div>
+                <div class="layout-focus">
+                    <div class="focus-header">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 24px; height: 24px; background: var(--bg-surface); border-radius: 4px;"></div>
+                            <div style="width: 90px; height: 26px; background: var(--bg-surface); border-radius: 4px;"></div>
+                        </div>
+                        <div style="margin-left: auto; display: flex; align-items: center; gap: 1rem;">
+                            <span style="font-size: 0.8rem; color: var(--accent);">Focus: s1mple</span>
+                            <div style="display: flex; gap: 0.25rem;">
+                                <span class="score-ct" style="padding: 0.15rem 0.5rem; font-size: 0.8rem;">8</span>
+                                <span style="font-size: 0.7rem; color: var(--text-muted);">:</span>
+                                <span class="score-t" style="padding: 0.15rem 0.5rem; font-size: 0.8rem;">5</span>
+                            </div>
+                            <div style="width: 28px; height: 28px; background: var(--bg-surface); border-radius: 4px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="focus-sidebar">
+                        <div style="font-size: 0.75rem; color: var(--ct-color); padding: 0.25rem;">Counter-Terrorists</div>
+
+                        <div class="focus-player-card highlighted">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 600; font-size: 0.85rem;">s1mple</span>
+                                <span style="font-size: 0.7rem; background: rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 3px;">AWP</span>
+                            </div>
+                            <div class="player-stats-grid">
+                                <div class="stat-box">
+                                    <div style="font-size: 0.9rem; font-weight: bold;">23</div>
+                                    <div>Kills</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div style="font-size: 0.9rem; font-weight: bold;">8</div>
+                                    <div>Deaths</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div style="font-size: 0.9rem; font-weight: bold;">2.87</div>
+                                    <div>K/D</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div style="font-size: 0.9rem; font-weight: bold;">87%</div>
+                                    <div>HS%</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div style="font-size: 0.9rem; font-weight: bold;">142</div>
+                                    <div>ADR</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div style="font-size: 0.9rem; font-weight: bold;">1.8</div>
+                                    <div>Rating</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="focus-player-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+                                <span>b1t</span>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">AK-47</span>
+                            </div>
+                        </div>
+                        <div class="focus-player-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+                                <span>electroNic</span>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">M4A1-S</span>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.75rem; color: var(--t-color); padding: 0.25rem; margin-top: 0.5rem;">Terrorists</div>
+                        <div class="focus-player-card" style="border-color: var(--t-color); opacity: 0.6;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+                                <span style="text-decoration: line-through;">NiKo</span>
+                                <span style="font-size: 0.65rem; color: #ef4444;">DEAD</span>
+                            </div>
+                        </div>
+                        <div class="focus-player-card" style="border-color: var(--t-color);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+                                <span>m0NESY</span>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">AWP</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="focus-canvas">
+                        <div class="canvas-box" style="width: 85%; height: 85%;">
+                            Canvas avec highlight
+                        </div>
+                        <div class="player-highlight" style="top: 40%; left: 35%;"></div>
+                    </div>
+
+                    <div class="focus-bottom">
+                        <div style="display: flex; gap: 0.25rem; align-items: center;">
+                            <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                            <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                            <div class="control-btn play" style="width: 34px; height: 34px;"></div>
+                            <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                            <div class="control-btn" style="width: 26px; height: 26px;"></div>
+                        </div>
+                        <div style="flex: 1; height: 24px; background: var(--bg-surface); border-radius: 4px; margin: 0 1rem; position: relative;">
+                            <div style="width: 40%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--ct-color)); border-radius: 4px;"></div>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">0:32 / 1:45</span>
+                        <div style="width: 55px; height: 26px; background: var(--bg-surface); border-radius: 4px; margin-left: 0.5rem;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="benefits">
+                <div class="benefit">
+                    <div class="benefit-title">Stats détaillées</div>
+                    <div class="benefit-desc">K/D, HS%, ADR, Rating visible par joueur</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Highlight visuel</div>
+                    <div class="benefit-desc">Cercle pulsant autour du joueur focus</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Comparaison facile</div>
+                    <div class="benefit-desc">Clic sur un autre joueur = switch instantané</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== RESPONSIVE PREVIEW ==================== -->
+        <h2>3. Comportement Responsive</h2>
+
+        <div class="wireframe-section">
+            <div class="wireframe-title">
+                <h3>Adaptation automatique selon la taille d'écran</h3>
+            </div>
+            <p class="wireframe-desc">
+                Le layout s'adapte intelligemment : grands écrans = mode standard, écrans compacts = mode overlay.
+            </p>
+
+            <div class="responsive-demo">
+                <!-- 4K -->
+                <div class="device-frame">
+                    <div class="device-label">4K (3840×2160)</div>
+                    <div class="device-screen" style="width: 300px; height: 170px;">
+                        <div style="display: flex; height: 100%; padding: 4px; gap: 4px;">
+                            <div style="width: 60px; background: var(--bg-card); border-radius: 3px;"></div>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="flex: 1; background: var(--bg-surface); border-radius: 3px;"></div>
+                                <div style="height: 20px; background: var(--bg-card); border-radius: 3px;"></div>
+                            </div>
+                            <div style="width: 60px; background: var(--bg-card); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Mode Analyse<br>3 colonnes
+                    </div>
+                </div>
+
+                <!-- 1440p -->
+                <div class="device-frame">
+                    <div class="device-label">1440p (2560×1440)</div>
+                    <div class="device-screen" style="width: 240px; height: 135px;">
+                        <div style="display: flex; height: 100%; padding: 4px; gap: 4px;">
+                            <div style="width: 50px; background: var(--bg-card); border-radius: 3px;"></div>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="flex: 1; background: var(--bg-surface); border-radius: 3px;"></div>
+                                <div style="height: 16px; background: var(--bg-card); border-radius: 3px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Mode Standard<br>Sidebar visible
+                    </div>
+                </div>
+
+                <!-- 1080p -->
+                <div class="device-frame">
+                    <div class="device-label">1080p (1920×1080)</div>
+                    <div class="device-screen" style="width: 200px; height: 112px;">
+                        <div style="display: flex; height: 100%; padding: 4px; gap: 4px;">
+                            <div style="width: 40px; background: var(--bg-card); border-radius: 3px;"></div>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="flex: 1; background: var(--bg-surface); border-radius: 3px;"></div>
+                                <div style="height: 14px; background: var(--bg-card); border-radius: 3px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Mode Standard<br>Sidebar compacte
+                    </div>
+                </div>
+
+                <!-- Laptop -->
+                <div class="device-frame">
+                    <div class="device-label">Laptop 13" (1280×800)</div>
+                    <div class="device-screen" style="width: 160px; height: 100px;">
+                        <div style="display: flex; flex-direction: column; height: 100%; padding: 4px; gap: 4px;">
+                            <div style="flex: 1; background: var(--bg-surface); border-radius: 3px; position: relative;">
+                                <div style="position: absolute; top: 4px; left: 4px; width: 30px; height: 40px; background: rgba(30,41,59,0.9); border-radius: 2px;"></div>
+                            </div>
+                            <div style="height: 12px; background: var(--bg-card); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Mode Compact<br>Overlay roster
+                    </div>
+                </div>
+
+                <!-- Tablet -->
+                <div class="device-frame">
+                    <div class="device-label">Tablet (1024×768)</div>
+                    <div class="device-screen" style="width: 130px; height: 97px;">
+                        <div style="display: flex; flex-direction: column; height: 100%; padding: 4px; gap: 4px;">
+                            <div style="flex: 1; background: var(--bg-surface); border-radius: 3px;"></div>
+                            <div style="height: 10px; background: var(--bg-card); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Mode Compact<br>Roster collapsible
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SUMMARY ==================== -->
+        <h2>4. Récapitulatif des Améliorations</h2>
+
+        <div class="wireframe-section">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: var(--bg-surface);">
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border);">Élément</th>
+                        <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid var(--border);">Actuel</th>
+                        <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid var(--border);">Proposé</th>
+                        <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid var(--border);">Gain</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">Canvas max size</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #ef4444;">800px (cap fixe)</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #10b981;">Dynamique (viewport)</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">+40% sur 1440p</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">Overhead vertical</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #ef4444;">~370px</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #10b981;">~120px</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">-250px</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">Sidebar width</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #ef4444;">280px fixe</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #10b981;">clamp(200px, 18%, 320px)</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">Adaptatif</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">Timeline + Controls</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #ef4444;">158px (séparés)</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #10b981;">60px (fusionnés)</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">-98px</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">Headers</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #ef4444;">160px (3 lignes)</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #10b981;">48px (fusionné)</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">-112px</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">Modes persona</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #ef4444;">1 layout unique</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border); color: #10b981;">4 modes adaptés</td>
+                        <td style="padding: 0.75rem; text-align: center; border-bottom: 1px solid var(--border);">UX ciblée</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+
+</body></html>

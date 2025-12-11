@@ -945,7 +945,7 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
 
   // Molotov/incendiary has fire spread effect
   if (grenadeType === "molotov" || grenadeType === "incgrenade") {
-    const fireRadius = Math.min(ticksSinceEvent / 6, 25);
+    const fireRadius = Math.max(1, Math.min(ticksSinceEvent / 6, 25));
     const pulseOffset = Math.sin(ticksSinceEvent / 4) * 3;
     return (
       <Group opacity={opacity}>
@@ -961,7 +961,7 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
         <Circle
           x={pos.x}
           y={pos.y}
-          radius={fireRadius * 0.6 + pulseOffset}
+          radius={Math.max(1, fireRadius * 0.6 + pulseOffset)}
           fill="#ffaa00"
           opacity={0.6}
         />
@@ -969,7 +969,7 @@ const GrenadeIndicator = React.memo(function GrenadeIndicator({
         <Circle
           x={pos.x}
           y={pos.y}
-          radius={fireRadius * 0.3}
+          radius={Math.max(1, fireRadius * 0.3)}
           fill="#ffff00"
           opacity={0.7}
         />

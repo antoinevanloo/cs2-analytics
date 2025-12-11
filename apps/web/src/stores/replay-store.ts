@@ -226,6 +226,19 @@ export type PlaybackState =
 export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 1.5, 2, 4] as const;
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 
+// View mode for different personas
+// - compact: Joueur (canvas maximisé, overlays flottants)
+// - standard: Coach (sidebar visible, layout équilibré)
+// - analyse: Analyste (timeline multi-couches, panel contextuel)
+// - focus: Recruteur (stats joueur détaillées, highlight visuel)
+export type ViewMode = 'compact' | 'standard' | 'analyse' | 'focus';
+export const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+  compact: 'Joueur',
+  standard: 'Coach',
+  analyse: 'Analyste',
+  focus: 'Recruteur',
+};
+
 interface ReplayState {
   // Demo/Round identification
   demoId: string | null;
@@ -259,6 +272,9 @@ interface ReplayState {
   viewportScale: number;
   viewportOffsetX: number;
   viewportOffsetY: number;
+
+  // View mode (persona-based layouts)
+  viewMode: ViewMode;
 
   // Show/hide overlays
   showKillLines: boolean;
@@ -299,6 +315,8 @@ interface ReplayState {
   setViewport: (scale: number, offsetX: number, offsetY: number) => void;
   resetViewport: () => void;
 
+  setViewMode: (mode: ViewMode) => void;
+
   toggleKillLines: () => void;
   toggleGrenades: () => void;
   toggleTrajectories: () => void;
@@ -329,6 +347,7 @@ const initialState = {
   viewportScale: 1,
   viewportOffsetX: 0,
   viewportOffsetY: 0,
+  viewMode: "compact" as ViewMode, // Default to player view (compact mode)
   showKillLines: true,
   showGrenades: true,
   showTrajectories: true, // Grenade throw→detonate arc lines
@@ -546,6 +565,10 @@ export const useReplayStore = create<ReplayState>()(
         viewportOffsetX: 0,
         viewportOffsetY: 0,
       });
+    },
+
+    setViewMode: (mode: ViewMode) => {
+      set({ viewMode: mode });
     },
 
     toggleKillLines: () => {
