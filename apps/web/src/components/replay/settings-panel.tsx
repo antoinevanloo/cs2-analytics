@@ -54,22 +54,35 @@ interface SettingRowProps {
   description?: string;
   shortcut?: string;
   children: React.ReactNode;
+  compact?: boolean;
 }
 
-function SettingRow({ label, description, shortcut, children }: SettingRowProps) {
+function SettingRow({ label, description, shortcut, children, compact = false }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between py-2">
-      <div className="space-y-0.5">
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">{label}</Label>
+    <div className={cn(
+      "flex items-center justify-between",
+      compact ? "py-1" : "py-2"
+    )}>
+      <div className="space-y-0">
+        <div className="flex items-center gap-1.5">
+          <Label className={cn(
+            "font-medium",
+            compact ? "text-xs" : "text-sm"
+          )}>{label}</Label>
           {shortcut && (
-            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border">
+            <kbd className={cn(
+              "font-mono bg-muted rounded border",
+              compact ? "px-1 py-0 text-[9px]" : "px-1.5 py-0.5 text-[10px]"
+            )}>
               {shortcut}
             </kbd>
           )}
         </div>
         {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <p className={cn(
+            "text-muted-foreground",
+            compact ? "text-[10px]" : "text-xs"
+          )}>{description}</p>
         )}
       </div>
       {children}
@@ -119,100 +132,116 @@ export function SettingsPanel({
   } = useReplayStore();
 
   const content = (
-    <div className="space-y-4">
+    <div className={cn("space-y-3", compact && "space-y-2")}>
       {/* View Mode section - only shown when showViewModeSelector is true */}
       {showViewModeSelector && (
-        <div className="space-y-1">
-          <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
+        <div className="space-y-0.5">
+          <h4 className={cn(
+            "font-semibold uppercase text-muted-foreground tracking-wide",
+            compact ? "text-[10px]" : "text-xs"
+          )}>
             View Mode
           </h4>
-          <div className="space-y-0.5">
-            <SettingRow label="Persona" description="Layout optimized for your role">
-              <Select
-                value={viewMode}
-                onValueChange={(v) => setViewMode(v as ViewMode)}
-              >
-                <SelectTrigger className="w-28 h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(
-                    ([mode, label]) => (
-                      <SelectItem key={mode} value={mode}>
-                        {label}
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
-            </SettingRow>
-          </div>
+          <SettingRow label="Persona" compact={compact}>
+            <Select
+              value={viewMode}
+              onValueChange={(v) => setViewMode(v as ViewMode)}
+            >
+              <SelectTrigger className={cn(
+                compact ? "w-24 h-6 text-xs" : "w-28 h-8"
+              )}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(
+                  ([mode, label]) => (
+                    <SelectItem key={mode} value={mode} className={compact ? "text-xs" : undefined}>
+                      {label}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+          </SettingRow>
         </div>
       )}
 
       {/* Overlays section */}
-      <div className="space-y-1">
-        <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
+      <div className="space-y-0.5">
+        <h4 className={cn(
+          "font-semibold uppercase text-muted-foreground tracking-wide",
+          compact ? "text-[10px]" : "text-xs"
+        )}>
           Overlays
         </h4>
-        <div className="space-y-0.5 divide-y divide-border">
+        <div className={cn(
+          "divide-y divide-border",
+          compact ? "space-y-0" : "space-y-0.5"
+        )}>
           <SettingRow
             label="Kill Lines"
             shortcut={compact ? undefined : "K"}
             description={compact ? undefined : "Show kill connections on map"}
+            compact={compact}
           >
-            <Switch checked={showKillLines} onCheckedChange={toggleKillLines} />
+            <Switch checked={showKillLines} onCheckedChange={toggleKillLines} className={compact ? "scale-75" : undefined} />
           </SettingRow>
 
           <SettingRow
             label="Grenades"
             shortcut={compact ? undefined : "G"}
             description={compact ? undefined : "Show grenade detonation effects"}
+            compact={compact}
           >
-            <Switch checked={showGrenades} onCheckedChange={toggleGrenades} />
+            <Switch checked={showGrenades} onCheckedChange={toggleGrenades} className={compact ? "scale-75" : undefined} />
           </SettingRow>
 
           <SettingRow
             label="Trajectories"
             shortcut={compact ? undefined : "J"}
             description={compact ? undefined : "Show grenade throw arcs"}
+            compact={compact}
           >
-            <Switch checked={showTrajectories} onCheckedChange={toggleTrajectories} />
+            <Switch checked={showTrajectories} onCheckedChange={toggleTrajectories} className={compact ? "scale-75" : undefined} />
           </SettingRow>
 
           <SettingRow
             label="Player Names"
             shortcut={compact ? undefined : "N"}
             description={compact ? undefined : "Show names above players"}
+            compact={compact}
           >
-            <Switch checked={showPlayerNames} onCheckedChange={togglePlayerNames} />
+            <Switch checked={showPlayerNames} onCheckedChange={togglePlayerNames} className={compact ? "scale-75" : undefined} />
           </SettingRow>
 
           <SettingRow
             label="Health Bars"
             shortcut={compact ? undefined : "H"}
             description={compact ? undefined : "Show health above players"}
+            compact={compact}
           >
-            <Switch checked={showHealthBars} onCheckedChange={toggleHealthBars} />
+            <Switch checked={showHealthBars} onCheckedChange={toggleHealthBars} className={compact ? "scale-75" : undefined} />
           </SettingRow>
 
           <SettingRow
-            label="Movement Trails"
+            label="Trails"
             shortcut={compact ? undefined : "T"}
             description={compact ? undefined : "Show player movement history"}
+            compact={compact}
           >
-            <Switch checked={showTrails} onCheckedChange={toggleTrails} />
+            <Switch checked={showTrails} onCheckedChange={toggleTrails} className={compact ? "scale-75" : undefined} />
           </SettingRow>
         </div>
 
         {/* Trail length slider - only shown when trails are enabled */}
         {showTrails && (
-          <div className="pt-2">
+          <div className="pt-1">
             <SettingRow
               label="Trail Length"
-              description={`${Math.round(trailLength * 8 / 64)}s of movement history`}
+              description={`${Math.round(trailLength * 8 / 64)}s`}
+              compact={compact}
             >
-              <div className="w-24">
+              <div className={compact ? "w-16" : "w-24"}>
                 <Slider
                   value={[trailLength]}
                   onValueChange={([value]) => setTrailLength(value)}
@@ -229,59 +258,63 @@ export function SettingsPanel({
 
       {/* Playback section - hidden in compact mode (already in bottom bar) */}
       {!compact && (
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
             Playback
           </h4>
-          <div className="space-y-0.5">
-            <SettingRow label="Speed" description="Playback speed multiplier">
-              <Select
-                value={playbackSpeed.toString()}
-                onValueChange={(v) => setPlaybackSpeed(parseFloat(v) as PlaybackSpeed)}
-              >
-                <SelectTrigger className="w-20 h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLAYBACK_SPEEDS.map((speed) => (
-                    <SelectItem key={speed} value={speed.toString()}>
-                      {speed}x
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </SettingRow>
-          </div>
+          <SettingRow label="Speed" description="Playback speed multiplier">
+            <Select
+              value={playbackSpeed.toString()}
+              onValueChange={(v) => setPlaybackSpeed(parseFloat(v) as PlaybackSpeed)}
+            >
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PLAYBACK_SPEEDS.map((speed) => (
+                  <SelectItem key={speed} value={speed.toString()}>
+                    {speed}x
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingRow>
         </div>
       )}
 
       {/* View section */}
-      <div className="space-y-1">
-        <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
+      <div className="space-y-0.5">
+        <h4 className={cn(
+          "font-semibold uppercase text-muted-foreground tracking-wide",
+          compact ? "text-[10px]" : "text-xs"
+        )}>
           View
         </h4>
-        <div className="space-y-2">
-          <SettingRow
-            label="Zoom"
-            shortcut={compact ? undefined : "R"}
-            description={compact ? undefined : "Reset with R key"}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-10 text-right">
-                {Math.round(viewportScale * 100)}%
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetViewport}
-                className="h-7 text-xs"
-              >
-                <RotateCcw className="h-3 w-3 mr-1" />
-                Reset
-              </Button>
-            </div>
-          </SettingRow>
-        </div>
+        <SettingRow
+          label="Zoom"
+          shortcut={compact ? undefined : "R"}
+          compact={compact}
+        >
+          <div className="flex items-center gap-1.5">
+            <span className={cn(
+              "text-muted-foreground text-right",
+              compact ? "text-[10px] w-8" : "text-xs w-10"
+            )}>
+              {Math.round(viewportScale * 100)}%
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetViewport}
+              className={cn(
+                compact ? "h-5 text-[10px] px-1.5" : "h-7 text-xs"
+              )}
+            >
+              <RotateCcw className={cn(compact ? "h-2.5 w-2.5" : "h-3 w-3", !compact && "mr-1")} />
+              {!compact && "Reset"}
+            </Button>
+          </div>
+        </SettingRow>
       </div>
 
       {/* Keyboard shortcuts - hidden in compact mode */}
@@ -351,9 +384,12 @@ export function SettingsPanel({
             <Settings className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80" align="end">
-          <div className="space-y-2">
-            <h3 className="font-medium">Display Settings</h3>
+        <PopoverContent className={cn(compact ? "w-56 p-3" : "w-80")} align="end">
+          <div className={cn(compact ? "space-y-1.5" : "space-y-2")}>
+            <h3 className={cn(
+              "font-medium",
+              compact ? "text-xs" : "text-sm"
+            )}>Settings</h3>
             {content}
           </div>
         </PopoverContent>
