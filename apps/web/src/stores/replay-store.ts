@@ -239,6 +239,17 @@ export const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   focus: 'Recruteur',
 };
 
+// Inferno zone quality levels
+// - low: 12 flames (mobile-friendly, ~0.5ms render)
+// - medium: 24 flames (balanced)
+// - high: 45 flames (full CS2 fidelity, ~2ms render)
+export type InfernoQuality = 'low' | 'medium' | 'high';
+export const INFERNO_QUALITY_LABELS: Record<InfernoQuality, string> = {
+  low: 'Basse',
+  medium: 'Moyenne',
+  high: 'Haute',
+};
+
 interface ReplayState {
   // Demo/Round identification
   demoId: string | null;
@@ -283,9 +294,14 @@ interface ReplayState {
   showPlayerNames: boolean;
   showHealthBars: boolean;
   showTrails: boolean;
+  showInfernoZones: boolean; // Realistic molotov/incendiary fire spread zones
 
   // Trail settings
   trailLength: number; // Number of frames to show in trail (default: 30 = ~4 seconds)
+
+  // Inferno zone settings
+  infernoZoneOpacity: number; // 0.0 to 1.0
+  infernoZoneQuality: InfernoQuality; // low, medium, high
 
   // Error state
   error: string | null;
@@ -324,6 +340,9 @@ interface ReplayState {
   toggleHealthBars: () => void;
   toggleTrails: () => void;
   setTrailLength: (length: number) => void;
+  toggleInfernoZones: () => void;
+  setInfernoZoneOpacity: (opacity: number) => void;
+  setInfernoZoneQuality: (quality: InfernoQuality) => void;
 
   reset: () => void;
   setError: (error: string | null) => void;
@@ -354,7 +373,10 @@ const initialState = {
   showPlayerNames: true,
   showHealthBars: true,
   showTrails: false, // Off by default - can be performance intensive
+  showInfernoZones: true, // Realistic fire spread zones
   trailLength: 30, // ~4 seconds at 8 tick sample interval (30 * 8 / 64 = 3.75s)
+  infernoZoneOpacity: 0.8,
+  infernoZoneQuality: "medium" as InfernoQuality,
   error: null,
 };
 
@@ -600,6 +622,20 @@ export const useReplayStore = create<ReplayState>()(
       // Clamp between 10 (~1.25s) and 80 (~10s)
       const clampedLength = Math.max(10, Math.min(80, length));
       set({ trailLength: clampedLength });
+    },
+
+    toggleInfernoZones: () => {
+      set((state) => ({ showInfernoZones: !state.showInfernoZones }));
+    },
+
+    setInfernoZoneOpacity: (opacity: number) => {
+      // Clamp between 0.1 and 1.0
+      const clampedOpacity = Math.max(0.1, Math.min(1.0, opacity));
+      set({ infernoZoneOpacity: clampedOpacity });
+    },
+
+    setInfernoZoneQuality: (quality: InfernoQuality) => {
+      set({ infernoZoneQuality: quality });
     },
 
     reset: () => {

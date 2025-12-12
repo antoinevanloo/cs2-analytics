@@ -9,7 +9,7 @@
  * - Shift+Arrow: 10s skip
  * - Ctrl+Arrow: 5s skip
  * - 1-5: Speed presets
- * - K/G/J/N/H/T/R: Overlay toggles
+ * - K/G/J/N/H/T/F/R: Overlay toggles (F = Fire zones)
  * - [ / ]: Previous/Next round
  *
  * Usage:
@@ -45,6 +45,7 @@ export function useReplayKeyboard(options: UseReplayKeyboardOptions = {}) {
     togglePlayerNames,
     toggleHealthBars,
     toggleTrails,
+    toggleInfernoZones,
     resetViewport,
   } = useReplayStore();
 
@@ -135,6 +136,10 @@ export function useReplayKeyboard(options: UseReplayKeyboardOptions = {}) {
           e.preventDefault();
           toggleTrails();
           break;
+        case "KeyF":
+          e.preventDefault();
+          toggleInfernoZones();
+          break;
         case "KeyR":
           e.preventDefault();
           resetViewport();
@@ -164,6 +169,7 @@ export function useReplayKeyboard(options: UseReplayKeyboardOptions = {}) {
       togglePlayerNames,
       toggleHealthBars,
       toggleTrails,
+      toggleInfernoZones,
       resetViewport,
       onPreviousRound,
       onNextRound,

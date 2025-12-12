@@ -24,8 +24,10 @@ import {
   useReplayStore,
   PLAYBACK_SPEEDS,
   VIEW_MODE_LABELS,
+  INFERNO_QUALITY_LABELS,
   type PlaybackSpeed,
   type ViewMode,
+  type InfernoQuality,
 } from "@/stores/replay-store";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -115,7 +117,10 @@ export function SettingsPanel({
     showPlayerNames,
     showHealthBars,
     showTrails,
+    showInfernoZones,
     trailLength,
+    infernoZoneOpacity,
+    infernoZoneQuality,
     viewportScale,
     viewMode,
     setPlaybackSpeed,
@@ -125,7 +130,10 @@ export function SettingsPanel({
     togglePlayerNames,
     toggleHealthBars,
     toggleTrails,
+    toggleInfernoZones,
     setTrailLength,
+    setInfernoZoneOpacity,
+    setInfernoZoneQuality,
     setViewport,
     resetViewport,
     setViewMode,
@@ -231,6 +239,15 @@ export function SettingsPanel({
           >
             <Switch checked={showTrails} onCheckedChange={toggleTrails} className={compact ? "scale-75" : undefined} />
           </SettingRow>
+
+          <SettingRow
+            label="Fire Zones"
+            shortcut={compact ? undefined : "F"}
+            description={compact ? undefined : "Realistic molotov spread zones"}
+            compact={compact}
+          >
+            <Switch checked={showInfernoZones} onCheckedChange={toggleInfernoZones} className={compact ? "scale-75" : undefined} />
+          </SettingRow>
         </div>
 
         {/* Trail length slider - only shown when trails are enabled */}
@@ -251,6 +268,53 @@ export function SettingsPanel({
                   className="w-full"
                 />
               </div>
+            </SettingRow>
+          </div>
+        )}
+
+        {/* Fire zone settings - only shown when fire zones are enabled */}
+        {showInfernoZones && (
+          <div className="pt-1 space-y-1">
+            <SettingRow
+              label="Fire Opacity"
+              description={`${Math.round(infernoZoneOpacity * 100)}%`}
+              compact={compact}
+            >
+              <div className={compact ? "w-16" : "w-24"}>
+                <Slider
+                  value={[infernoZoneOpacity]}
+                  onValueChange={([value]) => setInfernoZoneOpacity(value)}
+                  min={0.1}
+                  max={1}
+                  step={0.1}
+                  className="w-full"
+                />
+              </div>
+            </SettingRow>
+            <SettingRow
+              label="Fire Quality"
+              description={compact ? undefined : "Higher = more flames"}
+              compact={compact}
+            >
+              <Select
+                value={infernoZoneQuality}
+                onValueChange={(v) => setInfernoZoneQuality(v as InfernoQuality)}
+              >
+                <SelectTrigger className={cn(
+                  compact ? "w-20 h-6 text-xs" : "w-24 h-8"
+                )}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(INFERNO_QUALITY_LABELS) as [InfernoQuality, string][]).map(
+                    ([quality, label]) => (
+                      <SelectItem key={quality} value={quality} className={compact ? "text-xs" : undefined}>
+                        {label}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
             </SettingRow>
           </div>
         )}

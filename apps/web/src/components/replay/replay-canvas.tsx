@@ -42,7 +42,9 @@ import {
   type ReplayEvent,
   type MapConfig,
   type ReplayEventType,
+  type InfernoQuality,
 } from "@/stores/replay-store";
+import { InfernoZone } from "./inferno-zone";
 
 // Team colors
 const TEAM_COLORS = {
@@ -1102,7 +1104,10 @@ export function ReplayCanvas({
     showPlayerNames,
     showHealthBars,
     showTrails,
+    showInfernoZones,
     trailLength,
+    infernoZoneOpacity,
+    infernoZoneQuality,
     focusPlayer,
     hoverPlayer,
     setViewport,
@@ -1173,6 +1178,47 @@ export function ReplayCanvas({
       return false;
     });
   }, [events, currentTick, showKillLines, showGrenades]);
+
+  // Calculate active inferno zones with proper duration
+  const activeInfernos = useMemo(() => {
+    if (!events || currentTick === undefined || !showInfernoZones) return [];
+
+    // Find all MOLOTOV_START events
+    const molotovStarts = events.filter(
+      (e) => e.type === "MOLOTOV_START"
+    );
+
+    // Map to inferno data with calculated end tick
+    return molotovStarts
+      .map((startEvent) => {
+        // Find corresponding MOLOTOV_END event (same entityId)
+        const entityId = (startEvent as { entityId?: number }).entityId;
+        const endEvent = events.find(
+          (e) =>
+            e.type === "MOLOTOV_END" &&
+            (e as { entityId?: number }).entityId === entityId &&
+            e.tick > startEvent.tick
+        );
+
+        // Default duration: 7 seconds (448 ticks at 64 tick)
+        const endTick = endEvent?.tick ?? startEvent.tick + 448;
+        const durationTicks = endTick - startEvent.tick;
+
+        return {
+          id: startEvent.id,
+          startTick: startEvent.tick,
+          endTick,
+          durationTicks,
+          x: startEvent.endX ?? startEvent.x,
+          y: startEvent.endY ?? startEvent.y,
+          entityId: entityId ?? Math.random() * 1000000,
+        };
+      })
+      .filter((inferno) => {
+        // Only show active infernos
+        return currentTick >= inferno.startTick && currentTick < inferno.endTick;
+      });
+  }, [events, currentTick, showInfernoZones]);
 
   // Wheel zoom handler
   const handleWheel = useCallback(
@@ -1294,10 +1340,43 @@ export function ReplayCanvas({
               />
             ))}
 
+        {/* Inferno fire zones (rendered below grenade indicators) */}
+        {showInfernoZones &&
+          activeInfernos.map((inferno) => {
+            const pos = radarToCanvas(
+              inferno.x,
+              inferno.y,
+              mapConfig,
+              width,
+              height
+            );
+            return (
+              <InfernoZone
+                key={`inferno-${inferno.id}`}
+                centerX={pos.x}
+                centerY={pos.y}
+                entityId={inferno.entityId}
+                ticksSinceStart={currentTick - inferno.startTick}
+                totalDurationTicks={inferno.durationTicks}
+                baseRadius={30} // ~30px base radius, scales with quality
+                quality={infernoZoneQuality}
+                opacity={infernoZoneOpacity}
+              />
+            );
+          })}
+
         {/* Grenade detonation effects (rendered on top of trajectories) */}
         {/* Note: GRENADE_THROW events are trajectory-only, not displayed as detonation effects */}
+        {/* Note: MOLOTOV_START/END handled by InfernoZone when showInfernoZones is enabled */}
         {activeEvents
-          .filter((e) => isGrenadeEvent(e.type) && e.type !== "GRENADE_THROW")
+          .filter((e) => {
+            if (!isGrenadeEvent(e.type) || e.type === "GRENADE_THROW") return false;
+            // Skip molotov indicators when inferno zones are shown (avoid double rendering)
+            if (showInfernoZones && (e.type === "MOLOTOV_START" || e.type === "MOLOTOV_END")) {
+              return false;
+            }
+            return true;
+          })
           .map((event) => (
             <GrenadeIndicator
               key={event.id}
