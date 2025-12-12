@@ -25,10 +25,8 @@ import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
   Filter,
   User,
-  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,19 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  useReplayStore,
-  ViewMode,
-  VIEW_MODE_LABELS,
-  type PlayerFrame,
-} from "@/stores/replay-store";
+import { SettingsPanel } from "./settings-panel";
+import { type PlayerFrame } from "@/stores/replay-store";
 
 // Event filter options
 export type EventFilter = "all" | "kills" | "bombs" | "grenades" | "economy";
@@ -86,102 +73,6 @@ interface AnalyseHeaderProps {
   /** Additional class names */
   className?: string;
 }
-
-/**
- * Settings popover with view mode selector and export options
- */
-const SettingsPopover = React.memo(function SettingsPopover() {
-  const [open, setOpen] = React.useState(false);
-
-  const {
-    viewMode,
-    showTrajectories,
-    showTrails,
-    setViewMode,
-    toggleTrajectories,
-    toggleTrails,
-  } = useReplayStore();
-
-  const viewModes: ViewMode[] = ["compact", "standard", "analyse", "focus"];
-
-  const handleViewModeChange = useCallback((value: ViewMode) => {
-    setViewMode(value);
-    setOpen(false);
-  }, [setViewMode]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Settings className="h-4 w-4" />
-          <span className="sr-only">Settings</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-56">
-        <div className="space-y-4">
-          {/* View Mode */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">
-              View Mode
-            </Label>
-            <Select
-              value={viewMode}
-              onValueChange={handleViewModeChange}
-            >
-              <SelectTrigger className="h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {viewModes.map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {VIEW_MODE_LABELS[mode]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Advanced Toggles */}
-          <div className="space-y-3">
-            <Label className="text-xs font-medium text-muted-foreground">
-              Visualization
-            </Label>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="trajectories" className="text-sm">
-                Trajectories
-              </Label>
-              <Switch
-                id="trajectories"
-                checked={showTrajectories}
-                onCheckedChange={toggleTrajectories}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="trails" className="text-sm">
-                Player Trails
-              </Label>
-              <Switch
-                id="trails"
-                checked={showTrails}
-                onCheckedChange={toggleTrails}
-              />
-            </div>
-          </div>
-
-          {/* Export (placeholder) */}
-          <div className="pt-2 border-t">
-            <Button variant="outline" size="sm" className="w-full" disabled>
-              <Download className="h-3.5 w-3.5 mr-2" />
-              Export Analysis
-            </Button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-});
 
 /**
  * AnalyseHeader - Main component
@@ -344,7 +235,7 @@ export const AnalyseHeader = React.memo(function AnalyseHeader({
       <div className="flex-1" />
 
       {/* Settings */}
-      <SettingsPopover />
+      <SettingsPanel variant="popover" showViewModeSelector compact className="h-8 w-8" />
     </header>
   );
 });

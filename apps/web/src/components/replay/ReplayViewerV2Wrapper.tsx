@@ -9,11 +9,14 @@
  * - standard: Coach persona - sidebar with full player cards
  * - analyse: Analyste persona - grid layout with side panel and multi-layer timeline
  * - focus: Recruteur persona - detailed player stats with visual tracking
+ *
+ * Keyboard shortcuts are handled here for all view modes via useReplayKeyboard hook.
  */
 
-import React from "react";
+import React, { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useReplayStore, type ViewMode } from "@/stores/replay-store";
+import { useReplayKeyboard } from "@/hooks/use-replay-keyboard";
 import { ReplayViewerCompact } from "./replay-viewer-compact";
 import { ReplayViewerStandard } from "./replay-viewer-standard";
 import { ReplayViewerAnalyse } from "./replay-viewer-analyse";

@@ -19,7 +19,7 @@
 
 import React, { useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Settings, MoreVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -28,18 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  useReplayStore,
-  ViewMode,
-  VIEW_MODE_LABELS,
-} from "@/stores/replay-store";
+import { SettingsPanel } from "./settings-panel";
 
 interface CompactHeaderProps {
   /** Current round number */
@@ -99,148 +88,6 @@ const ScoreDisplay = React.memo(function ScoreDisplay({
         </span>
       )}
     </div>
-  );
-});
-
-/**
- * Settings popover with overlay toggles and view mode selector
- */
-const SettingsPopover = React.memo(function SettingsPopover() {
-  const [open, setOpen] = React.useState(false);
-
-  const {
-    showKillLines,
-    showGrenades,
-    showTrajectories,
-    showPlayerNames,
-    showHealthBars,
-    showTrails,
-    viewMode,
-    toggleKillLines,
-    toggleGrenades,
-    toggleTrajectories,
-    togglePlayerNames,
-    toggleHealthBars,
-    toggleTrails,
-    setViewMode,
-  } = useReplayStore();
-
-  const viewModes: ViewMode[] = ["compact", "standard", "analyse", "focus"];
-
-  const handleViewModeChange = useCallback((value: ViewMode) => {
-    console.log("[CompactHeader] handleViewModeChange called with:", value);
-    setViewMode(value);
-    // Close popover after mode change to ensure clean transition
-    setOpen(false);
-  }, [setViewMode]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Settings className="h-4 w-4" />
-          <span className="sr-only">Settings</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64">
-        <div className="space-y-4">
-          {/* View Mode Selector */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">
-              View Mode
-            </Label>
-            <Select
-              value={viewMode}
-              onValueChange={handleViewModeChange}
-            >
-              <SelectTrigger className="h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {viewModes.map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {VIEW_MODE_LABELS[mode]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Overlay Toggles */}
-          <div className="space-y-3">
-            <Label className="text-xs font-medium text-muted-foreground">
-              Overlays
-            </Label>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="kill-lines" className="text-sm">
-                Kill Lines
-              </Label>
-              <Switch
-                id="kill-lines"
-                checked={showKillLines}
-                onCheckedChange={toggleKillLines}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="grenades" className="text-sm">
-                Grenades
-              </Label>
-              <Switch
-                id="grenades"
-                checked={showGrenades}
-                onCheckedChange={toggleGrenades}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="trajectories" className="text-sm">
-                Trajectories
-              </Label>
-              <Switch
-                id="trajectories"
-                checked={showTrajectories}
-                onCheckedChange={toggleTrajectories}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="player-names" className="text-sm">
-                Player Names
-              </Label>
-              <Switch
-                id="player-names"
-                checked={showPlayerNames}
-                onCheckedChange={togglePlayerNames}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="health-bars" className="text-sm">
-                Health Bars
-              </Label>
-              <Switch
-                id="health-bars"
-                checked={showHealthBars}
-                onCheckedChange={toggleHealthBars}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="trails" className="text-sm">
-                Player Trails
-              </Label>
-              <Switch
-                id="trails"
-                checked={showTrails}
-                onCheckedChange={toggleTrails}
-              />
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 });
 
@@ -334,7 +181,7 @@ export const CompactHeader = React.memo(function CompactHeader({
 
       {/* Right: Settings */}
       <div className="flex items-center gap-1">
-        <SettingsPopover />
+        <SettingsPanel variant="popover" showViewModeSelector compact className="h-8 w-8" />
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <MoreVertical className="h-4 w-4" />
           <span className="sr-only">More options</span>

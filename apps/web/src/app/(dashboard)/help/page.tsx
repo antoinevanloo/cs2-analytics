@@ -202,8 +202,10 @@ const shortcutCategories = [
     shortcuts: [
       { keys: ["K"], action: "Toggle kill lines" },
       { keys: ["G"], action: "Toggle grenades" },
+      { keys: ["J"], action: "Toggle trajectories" },
       { keys: ["N"], action: "Toggle player names" },
       { keys: ["H"], action: "Toggle health bars" },
+      { keys: ["T"], action: "Toggle movement trails" },
       { keys: ["R"], action: "Reset zoom/viewport" },
     ],
   },
@@ -348,7 +350,7 @@ export default function HelpPage() {
       </div>
 
       {/* Keyboard Shortcuts */}
-      <Card>
+      <Card id="keyboard-shortcuts" className="scroll-mt-20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Keyboard className="h-5 w-5 text-primary" />

@@ -17,9 +17,16 @@
  */
 
 import React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Settings, Keyboard, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
-import { useReplayStore, PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/stores/replay-store";
+import { Settings, Keyboard, Eye, EyeOff, ChevronDown, ChevronUp, RotateCcw, HelpCircle } from "lucide-react";
+import {
+  useReplayStore,
+  PLAYBACK_SPEEDS,
+  VIEW_MODE_LABELS,
+  type PlaybackSpeed,
+  type ViewMode,
+} from "@/stores/replay-store";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -73,9 +80,18 @@ function SettingRow({ label, description, shortcut, children }: SettingRowProps)
 interface SettingsPanelProps {
   className?: string;
   variant?: "inline" | "popover";
+  /** Show view mode selector (for V2 headers) */
+  showViewModeSelector?: boolean;
+  /** Compact mode - less sections, smaller popover */
+  compact?: boolean;
 }
 
-export function SettingsPanel({ className, variant = "inline" }: SettingsPanelProps) {
+export function SettingsPanel({
+  className,
+  variant = "inline",
+  showViewModeSelector = false,
+  compact = false,
+}: SettingsPanelProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const {
@@ -88,6 +104,7 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
     showTrails,
     trailLength,
     viewportScale,
+    viewMode,
     setPlaybackSpeed,
     toggleKillLines,
     toggleGrenades,
@@ -98,37 +115,92 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
     setTrailLength,
     setViewport,
     resetViewport,
+    setViewMode,
   } = useReplayStore();
 
   const content = (
     <div className="space-y-4">
+      {/* View Mode section - only shown when showViewModeSelector is true */}
+      {showViewModeSelector && (
+        <div className="space-y-1">
+          <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
+            View Mode
+          </h4>
+          <div className="space-y-0.5">
+            <SettingRow label="Persona" description="Layout optimized for your role">
+              <Select
+                value={viewMode}
+                onValueChange={(v) => setViewMode(v as ViewMode)}
+              >
+                <SelectTrigger className="w-28 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(
+                    ([mode, label]) => (
+                      <SelectItem key={mode} value={mode}>
+                        {label}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+            </SettingRow>
+          </div>
+        </div>
+      )}
+
       {/* Overlays section */}
       <div className="space-y-1">
         <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
           Overlays
         </h4>
         <div className="space-y-0.5 divide-y divide-border">
-          <SettingRow label="Kill Lines" shortcut="K" description="Show kill connections on map">
+          <SettingRow
+            label="Kill Lines"
+            shortcut={compact ? undefined : "K"}
+            description={compact ? undefined : "Show kill connections on map"}
+          >
             <Switch checked={showKillLines} onCheckedChange={toggleKillLines} />
           </SettingRow>
 
-          <SettingRow label="Grenades" shortcut="G" description="Show grenade detonation effects">
+          <SettingRow
+            label="Grenades"
+            shortcut={compact ? undefined : "G"}
+            description={compact ? undefined : "Show grenade detonation effects"}
+          >
             <Switch checked={showGrenades} onCheckedChange={toggleGrenades} />
           </SettingRow>
 
-          <SettingRow label="Trajectories" shortcut="J" description="Show grenade throw arcs">
+          <SettingRow
+            label="Trajectories"
+            shortcut={compact ? undefined : "J"}
+            description={compact ? undefined : "Show grenade throw arcs"}
+          >
             <Switch checked={showTrajectories} onCheckedChange={toggleTrajectories} />
           </SettingRow>
 
-          <SettingRow label="Player Names" shortcut="N" description="Show names above players">
+          <SettingRow
+            label="Player Names"
+            shortcut={compact ? undefined : "N"}
+            description={compact ? undefined : "Show names above players"}
+          >
             <Switch checked={showPlayerNames} onCheckedChange={togglePlayerNames} />
           </SettingRow>
 
-          <SettingRow label="Health Bars" shortcut="H" description="Show health above players">
+          <SettingRow
+            label="Health Bars"
+            shortcut={compact ? undefined : "H"}
+            description={compact ? undefined : "Show health above players"}
+          >
             <Switch checked={showHealthBars} onCheckedChange={toggleHealthBars} />
           </SettingRow>
 
-          <SettingRow label="Movement Trails" shortcut="T" description="Show player movement history">
+          <SettingRow
+            label="Movement Trails"
+            shortcut={compact ? undefined : "T"}
+            description={compact ? undefined : "Show player movement history"}
+          >
             <Switch checked={showTrails} onCheckedChange={toggleTrails} />
           </SettingRow>
         </div>
@@ -155,31 +227,33 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
         )}
       </div>
 
-      {/* Playback section */}
-      <div className="space-y-1">
-        <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
-          Playback
-        </h4>
-        <div className="space-y-0.5">
-          <SettingRow label="Speed" description="Playback speed multiplier">
-            <Select
-              value={playbackSpeed.toString()}
-              onValueChange={(v) => setPlaybackSpeed(parseFloat(v) as PlaybackSpeed)}
-            >
-              <SelectTrigger className="w-20 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PLAYBACK_SPEEDS.map((speed) => (
-                  <SelectItem key={speed} value={speed.toString()}>
-                    {speed}x
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingRow>
+      {/* Playback section - hidden in compact mode (already in bottom bar) */}
+      {!compact && (
+        <div className="space-y-1">
+          <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
+            Playback
+          </h4>
+          <div className="space-y-0.5">
+            <SettingRow label="Speed" description="Playback speed multiplier">
+              <Select
+                value={playbackSpeed.toString()}
+                onValueChange={(v) => setPlaybackSpeed(parseFloat(v) as PlaybackSpeed)}
+              >
+                <SelectTrigger className="w-20 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLAYBACK_SPEEDS.map((speed) => (
+                    <SelectItem key={speed} value={speed.toString()}>
+                      {speed}x
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingRow>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* View section */}
       <div className="space-y-1">
@@ -187,7 +261,11 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
           View
         </h4>
         <div className="space-y-2">
-          <SettingRow label="Zoom" shortcut="R" description="Reset with R key">
+          <SettingRow
+            label="Zoom"
+            shortcut={compact ? undefined : "R"}
+            description={compact ? undefined : "Reset with R key"}
+          >
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground w-10 text-right">
                 {Math.round(viewportScale * 100)}%
@@ -198,6 +276,7 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
                 onClick={resetViewport}
                 className="h-7 text-xs"
               >
+                <RotateCcw className="h-3 w-3 mr-1" />
                 Reset
               </Button>
             </div>
@@ -205,47 +284,62 @@ export function SettingsPanel({ className, variant = "inline" }: SettingsPanelPr
         </div>
       </div>
 
-      {/* Keyboard shortcuts */}
-      <div className="space-y-1">
-        <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide flex items-center gap-1">
-          <Keyboard className="w-3 h-3" />
-          Shortcuts
-        </h4>
-        <div className="grid grid-cols-2 gap-1 text-xs">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Play/Pause</span>
-            <kbd className="px-1 bg-muted rounded">Space</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Next frame</span>
-            <kbd className="px-1 bg-muted rounded">→</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Prev frame</span>
-            <kbd className="px-1 bg-muted rounded">←</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Skip 10s</span>
-            <kbd className="px-1 bg-muted rounded">Shift+→</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Speed 0.25x</span>
-            <kbd className="px-1 bg-muted rounded">1</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Speed 1x</span>
-            <kbd className="px-1 bg-muted rounded">3</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Speed 2x</span>
-            <kbd className="px-1 bg-muted rounded">4</kbd>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Speed 4x</span>
-            <kbd className="px-1 bg-muted rounded">5</kbd>
+      {/* Keyboard shortcuts - hidden in compact mode */}
+      {!compact && (
+        <div className="space-y-1">
+          <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide flex items-center gap-1">
+            <Keyboard className="w-3 h-3" />
+            Shortcuts
+          </h4>
+          <div className="grid grid-cols-2 gap-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Play/Pause</span>
+              <kbd className="px-1 bg-muted rounded">Space</kbd>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Next frame</span>
+              <kbd className="px-1 bg-muted rounded">→</kbd>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Prev frame</span>
+              <kbd className="px-1 bg-muted rounded">←</kbd>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Skip 10s</span>
+              <kbd className="px-1 bg-muted rounded">Shift+→</kbd>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Speed 0.25x</span>
+              <kbd className="px-1 bg-muted rounded">1</kbd>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Speed 1x</span>
+              <kbd className="px-1 bg-muted rounded">3</kbd>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Speed 2x</span>
+              <kbd className="px-1 bg-muted rounded">4</kbd>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Speed 4x</span>
+              <kbd className="px-1 bg-muted rounded">5</kbd>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Help link - shown in compact mode only */}
+      {compact && (
+        <div className="pt-2 border-t">
+          <Link
+            href="/help#keyboard-shortcuts"
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+            <span>Keyboard shortcuts</span>
+          </Link>
+        </div>
+      )}
     </div>
   );
 

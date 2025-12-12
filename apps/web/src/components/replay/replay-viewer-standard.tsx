@@ -41,6 +41,7 @@ import { useReplayStore, useReplayLoaded, getRadarImageUrl } from "@/stores/repl
 import { useReplay, useRoundsMetadata } from "@/hooks/use-replay";
 import { useAuthStore } from "@/stores/auth-store";
 import { useReplayAnimation } from "@/hooks/use-replay-animation";
+import { useReplayKeyboard } from "@/hooks/use-replay-keyboard";
 
 // Components
 import { ReplayCanvas } from "./replay-canvas";
@@ -235,6 +236,24 @@ export function ReplayViewerStandard({
   const totalRounds = rounds?.length ?? 30;
   const winnerTeam = roundMetadata?.winnerTeam;
   const winReason = roundMetadata?.winReason;
+
+  // Keyboard shortcuts
+  const handlePreviousRound = useCallback(() => {
+    if (selectedRound > 1) {
+      setSelectedRound(selectedRound - 1);
+    }
+  }, [selectedRound]);
+
+  const handleNextRound = useCallback(() => {
+    if (selectedRound < totalRounds) {
+      setSelectedRound(selectedRound + 1);
+    }
+  }, [selectedRound, totalRounds]);
+
+  useReplayKeyboard({
+    onPreviousRound: handlePreviousRound,
+    onNextRound: handleNextRound,
+  });
 
   // Loading state
   if (isCheckingAvailability || isLoadingRounds) {

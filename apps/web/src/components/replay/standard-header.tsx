@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
   Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,18 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  useReplayStore,
-  ViewMode,
-  VIEW_MODE_LABELS,
-} from "@/stores/replay-store";
+import { SettingsPanel } from "./settings-panel";
 
 interface StandardHeaderProps {
   /** Current round number */
@@ -73,95 +61,6 @@ interface StandardHeaderProps {
   /** Additional class names */
   className?: string;
 }
-
-/**
- * Settings popover with view mode selector
- */
-const SettingsPopover = React.memo(function SettingsPopover() {
-  const [open, setOpen] = React.useState(false);
-
-  const {
-    viewMode,
-    showTrajectories,
-    showTrails,
-    setViewMode,
-    toggleTrajectories,
-    toggleTrails,
-  } = useReplayStore();
-
-  const viewModes: ViewMode[] = ["compact", "standard", "analyse", "focus"];
-
-  const handleViewModeChange = useCallback((value: ViewMode) => {
-    setViewMode(value);
-    // Close popover after mode change to ensure clean transition
-    setOpen(false);
-  }, [setViewMode]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Settings className="h-4 w-4" />
-          <span className="sr-only">Settings</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-56">
-        <div className="space-y-4">
-          {/* View Mode */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">
-              View Mode
-            </Label>
-            <Select
-              value={viewMode}
-              onValueChange={handleViewModeChange}
-            >
-              <SelectTrigger className="h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {viewModes.map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {VIEW_MODE_LABELS[mode]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Additional Toggles */}
-          <div className="space-y-3">
-            <Label className="text-xs font-medium text-muted-foreground">
-              Advanced
-            </Label>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="trajectories" className="text-sm">
-                Trajectories
-              </Label>
-              <Switch
-                id="trajectories"
-                checked={showTrajectories}
-                onCheckedChange={toggleTrajectories}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="trails" className="text-sm">
-                Player Trails
-              </Label>
-              <Switch
-                id="trails"
-                checked={showTrails}
-                onCheckedChange={toggleTrails}
-              />
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-});
 
 /**
  * StandardHeader - Main component
@@ -310,7 +209,7 @@ export const StandardHeader = React.memo(function StandardHeader({
       <div className="flex-1" />
 
       {/* Settings */}
-      <SettingsPopover />
+      <SettingsPanel variant="popover" showViewModeSelector compact className="h-8 w-8" />
     </header>
   );
 });

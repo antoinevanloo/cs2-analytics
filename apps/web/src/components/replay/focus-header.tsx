@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
   User,
   X,
 } from "lucide-react";
@@ -36,17 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  useReplayStore,
-  VIEW_MODE_LABELS,
-  type ViewMode,
-  type PlayerFrame,
-} from "@/stores/replay-store";
+import { SettingsPanel } from "./settings-panel";
 
 interface FocusHeaderProps {
   /** Current round number */
@@ -83,8 +72,6 @@ export const FocusHeader = React.memo(function FocusHeader({
   onClearFocus,
   className,
 }: FocusHeaderProps) {
-  const { viewMode, setViewMode } = useReplayStore();
-
   // Round navigation
   const handlePrevRound = useCallback(() => {
     if (roundNumber > 1) {
@@ -103,13 +90,6 @@ export const FocusHeader = React.memo(function FocusHeader({
       onRoundChange?.(parseInt(value, 10));
     },
     [onRoundChange]
-  );
-
-  const handleViewModeChange = useCallback(
-    (value: string) => {
-      setViewMode(value as ViewMode);
-    },
-    [setViewMode]
   );
 
   return (
@@ -213,36 +193,7 @@ export const FocusHeader = React.memo(function FocusHeader({
         </div>
 
         {/* Settings */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56" align="end">
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
-                  View Mode
-                </label>
-                <Select value={viewMode} onValueChange={handleViewModeChange}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(
-                      ([mode, label]) => (
-                        <SelectItem key={mode} value={mode}>
-                          {label}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        <SettingsPanel variant="popover" showViewModeSelector compact className="h-8 w-8" />
       </div>
     </header>
   );

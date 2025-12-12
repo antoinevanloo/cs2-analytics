@@ -41,6 +41,7 @@ import { useReplayStore, useReplayLoaded, useCurrentFrame, getRadarImageUrl } fr
 import { useReplay, useRoundsMetadata } from "@/hooks/use-replay";
 import { useAuthStore } from "@/stores/auth-store";
 import { useReplayAnimation } from "@/hooks/use-replay-animation";
+import { useReplayKeyboard } from "@/hooks/use-replay-keyboard";
 
 // Components
 import { ReplayCanvas } from "./replay-canvas";
@@ -214,6 +215,24 @@ export function ReplayViewerAnalyse({
   const ctScore = roundMetadata?.ctTeam?.score ?? 0;
   const tScore = roundMetadata?.tTeam?.score ?? 0;
   const totalRounds = rounds?.length ?? 30;
+
+  // Keyboard shortcuts
+  const handlePreviousRound = useCallback(() => {
+    if (selectedRound > 1) {
+      setSelectedRound(selectedRound - 1);
+    }
+  }, [selectedRound]);
+
+  const handleNextRound = useCallback(() => {
+    if (selectedRound < totalRounds) {
+      setSelectedRound(selectedRound + 1);
+    }
+  }, [selectedRound, totalRounds]);
+
+  useReplayKeyboard({
+    onPreviousRound: handlePreviousRound,
+    onNextRound: handleNextRound,
+  });
 
   // Skip loading states if data is already in store
   const hasDataInStore = frames.length > 0 && playbackState !== "idle";
